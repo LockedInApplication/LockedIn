@@ -1,0 +1,16 @@
+.btn{
+    border-radius: 100px;
+    background-color: var(--ink);
+    color: white;
+    padding: 10px 22px;
+    cursor: pointer;
+    border:none;
+    transition: opacity 0.2s, transform 0.3s;
+    font-size: 0.875rem
+   
+}
+
+.btn:hover{
+    opacity: 0.8;
+    transform: scale(1.05);
+}

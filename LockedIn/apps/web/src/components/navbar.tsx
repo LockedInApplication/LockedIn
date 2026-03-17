@@ -3,7 +3,7 @@ import styles from "./styles/navbar.module.scss";
 export default function Navbar() {
   return (
     <nav className={styles.navbar}>
-        <div>
+        <div className={styles.navheader}>
             LockedIn
         </div>
         <div className={styles.nav_list}>

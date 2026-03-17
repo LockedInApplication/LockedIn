@@ -10,11 +10,23 @@
     backdrop-filter: blur(20px);
     background: rgba(250,248,245,0.82);
     border-bottom: 1px solid rgba(201,196,178,0.3);
+    
 }
 
 .nav_list {
     display: flex;
     flex-direction: row;
-    gap: 15px;
+    gap: 25px;
     align-items: center;
+}
+
+.nav_list > div {
+    cursor: pointer;
+    font-size: 0.875rem
+}
+
+.navheader{
+    font-size: 1.25rem;
+    font-family: 'Playfair Display', serif;
+
 }

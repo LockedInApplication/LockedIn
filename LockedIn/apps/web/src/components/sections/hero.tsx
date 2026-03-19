@@ -1,5 +1,6 @@
 import Avatar from "../avatar";
 import Button from "../button";
+import LockGraphic from "../icons/LockGraphic";
 import styles from "../styles/hero.module.scss";
 export default function Hero() {
     return (
@@ -24,7 +25,7 @@ export default function Hero() {
             </div>
 
             <div className={styles.hero_graph}>
-                Graph
+                <LockGraphic />
             </div>
         </div>
     );

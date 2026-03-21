@@ -3,6 +3,8 @@ import Navbar from "../components/navbar";
 import Hero from "../components/sections/hero";
 import PreviewDescription from "@/components/sections/previewDescription";
 import ProblemCardContainer from "./_components/problemCardContainer"
+import StepsContainer from "./_components/stepsContainer";
+import prodReviewCardContainer from "./_components/prodReviewCardContainer";
 
 export default function Home() {
   return (
@@ -12,10 +14,10 @@ export default function Home() {
       <PreviewDescription title="The Problem" heading="Modern relationships
 lack transparency"  shortDescription="In a hyper-connected world, trust is harder to build and easier to break. LockedIn exists because clarity shouldn't be a luxury." bg="var(--warm-white)" children={ProblemCardContainer()} />
       <PreviewDescription title="How It Works" heading="Three steps to complete clarity"
-        shortDescription="Simple, mutual, and respectful — LockedIn puts both people in control from day one." bg="var(--cream)" />
+        shortDescription="Simple, mutual, and respectful — LockedIn puts both people in control from day one." bg="var(--cream)" children= {StepsContainer()}/>
       <PreviewDescription title="Product Preview" heading="Designed for calm,
 not conflict"
-        shortDescription="Every screen is crafted to feel gentle, clear, and trustworthy — because how something feels matters as much as what it does." bg="var(--warm-white)" />
+        shortDescription="Every screen is crafted to feel gentle, clear, and trustworthy — because how something feels matters as much as what it does." bg="var(--warm-white)" children= {prodReviewCardContainer()} />
     </div>
   );
 }

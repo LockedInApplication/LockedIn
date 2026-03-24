@@ -1,0 +1,70 @@
+.stepContainer{
+    --step-gap: 24px;
+    --step-circle: 80px;
+    --step-circle-r: calc(var(--step-circle) / 2);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--step-gap);
+    align-items: start;
+    padding: 36px 24px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+
+.step{
+    position: relative;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+}
+
+/* Horizontal join: line from right edge of circle to left edge of next circle */
+.step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: var(--step-circle-r);
+    left: calc(50% + var(--step-circle-r));
+    width: calc(100% + var(--step-gap) - var(--step-circle));
+    height: 2px;
+    background: var(--stone-300);
+    transform: translateY(-50%);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.stepIcon{
+    position: relative;
+    z-index: 1;
+    width: var(--step-circle);
+    height: var(--step-circle);
+    border-radius: 50%;
+    background-color: var(--cream);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    margin-bottom: 18px;
+}
+
+.step:nth-child(1) .stepIcon {
+    background: var(--gold-light);
+}
+.step:nth-child(2) .stepIcon {
+    background: var(--accent-pale);
+}
+.step:nth-child(3) .stepIcon{
+    background: rgba(143, 175, 138, 0.15);
+}
+.stepTitle{
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-bottom: 12px;
+    color: var(--ink);
+}
+.stepDescription{
+    color: var(--stone-500);
+}

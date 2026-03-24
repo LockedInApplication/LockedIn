@@ -1,11 +1,12 @@
 
 .hero {
     min-height: 60vh;
-    background: #FAF8F5;
+    background: linear-gradient(160deg, var(--cream) 0%, var(--warm-white) 60%, var(--accent-pale) 100%);
     display:grid;
     grid-template-columns: 1fr 1fr;
     padding: 160px 48px 100px;
     gap: 80px;
+    
 }
 
 .hero_description h1{
@@ -72,6 +73,7 @@
     align-items: center;
     gap: 20px;
     padding-top: 32px;
+    margin-top: 30px;
 }
 
 .summary_text {
@@ -86,4 +88,5 @@
     font-weight: 400;
     font-size: 1rem;
     color: var(--stone-500);
+
 }

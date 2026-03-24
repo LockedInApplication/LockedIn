@@ -1,0 +1,277 @@
+.prodReviewContainer {
+    width: 100%;
+}
+
+.prodReviewcards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+    padding: 36px 24px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.confirmAvatars {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    margin-top: 30px;
+    height: 80px;
+    gap: 0;
+}
+
+.confirmAvatar {
+    position: relative;
+    z-index: 1;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background-color: var(--stone-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.85rem;
+    background: linear-gradient(135deg, var(--blush), var(--gold));
+}
+
+.confirmAvatars>.confirmAvatar:last-child {
+    margin-left: -6px;
+    background: linear-gradient(135deg, var(--accent-pale), var(--accent));
+}
+
+.confirmLinkIcon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 34px;
+    height: 34px;
+    background: var(--warm-white);
+    border: 1.5px solid var(--stone-100);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    z-index: 2;
+    box-shadow: var(--shadow-sm);
+}
+
+.confirmHeader {
+    text-align: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.confirmSub {
+    text-align: center;
+    color: var(--stone-500);
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+    font-weight: 300;
+}
+
+.confirmBadge {
+    border: 1.5px solid var(--stone-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    background: rgba(143, 175, 138, 0.15);
+    border-radius: 100px;
+    color: #5A8555;
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+.confirmUsers {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: row;
+    border: 1.5px solid var(--stone-100);
+    justify-content: space-between;
+    padding: 6px 14px;
+    border-radius: 12px;
+    color: #5A8555;
+    background: var(--stone-50);
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.confUserName {
+    color: var(--ink);
+    font-size: 0.8rem;
+    font-weight: 500;
+
+}
+
+.userConfirmed {
+    color: var(--success);
+    font-size: 14px;
+}
+
+.confirmButton {
+    width: 100%;
+
+}
+
+.confirmButton:hover {
+    opacity: 1;
+    transform: none;
+    cursor: default;
+    background-color: var(--ink);
+}
+
+
+
+.softAlertDate {
+    text-align: start;
+    width: 100%;
+    color: var(--stone-500);
+    font-size: 0.85rem;
+}
+.softAlertCardContent{
+    width: calc(100% + 48px);
+    max-width: none;
+    margin-left: -24px;
+    margin-right: -24px;
+}
+
+.softPatternDetected {
+    box-sizing: border-box;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    border: 1.5px solid var(--stone-100);
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--alert-soft);
+    font-size: 0.75rem;
+    color: var(--alert-text);
+    font-weight: 300;
+    line-height: 1.6;
+    opacity: 0.85;
+}
+
+.softAlertButtons {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+}
+
+.softAlertTop {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.softLightningIcon {
+    font-size: 14px;
+}
+
+.softAlertButtons {
+    margin-top: 10px;
+    
+
+}
+
+.softAlertButton {
+    background: var(--alert-text);
+    color: white;
+    border: none;
+}
+
+.softAlertButtons> :nth-child(2) {
+    border: 1px solid rgba(138, 104, 48, 0.3);
+    color: var(--alert-text);
+    background: transparent;
+}
+.softAlertTop> :nth-child(2) {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--alert-text);
+}
+
+.softAlertButton:hover{
+    opacity: 1;
+    transform: none;
+    cursor: default;
+}
+.softAlertPurpose{
+    background:var(--stone-50);
+    border-radius:12px;
+    padding:14px;
+    margin-bottom: 10px;
+}
+.softAlertPurpose > div{
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--stone-700);
+    margin-bottom: 8px;
+    
+}
+
+.softAlertPurpose > p{
+    font-size: 0.7rem;
+    color: var(--stone-500);
+    font-weight: 300;
+    line-height: 1.6;
+}
+.softPrivacy{
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    color: var(--stone-500);
+}
+
+.relationshipMapCard{
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.inviteEmailCard{
+    border: 1px dashed var(--stone-300);
+    padding:16px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    color: var(--stone-500);
+    background: var(--stone-50);
+}
+.inviteEmailInput {
+    border: 1px solid var(--stone-100);
+    padding: 8px;
+    border-radius: 10px;
+    background: white;
+    color: blue;
+    text-decoration: underline;
+    margin-top: 10px;
+}
+.inviteEmailInput2 {
+    border: none;
+    padding: 8px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: white;
+    margin-top: 10px;
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 500;
+
+}
+.invitePrivateMessage{
+    margin-top: 10px;
+    font-size: 0.7rem;
+    color: var(--stone-500);
+    text-align: center;
+}

@@ -9,9 +9,8 @@ async function main(){
 })
 
     try {
-        server.listen({port: 3000, host: "0.0.0.0"}, (err, address) => {
-            console.log(`Server listening at ${address}`);
-        });
+        await server.listen({port: 3000, host: "0.0.0.0"})
+        console.log(`Server listening athttp://localhost:3000/}`);
     }
     catch(err){
         console.error("Error starting server:", err);

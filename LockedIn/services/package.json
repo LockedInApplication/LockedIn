@@ -1,0 +1,51 @@
+{
+
+     "name": "api",
+
+     "version": "1.0.0",
+
+     "main": "index.js",
+
+     "license": "MIT",
+     "type": "module",
+
+     "scripts": {
+
+          "dev": "tsx watch api/app.ts"
+
+     },
+
+     "dependencies": {
+
+          "@fastify/jwt": "^10.0.0",
+
+          "@fastify/static": "^9.0.0",
+
+          "@fastify/swagger": "^9.7.0",
+
+          "@prisma/client": "^7.5.0",
+
+          "fastify": "^5.8.4",
+
+          "zod": "^4.3.6"
+
+     },
+
+     "devDependencies": {
+
+          "@types/node": "^25.5.0",
+
+          "prisma": "^7.5.0",
+
+          "ts-node": "^10.9.2",
+
+          "ts-node-dev": "^2.0.0",
+
+          "tsx": "^4.21.0",
+
+          "typescript": "^6.0.2"
+
+     }
+
+}
+

@@ -1,8 +1,9 @@
 import Button from "@/components/button"
-import ChromeCard from "./chromeCard"
-import styles from "./styles/prodReviewCardContainer.module.scss"
+import ChromeCard from "../_components/chromeCard"
+import styles from "../_components/styles/prodReviewCardContainer.module.scss"
+import NetworkMap from "@/components/icons/NetworkMap"
 
-export default function prodReviewCardContainer() {
+export default function ProductReviewCardContainer() {
     return (
         <div className={styles.prodReviewContainer}>
             <div className={styles.prodReviewcards}>
@@ -33,7 +34,9 @@ export default function prodReviewCardContainer() {
                 </ChromeCard>
                 <div className={styles.relationshipMapCard}>
                     <ChromeCard title="Network Map">
-                        <div className={styles.relationshipMapCardContent}></div>
+                        <div className={styles.relationshipMapCardContent}>
+                            <NetworkMap />
+                        </div>
                     </ChromeCard>
                     <ChromeCard title="Send Invite" bodyTightBottom>
                         <div className={styles.inviteCardContent}>

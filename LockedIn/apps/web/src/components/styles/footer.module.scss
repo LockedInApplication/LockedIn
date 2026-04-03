@@ -1,0 +1,37 @@
+.footer {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 33.3%;
+  padding: 48px;
+  background: var(--ink);
+  border-top: 1px solid rgba(250, 248, 245, 0.08);
+  padding: 40px 48px;
+}
+
+.footerLogo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: var(--cream);
+    text-decoration: none;
+    opacity: 0.8;
+}
+.footerLinks {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+}
+.footerLinks a {
+    font-size: 0.825rem;
+    color: rgba(250, 248, 245, 0.45);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.footerLinks a:hover {
+    color: rgba(250, 248, 245, 0.75);
+}
+
+.copyright {
+   font-size: 0.825rem;
+     color: rgba(250, 248, 245, 0.45);
+    text-align: right;
+}

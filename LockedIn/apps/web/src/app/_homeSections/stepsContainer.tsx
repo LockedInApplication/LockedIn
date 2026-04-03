@@ -1,5 +1,5 @@
-import Step from "./steps"
-import styles from "./styles/steps.module.scss"
+import Step from "../_components/steps"
+import styles from "../_components/styles/steps.module.scss"
 export default function StepsContainer()
 {
     return(

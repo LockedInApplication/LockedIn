@@ -6,6 +6,25 @@
     padding: 36px 24px;
   }
 
+.problemCardContainer > .problemCard {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 500ms ease, transform 500ms ease;
+}
+
+.isVisible > .problemCard {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.isVisible > .problemCard:nth-child(2) {
+    transition-delay: 100ms;
+}
+
+.isVisible > .problemCard:nth-child(3) {
+    transition-delay: 200ms;
+}
+
 .problemCard{
     position: relative;
     overflow: hidden;
@@ -64,4 +83,12 @@
     font-size: 24px;
     background:rgba(232,213,204,0.4)
 
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .problemCardContainer > .problemCard {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
 }

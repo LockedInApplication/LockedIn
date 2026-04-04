@@ -4,6 +4,35 @@
   grid-template-columns: 1fr 1fr;
   gap: 100px;
 }
+
+.container .cards > *,
+.container .trustcontainer {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+
+.isVisible .cards > *,
+.isVisible .trustcontainer {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.isVisible .cards > :nth-child(2) {
+  transition-delay: 90ms;
+}
+
+.isVisible .cards > :nth-child(3) {
+  transition-delay: 180ms;
+}
+
+.isVisible .cards > :nth-child(4) {
+  transition-delay: 270ms;
+}
+
+.isVisible .trustcontainer {
+  transition-delay: 340ms;
+}
 .cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -47,4 +76,13 @@
   color: var(--stone-500);
   font-weight: 300;
   line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .container .cards > *,
+  .container .trustcontainer {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }

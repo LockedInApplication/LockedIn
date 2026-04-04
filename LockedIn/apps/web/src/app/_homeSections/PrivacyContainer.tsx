@@ -1,6 +1,11 @@
+"use client";
+
 import PrivacyCard from "../_components/privacyCard";
 import styles from "../_components/styles/privacyContainer.module.scss";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 export default function PrivacyContainer() {
+  const { ref, isVisible } = useScrollReveal<HTMLDivElement>();
+
   const privacyCards = [
     {
       icon: "🔐",
@@ -28,7 +33,7 @@ export default function PrivacyContainer() {
     },
   ];
   return (
-    <div className={styles.container}>
+    <div ref={ref} className={`${styles.container} ${isVisible ? styles.isVisible : ""}`}>
       <div className={styles.cards}>
         {privacyCards.map((item) => (
           <PrivacyCard

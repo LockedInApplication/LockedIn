@@ -1,12 +1,17 @@
+"use client"
+
 import Button from "@/components/button"
 import ChromeCard from "../_components/chromeCard"
 import styles from "../_components/styles/prodReviewCardContainer.module.scss"
 import NetworkMap from "@/components/icons/NetworkMap"
+import { useScrollReveal } from "@/hooks/useScrollReveal"
 
 export default function ProductReviewCardContainer() {
+    const { ref, isVisible } = useScrollReveal<HTMLDivElement>()
+
     return (
         <div className={styles.prodReviewContainer}>
-            <div className={styles.prodReviewcards}>
+            <div ref={ref} className={`${styles.prodReviewcards} ${isVisible ? styles.isVisible : ""}`}>
                 <ChromeCard title="Relationship Confirmation">
                     <div className={styles.confirmAvatars}>
                         <div className={styles.confirmAvatar}>👤</div>

@@ -12,6 +12,25 @@
     overflow-x: auto;
 }
 
+.prodReviewcards > * {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 550ms ease, transform 550ms ease;
+}
+
+.isVisible > * {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.isVisible > :nth-child(2) {
+    transition-delay: 120ms;
+}
+
+.isVisible > :nth-child(3) {
+    transition-delay: 240ms;
+}
+
 .confirmAvatars {
     position: relative;
     display: flex;
@@ -274,4 +293,12 @@
     font-size: 0.7rem;
     color: var(--stone-500);
     text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .prodReviewcards > * {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
 }

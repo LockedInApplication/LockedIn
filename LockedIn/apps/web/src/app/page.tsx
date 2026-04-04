@@ -19,14 +19,14 @@ export default function Home() {
         heading="Modern relationships lack transparency"
         shortDescription="In a hyper-connected world, trust is harder to build and easier to break. LockedIn exists because clarity shouldn't be a luxury."
         bg="var(--warm-white)"
-        children={ProblemCardContainer()}
+        children={<ProblemCardContainer />}
       />
       <PreviewDescription
         title="How It Works"
         heading="Three steps to complete clarity"
         shortDescription="Simple, mutual, and respectful — LockedIn puts both people in control from day one."
         bg="var(--cream)"
-        children={StepsContainer()}
+        children={<StepsContainer />}
       />
       <PreviewDescription
         title="Product Preview"

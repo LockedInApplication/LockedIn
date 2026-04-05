@@ -1,21 +1,91 @@
 "use client";
 
+import Link from "next/link";
 import styles from "../styles/authForms.module.scss";
-export default function Login() {
+import { authClient } from "@/utils/authCLient";
+import { ERROR_MESSAGES } from "./errorCode";
+
+type LoginProps = {
+  onError: (message: string) => void;
+};
+
+export default function Login({ onError }: LoginProps) {
+  function getErrorMessage(code?: string) {
+    if (!code) {
+      return "An error occurred during sign in /up. Please try again.";
+    }
+
+    return (
+      ERROR_MESSAGES[code as keyof typeof ERROR_MESSAGES] ??
+      "Unexpected error occurred. Please try again."
+    );
+  }
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    try {
+      const result = await authClient.signIn.email({
+        email,
+        password,
+      });
+
+      if (result?.error) {
+        if (
+          result.error.code === "EMAIL_NOT_VERIFIED" ||
+          result.error.status === 403
+        ) {
+          onError(
+            "Your email is not verified. Please check your inbox for a new verification link.",
+          );
+          return;
+        }
+
+        onError(getErrorMessage(result.error.code));
+        return;
+      }
+
+      alert("Log in successful.");
+    } catch (error) {
+      console.error("Error during sign in:", error);
+      onError("Error during sign in");
+    }
+  }
   return (
     <div className={styles.loginContainer}>
       <p className={styles.title}>Log in to your account to continue.</p>
-      <form>
+      <form onSubmit={handleSubmit}>
         <div className={styles.formGroup}>
           <label htmlFor="email">Email</label>
-          <input type="email" id="email" name="email" placeholder="Email" required />
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="Email"
+            required
+          />
         </div>
         <div className={styles.formGroup}>
           <label htmlFor="password">Password</label>
-          <input type="password" id="password" name="password" placeholder="Password" required />
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Password"
+            required
+          />
         </div>
         <span className={styles.forgotPassword}>Forgot password?</span>
         <button type="submit">Log In</button>
+        <div className={`${styles.title} ${styles.highlight}`}>
+          Don't have an account?
+          <Link href="/signup" className={styles.linkText}>
+            Sign up
+          </Link>
+        </div>
       </form>
     </div>
   );

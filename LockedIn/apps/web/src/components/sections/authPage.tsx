@@ -1,11 +1,56 @@
+"use client";
+
 import BrandLogo from "../brandLogo";
 import Login from "../forms/Login";
 import Signup from "../forms/Signup";
+import { ErrorToast } from "../toast";
 import styles from "../styles/authPage.module.scss";
+import { useEffect, useRef, useState } from "react";
+
 type authPageType = {
   page: "login" | "signup";
 };
+
 export default function AuthPage({ page }: authPageType) {
+  const [message, setMessage] = useState("");
+  const [visible, setVisible] = useState(false);
+  const clearMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  function hideToast() {
+    setVisible(false);
+  }
+
+  function handleFormError(errorMessage: string) {
+    setMessage(errorMessage);
+    setVisible(true);
+
+    if (clearMessageTimeoutRef.current) {
+      clearTimeout(clearMessageTimeoutRef.current);
+    }
+
+    clearMessageTimeoutRef.current = setTimeout(() => {
+      hideToast();
+    }, 3500);
+  }
+
+  function handleToastDismiss() {
+    if (clearMessageTimeoutRef.current) {
+      clearTimeout(clearMessageTimeoutRef.current);
+    }
+
+    hideToast();
+  }
+
+  useEffect(() => {
+    return () => {
+      if (clearMessageTimeoutRef.current) {
+        clearTimeout(clearMessageTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const testimonials = [
     {
       quote:
@@ -18,7 +63,8 @@ export default function AuthPage({ page }: authPageType) {
       author: "Daniel R.",
     },
     {
-      quote: "LockedIn said ‘he’s also seeing someone’… turns out it was me and my peace of mind 😭",
+      quote:
+        "LockedIn said ‘he’s also seeing someone’… turns out it was me and my peace of mind 😭",
       author: "Efua M.",
     },
   ];
@@ -36,14 +82,22 @@ export default function AuthPage({ page }: authPageType) {
 
           <div className={styles.form}>
             <h2>{page === "login" ? "Welcome Back!" : "Create an Account"}</h2>
-            <div>{page === "login" ? <Login /> : <Signup />}</div>
+            <div>
+              {page === "login" ? (
+                <Login onError={handleFormError} />
+              ) : (
+                <Signup onError={handleFormError} />
+              )}
+            </div>
           </div>
         </div>
       </div>
       <div className={styles.authTestimonial}>
         <div className={styles.testimonialContent}>
           <p className={styles.testimonialEyebrow}>Trusted by real people</p>
-          <h3 className={styles.testimonialTitle}>What members say about LockedIn</h3>
+          <h3 className={styles.testimonialTitle}>
+            What members say about LockedIn
+          </h3>
 
           <div className={styles.quoteList}>
             {testimonials.map((item) => (
@@ -55,6 +109,13 @@ export default function AuthPage({ page }: authPageType) {
           </div>
         </div>
       </div>
+
+      <ErrorToast
+        message={message}
+        visible={visible}
+        onDismiss={handleToastDismiss}
+        className={styles.authToast}
+      />
     </div>
   );
 }

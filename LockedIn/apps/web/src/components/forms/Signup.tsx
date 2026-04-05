@@ -1,56 +1,62 @@
 "use client";
 
+import Link from "next/link";
 import styles from "../styles/authForms.module.scss";
 import { authClient } from "@/utils/authCLient";
 
-const validateEmail = (email: string) => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(email);
+type SignupProps = {
+  onError: (message: string) => void;
 };
 
-const validatePassword = (password: string) => {
-  return password.trim().length >= 6;
-};
+export default function Signup({ onError }: SignupProps) {
+  const validateEmail = (email: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
 
-const validateName = (name: string) => {
-  return name.trim().length >= 2;
-};
-async function handleSignUp(e: React.SubmitEvent) {
-  e.preventDefault();
-  const formData = new FormData(e.currentTarget as HTMLFormElement);
+  const validatePassword = (password: string) => {
+    return password.trim().length >= 6;
+  };
 
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const name = formData.get("name") as string;
+  const validateName = (name: string) => {
+    return name.trim().length >= 2;
+  };
+  async function handleSignUp(e: React.SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
 
-  if (!validatePassword(password)) {
-    alert("Password is Invalid");
-    return
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const name = formData.get("name") as string;
+
+    if (!validatePassword(password)) {
+      onError("Password is Invalid");
+      return;
+    }
+
+    if (!validateName(name)) {
+      onError("Name is Invalid");
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      onError("Email is Invalid");
+      return;
+    }
+
+    try {
+      await authClient.signUp.email({
+        email: email,
+        password: password,
+        name: name,
+        callbackURL: `${window.location.origin}/verify-email`,
+      });
+      alert("Sign up successful! Please check your email for verification.");
+    } catch (error) {
+      console.error("Error during sign up:", error);
+      onError("An error occurred during sign up. Please try again.");
+    }
   }
-
-  if (!validateName(name)) {
-    alert("Email is Invalid");
-    return
-  }
-
-  if (!validateEmail(email)) {
-    alert("Email is Invalid");
-    return
-  }
-
-  try {
-    await authClient.signUp.email({
-      email: email,
-      password: password,
-      name: name,
-    });
-    alert("Sign up successful! Please check your email for verification.");
-  } catch (error) {
-    console.error("Error during sign up:", error);
-    alert("An error occurred during sign up. Please try again.");
-  }
-}
-export default function Signup() {
   return (
     <div className={styles.loginContainer}>
       <p className={styles.title}>
@@ -88,6 +94,12 @@ export default function Signup() {
           />
         </div>
         <button type="submit">Sign Up</button>
+        <div className={`${styles.title} ${styles.highlight}`}>
+          Already have an account?
+          <Link href="/login" className={styles.linkText}>
+            Log in
+          </Link>
+        </div>
       </form>
     </div>
   );

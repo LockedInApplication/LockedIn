@@ -100,3 +100,13 @@
     margin-top: 40px;
     width: 100%;
 }
+
+.authToast {
+  top: 28px;
+}
+
+@media (max-width: 768px) {
+  .authToast {
+    top: 16px;
+  }
+}

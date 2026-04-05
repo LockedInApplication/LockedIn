@@ -20,7 +20,7 @@
   color: var(--ink);
 }
 .loginContainer button {
-  background-color:rgb(74, 111, 165);
+  background-color: rgb(74, 111, 165);
   color: var(--cream);
   font-weight: 800;
   padding: 14px 28px;
@@ -35,13 +35,26 @@
 
 .forgotPassword {
   font-size: 0.875rem;
-  color:rgb(0, 0, 238);
+  color: rgb(0, 0, 238);
   text-align: right;
   margin-top: -12px;
   margin-bottom: 24px;
-  
 }
 .forgotPassword:hover {
   text-decoration: underline;
   cursor: pointer;
+}
+.highlight {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.linkText {
+  font-weight: 600;
+  font-size: .875rem;
+  line-height: 1.375;
+  color: #4c1d95;
+  margin-left: 10px;
+  cursor: pointer;
+  text-decoration: none;
 }

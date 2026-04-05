@@ -49,11 +49,12 @@
   width: 160px;
 }
 
-.buttonGroup :nth-child(2) {
+.buttonGroup > *:nth-child(2) button {
   background-color: transparent;
   color: var(--cream);
   border: 1px solid var(--cream);
 }
-.buttonGroup :nth-child(2):hover {
+
+.buttonGroup > *:nth-child(2) button:hover {
   border-color: var(--cream);
 }

@@ -1,0 +1,27 @@
+.privacyCardContainer{
+    border: 1px solid var(--stone-100);
+    border-radius: var(--r);
+    padding: 24px;
+     transition: transform 0.2s, box-shadow 0.2s;
+}
+.privacyCardContainer:hover{
+    transform: translate(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+.icon{
+    font-size: 24px;
+}
+
+.title{
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 6px;
+}
+.description{
+    font-size: 0.8rem;
+    color: var(--stone-500);
+    font-weight: 300;
+    line-height: 1.6;
+}   

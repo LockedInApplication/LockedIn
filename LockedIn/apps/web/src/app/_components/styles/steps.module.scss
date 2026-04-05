@@ -11,6 +11,25 @@
     overflow-x: auto;
 }
 
+.stepContainer > .step {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 500ms ease, transform 500ms ease;
+}
+
+.isVisible > .step {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.isVisible > .step:nth-child(2) {
+    transition-delay: 100ms;
+}
+
+.isVisible > .step:nth-child(3) {
+    transition-delay: 200ms;
+}
+
 
 .step{
     position: relative;
@@ -67,4 +86,12 @@
 }
 .stepDescription{
     color: var(--stone-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stepContainer > .step {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
 }

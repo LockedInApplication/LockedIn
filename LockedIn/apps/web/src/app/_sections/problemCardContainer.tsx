@@ -1,5 +1,5 @@
-import styles from "./styles/problemCard.module.scss"
-import ProblemCard from "./problemCard"
+import styles from "../_components/styles/problemCard.module.scss"
+import ProblemCard from "../_components/problemCard"
 export default function ProblemCardContainer()
 {
     return (

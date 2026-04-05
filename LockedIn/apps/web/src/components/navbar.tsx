@@ -6,7 +6,7 @@ export default function Navbar() {
         <nav className={styles.navbar}>
             <div className={styles.navheader}>
                 <p>LockedIn</p>
-                <BrandLogo className={styles.navheader_logo} />
+                <BrandLogo />
             </div>
             <div className={styles.nav_list}>
                 <div>How it works</div>

@@ -9,7 +9,7 @@ export default function AuthPage({ page }: authPageType) {
   const testimonials = [
     {
       quote:
-        "LockedIn gave me clarity I didn’t even realize I needed. No guessing, no confusion—just honesty.”",
+        "LockedIn gave me clarity I didn’t even realize I needed. No guessing, no confusion—just honesty.",
       author: "Ama K.",
     },
     {

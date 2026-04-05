@@ -1,3 +1,5 @@
+"use client";
+
 import styles from "../styles/authForms.module.scss";
 export default function Login() {
   return (
@@ -6,11 +8,11 @@ export default function Login() {
       <form>
         <div className={styles.formGroup}>
           <label htmlFor="email">Email</label>
-          <input type="text" id="email" placeholder="Email" />
+          <input type="email" id="email" name="email" placeholder="Email" required />
         </div>
         <div className={styles.formGroup}>
           <label htmlFor="password">Password</label>
-          <input type="password" id="password" placeholder="Password" />
+          <input type="password" id="password" name="password" placeholder="Password" required />
         </div>
         <span className={styles.forgotPassword}>Forgot password?</span>
         <button type="submit">Log In</button>

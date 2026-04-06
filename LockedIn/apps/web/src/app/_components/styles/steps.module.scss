@@ -8,7 +8,36 @@
     align-items: start;
     padding: 36px 24px;
     max-width: 100%;
-    overflow-x: auto;
+    overflow-x: hidden;
+}
+
+/* Tablet and below */
+@media (max-width: 1024px) {
+    .stepContainer {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        padding: 24px 16px;
+        gap: 16px;
+    }
+
+    .step:not(:last-child)::after {
+        display: none;
+    }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+    .stepContainer {
+        grid-template-columns: 1fr;
+        padding: 20px 16px;
+    }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+    .stepContainer {
+        padding: 16px 12px;
+        gap: 12px;
+    }
 }
 
 .stepContainer > .step {
@@ -68,6 +97,24 @@
     margin-bottom: 18px;
 }
 
+@media (max-width: 640px) {
+    .stepIcon {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+        margin-bottom: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stepIcon {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+        margin-bottom: 8px;
+    }
+}
+
 .step:nth-child(1) .stepIcon {
     background: var(--gold-light);
 }
@@ -78,7 +125,7 @@
     background: rgba(143, 175, 138, 0.15);
 }
 .stepTitle{
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-serif);
     font-size: 1.25rem;
     font-weight: 500;
     margin-bottom: 12px;

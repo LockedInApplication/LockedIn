@@ -6,8 +6,9 @@ import { usersRoutes } from "./routes/users.routes.js";
 
 export async function buildServer() {
   const server = Fastify({ logger: true });
+
   await server.register(fastifyCors, {
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "http://localhost:3001"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     credentials: true,

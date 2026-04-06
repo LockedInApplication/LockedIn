@@ -1,14 +1,8 @@
 .footerHero {
   padding: 160px 48px;
   text-align: center;
-  background:
-    radial-gradient(
-      ellipse at 50% 30%,
-      rgba(74, 111, 165, 0.3) 0%,
-      transparent 65%
-    ),
-    var(--ink);
-  border-bottom: 1px solid var(--stone-100);
+  background: #0a0a15;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .footerContent {
@@ -21,10 +15,10 @@
 }
 
 .footerContent > h2 {
-  font-family: "Playfair Display", serif;
+  font-family: var(--font-serif);
   font-size: clamp(2.5rem, 5vw, 4rem);
-  font-weight: 500;
-  color: var(--cream);
+  font-weight: 600;
+  color: #ffffff;
   line-height: 1.15;
   letter-spacing: -0.02em;
   margin: 0;
@@ -32,8 +26,8 @@
 
 .description {
   font-size: 1.0625rem;
-  color: rgba(250, 248, 245, 0.55);
-  font-weight: 300;
+  color: rgba(255, 255, 255, 0.68);
+  font-weight: 400;
   margin: 0;
 }
 .buttonGroup {
@@ -43,18 +37,19 @@
 
 .joinButton {
   margin-top: 12px;
-  background-color: var(--cream);
-  color: var(--ink);
+  background-color: #ffffff;
+  color: #0a0a15;
   padding: 14px 28px;
   width: 160px;
+  font-weight: 600;
 }
 
 .buttonGroup > *:nth-child(2) button {
   background-color: transparent;
-  color: var(--cream);
-  border: 1px solid var(--cream);
+  color: #ffffff;
+  border: 1.5px solid #ffffff;
 }
 
 .buttonGroup > *:nth-child(2) button:hover {
-  border-color: var(--cream);
+  border-color: #ffffff;
 }

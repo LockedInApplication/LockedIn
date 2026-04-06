@@ -24,4 +24,43 @@
     color: var(--stone-500);
     font-weight: 300;
     line-height: 1.6;
-}   
+}
+
+@media (max-width: 640px) {
+    .privacyCardContainer {
+        padding: 20px;
+    }
+
+    .icon {
+        font-size: 20px;
+    }
+
+    .title {
+        font-size: 0.8125rem;
+    }
+
+    .description {
+        font-size: 0.75rem;
+        line-height: 1.5;
+    }
+}
+
+@media (max-width: 480px) {
+    .privacyCardContainer {
+        padding: 16px;
+    }
+
+    .icon {
+        font-size: 18px;
+    }
+
+    .title {
+        font-size: 0.75rem;
+        margin-bottom: 4px;
+    }
+
+    .description {
+        font-size: 0.7rem;
+        line-height: 1.4;
+    }
+}

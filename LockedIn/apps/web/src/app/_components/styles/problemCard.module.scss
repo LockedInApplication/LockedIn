@@ -62,7 +62,7 @@
     box-shadow: var(--shadow-md);
 }
 .problemTitle{
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-serif);
     font-size: 1.25rem;
     font-weight: 500;
     margin-bottom: 12px;

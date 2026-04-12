@@ -2,7 +2,7 @@ import { buildServer } from "./app.js";
 import { env } from "./config/env.js";
 
 async function start() {
-  const server = buildServer();
+  const server = await buildServer();
 
   try {
     await server.listen({ port: env.PORT, host: env.HOST });

@@ -1,4 +1,5 @@
 import Button from "../button";
+import Link from "next/link";
 import styles from "../styles/footerHero.module.scss";
 export default function FooterHero() {
   return (
@@ -10,8 +11,12 @@ export default function FooterHero() {
           experience a new standard of trust.
         </p>
         <div className={styles.buttonGroup}>
-          <Button className={styles.joinButton}>Sign Up</Button>
-          <Button className={styles.joinButton}>Login</Button>
+          <Link href="/signup">
+            <Button className={styles.joinButton}>Sign Up</Button>
+          </Link>
+          <Link href="/login">
+            <Button className={styles.joinButton}>Login</Button>
+          </Link>
         </div>
       </div>
     </section>

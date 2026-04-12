@@ -9,7 +9,31 @@
     align-items: start;
     padding: 36px 24px;
     max-width: 100%;
-    overflow-x: auto;
+    overflow-x: hidden;
+}
+
+/* Tablet and below */
+@media (max-width: 1024px) {
+    .prodReviewcards {
+        grid-template-columns: 1fr;
+        padding: 24px 16px;
+        gap: 16px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+    .prodReviewcards {
+        padding: 20px 16px;
+    }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+    .prodReviewcards {
+        padding: 16px 12px;
+        gap: 12px;
+    }
 }
 
 .prodReviewcards > * {
@@ -82,7 +106,7 @@
 
 .confirmHeader {
     text-align: center;
-    font-family: 'Playfair Display', serif;
+    font-family: var(--font-serif);
     font-size: 1rem;
     font-weight: 500;
     margin-bottom: 6px;
@@ -298,7 +322,129 @@
 @media (prefers-reduced-motion: reduce) {
     .prodReviewcards > * {
         opacity: 1;
-        transform: none;
-        transition: none;
+        transform: translateY(0);
+    }
+}
+
+/* Tablet: 2 columns */
+@media (max-width: 1024px) {
+    .prodReviewcards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        padding: 32px 20px;
+    }
+
+    .confirmAvatar {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+    }
+
+    .confirmAvatars {
+        height: 70px;
+    }
+
+    .confirmHeader {
+        font-size: 0.95rem;
+    }
+}
+
+/* Mobile: 1 column */
+@media (max-width: 640px) {
+    .prodReviewcards {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 24px 16px;
+    }
+
+    .confirmAvatar {
+        width: 56px;
+        height: 56px;
+        font-size: 1.4rem;
+    }
+
+    .confirmAvatars {
+        height: 60px;
+        margin-bottom: 16px;
+        margin-top: 24px;
+    }
+
+    .confirmLinkIcon {
+        width: 30px;
+        height: 30px;
+        font-size: 13px;
+    }
+
+    .confirmHeader {
+        font-size: 0.9rem;
+    }
+
+    .confirmSub {
+        font-size: 0.8rem;
+    }
+
+    .confirmUsers {
+        padding: 5px 10px;
+        font-size: 0.75rem;
+    }
+
+    .confUserName {
+        font-size: 0.75rem;
+    }
+
+    .userConfirmed {
+        font-size: 12px;
+    }
+
+    .softAlertDate {
+        font-size: 0.8rem;
+    }
+
+    .softPatternDetected {
+        padding: 16px;
+        font-size: 0.7rem;
+    }
+
+    .softAlertTop {
+        gap: 8px;
+    }
+
+    .softLightningIcon {
+        font-size: 12px;
+    }
+
+    .softAlertPurpose > div {
+        font-size: 0.7rem;
+    }
+
+    .softAlertPurpose > p {
+        font-size: 0.68rem;
+    }
+
+    .softPrivacy {
+        font-size: 0.68rem;
+    }
+
+    .inviteEmailCard {
+        padding: 12px;
+        font-size: 0.68rem;
+    }
+
+    .inviteEmailInput {
+        padding: 6px;
+        font-size: 0.75rem;
+    }
+
+    .inviteEmailInput2 {
+        padding: 6px;
+        font-size: 0.75rem;
+    }
+
+    .invitePrivateMessage {
+        font-size: 0.68rem;
+    }
+
+    .relationshipMapCard {
+        gap: 16px;
     }
 }

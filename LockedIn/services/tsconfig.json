@@ -1,10 +1,11 @@
 {
-	"compilerOptions": {
+        "compilerOptions": {
         "strict": true,
         "sourceMap": true,
+        "rootDir": "./api",
         "outDir":"dist",
         "lib": ["ESNext"],
         "esModuleInterop": true
 
-	},
+        },
 }

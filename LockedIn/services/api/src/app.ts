@@ -1,8 +1,8 @@
 import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
-import { authRoutes } from "./routes/auth.routes.js";
-import { healthRoutes } from "./routes/health.routes.js";
-import { usersRoutes } from "./routes/users.routes.js";
+import { authRoutes } from "./route/auth.routes.js";
+import { healthRoutes } from "./route/health.routes.js";
+import { userRoutes } from "./route/user.routes.js";
 
 export async function buildServer() {
   const server = Fastify({ logger: true });
@@ -16,7 +16,7 @@ export async function buildServer() {
 
   server.register(healthRoutes);
   server.register(authRoutes);
-  server.register(usersRoutes);
+  server.register(userRoutes);
 
   return server;
 }

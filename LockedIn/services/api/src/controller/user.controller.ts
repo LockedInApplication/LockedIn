@@ -23,7 +23,7 @@ export async function createUserController(
         const user = await createUser({ email, phone, displayName, username, name });
         return reply.status(201).send(user);
     }
-catch(error){
+catch (error){
     request.log.error(error);
     return reply.status(500).send({error: "Failed to create user"});
 }

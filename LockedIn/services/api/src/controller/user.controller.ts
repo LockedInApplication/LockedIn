@@ -6,24 +6,23 @@ import {
   updateUser,
   deleteUser,
 } from '../service/user.service.js';
-import { request } from 'node:http';
-
 export async function createUserController(
     request: FastifyRequest<{
         Body: {
-            email: string,
-            phone?: string,
-            displayName: string,
-            userName?: string,
-            passwordHash: string
-    };
-}>,
-reply: FastifyReply)
-{
-try {
-    const user = await createUser(request.body);
-    return reply.status(201).send(user);
-}
+            email: string;
+            phone?: string;
+            displayName?: string;
+            username?: string;
+            name?: string;
+        };
+    }>,
+    reply: FastifyReply
+) {
+    try {
+        const { email, phone, displayName, username, name } = request.body;
+        const user = await createUser({ email, phone, displayName, username, name });
+        return reply.status(201).send(user);
+    }
 catch(error){
     request.log.error(error);
     return reply.status(500).send({error: "Failed to create user"});
@@ -69,13 +68,14 @@ export async function updateUserController(
       phone?: string;
       displayName?: string;
       username?: string;
-      passwordHash?: string;
+      name?: string;
     };
   }>,
   reply: FastifyReply
 ) {
   try {
-    const user = await updateUser(request.params.id, request.body);
+    const { email, phone, displayName, username, name } = request.body;
+    const user = await updateUser(request.params.id, { email, phone, displayName, username, name });
     return reply.send(user);
   } catch (error) {
     request.log.error(error);

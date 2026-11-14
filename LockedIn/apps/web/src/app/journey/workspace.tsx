@@ -17,53 +17,17 @@ import {
   JourneySession,
   journeyRequest,
 } from "@/lib/journey";
+import {
+  addDays,
+  daysUntil,
+  formatDate,
+  getProgress,
+  initials,
+} from "@/features/journey/journey.utils";
 import styles from "./journey.module.scss";
 
 type Notice = { tone: "success" | "error"; message: string } | null;
 type WorkspaceView = "home" | "conversations" | "atlas" | "roadmap" | "chapters";
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-function formatDate(value: string | null) {
-  if (!value) return null;
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function daysUntil(value: string | null) {
-  if (!value) return 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(value);
-  target.setHours(0, 0, 0, 0);
-  return Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86_400_000));
-}
-
-function addDays(value: string, days: number) {
-  const date = new Date(value);
-  date.setDate(date.getDate() + days);
-  return date.toISOString();
-}
-
-function getProgress(overview: JourneyOverview) {
-  const session = overview.session;
-  if (!overview.relationship) return 0;
-  if (!session) return 1;
-  if (!session.ownResponse || !session.partnerState.submitted) return 2;
-  if (!session.bothRevealed) return 3;
-  if (!session.nextSteps.length) return 4;
-  return 5;
-}
 
 export default function JourneyWorkspace() {
   const router = useRouter();

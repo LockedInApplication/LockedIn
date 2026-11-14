@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { authClient } from "@/utils/authCLient";
@@ -10,12 +10,13 @@ const ERROR_COPY: Record<string, string> = {
   INVALID_TOKEN: "This verification link is invalid or expired.",
 };
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const errorCode = searchParams.get("error") ?? "";
   const initialEmail = searchParams.get("email") ?? "";
+  const pending = searchParams.get("pending") === "1";
 
   const [email, setEmail] = useState(initialEmail);
   const [isSending, setIsSending] = useState(false);
@@ -29,13 +30,13 @@ export default function VerifyEmailPage() {
   }, [errorCode]);
 
   useEffect(() => {
-    if (!errorCode) {
+    if (!errorCode && !pending) {
       const timer = setTimeout(() => {
         router.push("/login?verified=1");
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [errorCode, router]);
+  }, [errorCode, pending, router]);
 
   async function resendVerification() {
     const trimmedEmail = email.trim();
@@ -77,7 +78,14 @@ export default function VerifyEmailPage() {
       <section style={{ width: "100%", maxWidth: 460 }}>
         <h1>Verify your email</h1>
 
-        {!errorCode ? (
+        {pending ? (
+          <>
+            <p>Check your inbox for your verification link.</p>
+            <p style={{ color: "#666", marginTop: 8 }}>
+              You will be able to log in after confirming your email.
+            </p>
+          </>
+        ) : !errorCode ? (
           <>
             <p>✓ Your email has been verified!</p>
             <p style={{ color: "#666", marginTop: 8 }}>
@@ -116,5 +124,13 @@ export default function VerifyEmailPage() {
         )}
       </section>
     </main>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<main style={{ minHeight: "100dvh" }} />}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

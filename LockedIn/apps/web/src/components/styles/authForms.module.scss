@@ -15,27 +15,28 @@
   width: 100%;
   padding: 12px 16px;
   border: 1px solid var(--stone-300);
-  border-radius: var(--r-sm);
+  border-radius: 4px;
   font-size: 0.875rem;
   color: var(--ink);
 }
 .loginContainer button {
-  background-color: rgb(74, 111, 165);
+  background-color: var(--ink);
   color: var(--cream);
   font-weight: 800;
   padding: 14px 28px;
   width: 100%;
-  border-radius: var(--r-sm);
-  border-color: #0d9488;
+  border-radius: 6px;
+  border: 0;
+  box-shadow: 4px 4px 0 var(--accent);
 }
 .loginContainer button:hover {
-  background-color: #0d9488;
+  background-color: var(--plum);
   cursor: pointer;
 }
 
 .forgotPassword {
   font-size: 0.875rem;
-  color: rgb(0, 0, 238);
+  color: var(--accent);
   text-align: right;
   margin-top: -12px;
   margin-bottom: 24px;
@@ -53,7 +54,7 @@
   font-weight: 600;
   font-size: .875rem;
   line-height: 1.375;
-  color: #4c1d95;
+  color: var(--plum);
   margin-left: 10px;
   cursor: pointer;
   text-decoration: none;

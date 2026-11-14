@@ -1,15 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.scss";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "LockedIn",
-  description: "LockedIn web experience",
+  title: "LockedIn | Build the relationship you both choose",
+  description:
+    "A private relationship roadmap that turns individual intentions into mutually chosen next steps.",
 };
 
 export default function RootLayout({
@@ -19,9 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable}`}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

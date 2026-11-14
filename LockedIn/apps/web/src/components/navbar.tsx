@@ -3,6 +3,7 @@
 import { useState } from "react";
 import BrandLogo from "./brandLogo";
 import Button from "./button";
+import Link from "next/link";
 import styles from "./styles/navbar.module.scss";
 
 export default function Navbar() {
@@ -32,10 +33,10 @@ export default function Navbar() {
                 <span></span>
             </button>
             <div className={`${styles.nav_list} ${isOpen ? styles.active : ""}`}>
-                <div onClick={closeMenu}>How it works</div>
-                <div onClick={closeMenu}>Preview</div>
-                <div onClick={closeMenu}>Trust</div>
-                <Button>Join Waitlist</Button>
+                <a href="#how-it-works" onClick={closeMenu}>How it works</a>
+                <a href="#preview" onClick={closeMenu}>Preview</a>
+                <a href="#trust" onClick={closeMenu}>Trust</a>
+                <Link href="/journey" onClick={closeMenu}><Button>Open LockedIn</Button></Link>
             </div>
         </nav>
     );

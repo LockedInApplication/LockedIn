@@ -2,24 +2,24 @@ import type { ReactNode } from "react";
 import styles from "../styles/PreviewDescription.module.scss";
 
 type PreviewDescriptionProps = {
+  id?: string;
   title: string;
   heading?: string;
   shortDescription?: string;
-  src?: string;
   bg?: string;
   children?: ReactNode;
 };
 
 export default function PreviewDescription({
+  id,
   title,
   heading,
   shortDescription,
-  src,
   bg,
   children,
 }: PreviewDescriptionProps) {
   return (
-    <section className={styles.previewContainer} style={bg ? { backgroundColor: bg } : undefined}>
+    <section id={id} className={styles.previewContainer} style={bg ? { backgroundColor: bg } : undefined}>
         <div className={styles.previewInner}>
         <header className={styles.previewHeader}>
         <h4 className={styles.previewTitle}>{title}</h4>

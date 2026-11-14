@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import styles from "../styles/authForms.module.scss";
 import { authClient } from "@/utils/authCLient";
+import { ERROR_MESSAGES } from "./errorCode";
 
 type SignupProps = {
   onError: (message: string) => void;
 };
 
 export default function Signup({ onError }: SignupProps) {
+  const router = useRouter();
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
@@ -45,13 +48,29 @@ export default function Signup({ onError }: SignupProps) {
     }
 
     try {
-      await authClient.signUp.email({
+      const result = await authClient.signUp.email({
         email: email,
         password: password,
         name: name,
         callbackURL: `${window.location.origin}/verify-email`,
       });
-      alert("Sign up successful! Please check your email for verification.");
+
+      if (result.error) {
+        const message =
+          ERROR_MESSAGES[result.error.code as keyof typeof ERROR_MESSAGES] ??
+          result.error.message ??
+          "We could not create your account. Please try again.";
+        onError(message);
+        return;
+      }
+
+      const session = await authClient.getSession();
+      if (session.data) {
+        router.push("/journey");
+        return;
+      }
+
+      router.push(`/verify-email?pending=1&email=${encodeURIComponent(email)}`);
     } catch (error) {
       console.error("Error during sign up:", error);
       onError("An error occurred during sign up. Please try again.");

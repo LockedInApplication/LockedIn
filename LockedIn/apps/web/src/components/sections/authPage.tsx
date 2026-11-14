@@ -54,18 +54,18 @@ export default function AuthPage({ page }: authPageType) {
   const testimonials = [
     {
       quote:
-        "LockedIn gave me clarity I didn’t even realize I needed. No guessing, no confusion—just honesty.",
-      author: "Ama K.",
+        "Your answers begin privately. You choose what becomes part of the shared conversation.",
+      author: "Reflect privately",
     },
     {
       quote:
-        "For the first time, I feel like I actually know where I stand in a relationship.",
-      author: "Daniel R.",
+        "Different answers are useful context—not a compatibility score or a warning.",
+      author: "Reveal by choice",
     },
     {
       quote:
-        "LockedIn said ‘he’s also seeing someone’… turns out it was me and my peace of mind 😭",
-      author: "Efua M.",
+        "A next step becomes shared only when both people accept the same version.",
+      author: "Choose together",
     },
   ];
 
@@ -81,7 +81,7 @@ export default function AuthPage({ page }: authPageType) {
           </div>
 
           <div className={styles.form}>
-            <h2>{page === "login" ? "Welcome Back!" : "Create an Account"}</h2>
+            <h2>{page === "login" ? "Welcome back." : "Create your space."}</h2>
             <div>
               {page === "login" ? (
                 <Login onError={handleFormError} />
@@ -94,15 +94,15 @@ export default function AuthPage({ page }: authPageType) {
       </div>
       <div className={styles.authTestimonial}>
         <div className={styles.testimonialContent}>
-          <p className={styles.testimonialEyebrow}>Trusted by real people</p>
+          <p className={styles.testimonialEyebrow}>Built around mutual choice</p>
           <h3 className={styles.testimonialTitle}>
-            What members say about LockedIn
+            Two voices. One shared roadmap.
           </h3>
 
           <div className={styles.quoteList}>
             {testimonials.map((item) => (
               <blockquote key={item.author} className={styles.quoteCard}>
-                <p className={styles.quoteText}>"{item.quote}"</p>
+                <p className={styles.quoteText}>&ldquo;{item.quote}&rdquo;</p>
                 <footer className={styles.quoteAuthor}>{item.author}</footer>
               </blockquote>
             ))}

@@ -1,9 +1,9 @@
 .footer {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 33.3%;
+  gap: 40px;
   padding: 48px;
-  background: var(--ink);
+  background: var(--plum);
   border-top: 1px solid rgba(250, 248, 245, 0.08);
   padding: 40px 48px;
 }
@@ -67,7 +67,8 @@
     font-size: 1.1rem;
     color: var(--cream);
     text-decoration: none;
-    opacity: 0.8;
+    opacity: 1;
+    font-weight: 700;
 }
 .footerLinks {
     display: flex;

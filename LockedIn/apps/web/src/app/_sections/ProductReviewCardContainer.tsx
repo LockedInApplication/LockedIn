@@ -42,7 +42,7 @@ export default function ProductReviewCardContainer() {
                         <div className={styles.inviteCardContent}>
                             <div className={styles.inviteEmailCard}>
                                 <p className={styles.inviteEmailLabel}>
-                                    Partner's email or username
+                                    Partner&apos;s email or username
                                 </p>
                                 <div className={styles.inviteEmailInput}>
                                     [email protected]
@@ -52,7 +52,7 @@ export default function ProductReviewCardContainer() {
                                 </div>
                             </div>
                             <div className={styles.invitePrivateMessage}>
-                            They'll receive a private, respectful invite.
+                            They&apos;ll receive a private, respectful invite.
                             </div>
                         </div>
                     </ChromeCard>
@@ -80,7 +80,7 @@ export default function ProductReviewCardContainer() {
                                 <div>
                                     What it means
                                 </div>
-                                <p>LockedIn never accuses. Alerts are patterns — not proof. You're always in control of how you respond.</p>
+                                <p>LockedIn never accuses. Alerts are patterns — not proof. You&apos;re always in control of how you respond.</p>
                             </div>
                             <div className={styles.softPrivacy}>
                                 <span>🔒</span>

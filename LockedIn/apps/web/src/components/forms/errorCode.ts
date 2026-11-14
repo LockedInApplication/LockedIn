@@ -17,6 +17,8 @@ export const ERROR_MESSAGES = {
   PASSWORD_TOO_SHORT: "Password is too short (min 8 characters).",
   PASSWORD_TOO_LONG: "Password is too long.",
   USER_ALREADY_EXISTS: "An account with this email already exists.",
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
+    "An account with this email already exists. Log in or reset your password.",
   EMAIL_CAN_NOT_BE_UPDATED: "Email cannot be changed.",
   CREDENTIAL_ACCOUNT_NOT_FOUND: "No login credentials found. Try another method.",
   SESSION_EXPIRED: "Your session has expired. Please log in again.",

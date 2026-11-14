@@ -5,10 +5,9 @@ export default function FooterHero() {
   return (
     <section className={styles.footerHero}>
       <div className={styles.footerContent}>
-        <h2>Bring clarity to your relationships</h2>
+        <h2>Choose what comes next—together.</h2>
         <p className={styles.description}>
-          Join thousands already on the waitlist. Be among the first to
-          experience a new standard of trust.
+          Start with one honest topic, one shared decision, and one next step that belongs to both of you.
         </p>
         <div className={styles.buttonGroup}>
           <Link href="/signup">

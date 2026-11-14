@@ -4,12 +4,14 @@ import Link from "next/link";
 import styles from "../styles/authForms.module.scss";
 import { authClient } from "@/utils/authCLient";
 import { ERROR_MESSAGES } from "./errorCode";
+import { useRouter } from "next/navigation";
 
 type LoginProps = {
   onError: (message: string) => void;
 };
 
 export default function Login({ onError }: LoginProps) {
+  const router = useRouter();
   function getErrorMessage(code?: string) {
     if (!code) {
       return "An error occurred during sign in /up. Please try again.";
@@ -48,7 +50,8 @@ export default function Login({ onError }: LoginProps) {
         return;
       }
 
-      alert("Log in successful.");
+      const requestedPath = new URLSearchParams(window.location.search).get("returnTo");
+      router.push(requestedPath?.startsWith("/") ? requestedPath : "/journey");
     } catch (error) {
       console.error("Error during sign in:", error);
       onError("Error during sign in");
@@ -78,10 +81,12 @@ export default function Login({ onError }: LoginProps) {
             required
           />
         </div>
-        <span className={styles.forgotPassword}>Forgot password?</span>
+        <Link href="/forgot-password" className={styles.forgotPassword}>
+          Forgot password?
+        </Link>
         <button type="submit">Log In</button>
         <div className={`${styles.title} ${styles.highlight}`}>
-          Don't have an account?
+          Don&apos;t have an account?
           <Link href="/signup" className={styles.linkText}>
             Sign up
           </Link>

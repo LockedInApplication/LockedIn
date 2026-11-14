@@ -5,7 +5,7 @@
 .prodReviewcards {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 24px;
+    gap: 12px;
     align-items: start;
     padding: 36px 24px;
     max-width: 100%;
@@ -77,7 +77,10 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 1.85rem;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 700;
     background: linear-gradient(135deg, var(--blush), var(--gold));
 }
 
@@ -99,7 +102,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 15px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 12px;
     z-index: 2;
     box-shadow: var(--shadow-sm);
 }
@@ -108,7 +113,7 @@
     text-align: center;
     font-family: var(--font-serif);
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 650;
     margin-bottom: 6px;
 }
 
@@ -127,8 +132,10 @@
     justify-content: center;
     padding: 6px 14px;
     background: rgba(143, 175, 138, 0.15);
-    border-radius: 100px;
-    color: #5A8555;
+    border-radius: 3px;
+    color: var(--success);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
     font-weight: 500;
     margin-bottom: 20px;
 }
@@ -140,8 +147,8 @@
     border: 1.5px solid var(--stone-100);
     justify-content: space-between;
     padding: 6px 14px;
-    border-radius: 12px;
-    color: #5A8555;
+    border-radius: 2px;
+    color: var(--success);
     background: var(--stone-50);
     font-weight: 500;
     text-align: center;
@@ -193,7 +200,7 @@
     margin-bottom: 10px;
     border: 1.5px solid var(--stone-100);
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 2px;
     display: flex;
     flex-direction: column;
     background-color: var(--alert-soft);
@@ -251,7 +258,7 @@
 }
 .softAlertPurpose{
     background:var(--stone-50);
-    border-radius:12px;
+    border-radius:2px;
     padding:14px;
     margin-bottom: 10px;
 }
@@ -286,7 +293,7 @@
 .inviteEmailCard{
     border: 1px dashed var(--stone-300);
     padding:16px;
-    border-radius: 10px;
+    border-radius: 2px;
     font-size: 0.7rem;
     color: var(--stone-500);
     background: var(--stone-50);
@@ -294,17 +301,16 @@
 .inviteEmailInput {
     border: 1px solid var(--stone-100);
     padding: 8px;
-    border-radius: 10px;
+    border-radius: 2px;
     background: white;
-    color: blue;
-    text-decoration: underline;
+    color: var(--plum);
     margin-top: 10px;
 }
 .inviteEmailInput2 {
     border: none;
     padding: 8px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    border-radius: 2px;
+    background: var(--plum);
     color: white;
     margin-top: 10px;
     text-align: center;

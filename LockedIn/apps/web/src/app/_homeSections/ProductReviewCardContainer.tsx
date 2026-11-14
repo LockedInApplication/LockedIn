@@ -3,7 +3,6 @@
 import Button from "@/components/button"
 import ChromeCard from "../_components/chromeCard"
 import styles from "../_components/styles/prodReviewCardContainer.module.scss"
-import NetworkMap from "@/components/icons/NetworkMap"
 import { useScrollReveal } from "@/hooks/useScrollReveal"
 
 export default function ProductReviewCardContainer() {
@@ -12,84 +11,90 @@ export default function ProductReviewCardContainer() {
     return (
         <div className={styles.prodReviewContainer}>
             <div ref={ref} className={`${styles.prodReviewcards} ${isVisible ? styles.isVisible : ""}`}>
-                <ChromeCard title="Relationship Confirmation">
+                <ChromeCard title="My Intentions">
                     <div className={styles.confirmAvatars}>
-                        <div className={styles.confirmAvatar}>👤</div>
-                        <div className={styles.confirmLinkIcon}>🔗</div>
-                        <div className={styles.confirmAvatar}>👤</div>
+                        <div className={styles.confirmAvatar}>A</div>
+                        <div className={styles.confirmLinkIcon}>↔</div>
+                        <div className={styles.confirmAvatar}>B</div>
                     </div>
                     <div className={styles.confirmHeader}>
-                        Akwasi & Abena
+                        Our next 12 months
                     </div>
                     <div className={styles.confirmSub}>
-                        Mutually confirmed relationship
+                        Your answers begin privately
                     </div>
                     <div className={styles.confirmBadge}>
-                        ✓ Both parties confirmed
+                        Private · only you can see this draft
                     </div>
                     <div className={styles.confirmUsers}>
-                        <div className={styles.confUserName}>Akwesi V.</div>
-                        <div className={styles.userConfirmed}>✓ Confirmed</div>
+                        <div className={styles.confUserName}>Long-term future</div>
+                        <div className={styles.userConfirmed}>Ready</div>
                     </div>
                     <div className={styles.confirmUsers}>
-                        <div className={styles.confUserName}>Abena L.</div>
-                        <div className={styles.userConfirmed}>✓ Confirmed</div>
+                        <div className={styles.confUserName}>Timing and priorities</div>
+                        <div className={styles.userConfirmed}>Private</div>
                     </div>
-                    <Button className={styles.confirmButton}>Relationship Active</Button>
+                    <Button className={styles.confirmButton}>Choose what to reveal</Button>
                 </ChromeCard>
                 <div className={styles.relationshipMapCard}>
-                    <ChromeCard title="Network Map">
+                    <ChromeCard title="Shared Ground">
                         <div className={styles.relationshipMapCardContent}>
-                            <NetworkMap />
+                            <div className={styles.confirmUsers}>
+                                <div className={styles.confUserName}>Build something long-term</div>
+                                <div className={styles.userConfirmed}>Shared</div>
+                            </div>
+                            <div className={styles.confirmUsers}>
+                                <div className={styles.confUserName}>When to revisit the future</div>
+                                <div className={styles.userConfirmed}>Discuss</div>
+                            </div>
                         </div>
                     </ChromeCard>
-                    <ChromeCard title="Send Invite" bodyTightBottom>
+                    <ChromeCard title="Reveal by Choice" bodyTightBottom>
                         <div className={styles.inviteCardContent}>
                             <div className={styles.inviteEmailCard}>
                                 <p className={styles.inviteEmailLabel}>
-                                    Partner's email or username
+                                    Selected for comparison
                                 </p>
                                 <div className={styles.inviteEmailInput}>
-                                    [email protected]
+                                    3 of 4 answers
                                 </div>
                                 <div className={styles.inviteEmailInput2}>
-                                    Send Relationship Invite →
+                                    Both people consented ✓
                                 </div>
                             </div>
                             <div className={styles.invitePrivateMessage}>
-                            They'll receive a private, respectful invite.
+                            Unselected answers remain private.
                             </div>
                         </div>
                     </ChromeCard>
                 </div>
                 <div className={styles.softAlertCard}>
-                    <ChromeCard title="Soft Alert" bodyTightBottom>
+                    <ChromeCard title="Our Next Step" bodyTightBottom>
                         <div className={styles.softAlertCardContent}>
                             <div className={styles.softAlertDate}>
-                                Today · 2:14 PM
+                                Mutually chosen · Today
                             </div>
                             <div className={styles.softPatternDetected}>
                                 <div className={styles.softAlertTop}>
-                                    <span className={styles.softLightningIcon}>⚡</span>
-                                    <span>Unusual pattern detected</span>
+                                    <span className={styles.softLightningIcon}>✓</span>
+                                    <span>Compare our priorities over coffee</span>
                                 </div>
-                                <span> We noticed an increase in connection activity with someone outside your confirmed
-                                    network. This is a gentle, non-accusatory observation for your awareness.</span>
+                                <span> Each person will bring two priorities for the next year. We will choose one topic to revisit together.</span>
                                 <div className={styles.softAlertButtons}>
-                                    <Button className={styles.softAlertButton}>Review</Button>
-                                    <Button className={styles.softAlertButton}>Dismiss</Button>
+                                    <Button className={styles.softAlertButton}>Reflect later</Button>
+                                    <Button className={styles.softAlertButton}>Pause</Button>
                                 </div>
 
                             </div>
                             <div className={styles.softAlertPurpose}>
                                 <div>
-                                    What it means
+                                    Progress without pressure
                                 </div>
-                                <p>LockedIn never accuses. Alerts are patterns — not proof. You're always in control of how you respond.</p>
+                                <p>Completing, changing, or pausing a next step can all be intentional choices.</p>
                             </div>
                             <div className={styles.softPrivacy}>
-                                <span>🔒</span>
-                                <span>Your data stays private. Always.</span>
+                                <span>◇</span>
+                                <span>No compatibility score. No forced timeline.</span>
                             </div>
 
                         </div>

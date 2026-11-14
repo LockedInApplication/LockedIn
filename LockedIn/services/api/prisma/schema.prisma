@@ -1,0 +1,256 @@
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELED
+}
+
+enum RelationshipStatus {
+  ACTIVE
+  ENDED
+  BLOCKED
+}
+
+enum IntentionSessionStatus {
+  COLLECTING
+  READY_TO_REVEAL
+  REVEALED
+  ACTION_CHOSEN
+  REFLECTED
+  ARCHIVED
+}
+
+enum NextStepStatus {
+  PROPOSED
+  ACCEPTED
+  COMPLETED
+  PAUSED
+  REVISED
+  DECLINED
+}
+
+enum ReflectionOutcome {
+  COMPLETED
+  CHANGED
+  PAUSED
+  NOT_RELEVANT
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String?  @unique
+  displayName  String?
+  username     String?  @unique
+  name         String?
+  emailVerified Boolean @default(false)
+  image        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  invitesSent             RelationshipInvite[] @relation("sentInvites")
+  invitesReceived         RelationshipInvite[] @relation("receivedInvites")
+  relationshipMemberships RelationshipMember[]
+  intentionSessionsCreated IntentionSession[]    @relation("IntentionSessionCreator")
+  intentionResponses       IntentionResponse[]
+  proposedNextSteps        SharedNextStep[]       @relation("NextStepProposer")
+  reflections              Reflection[]
+  conversationChoices      ConversationChoice[]
+  sessions                Session[]
+  accounts                Account[]
+
+  @@map("user")
+}
+
+model RelationshipInvite {
+  id           String       @id @default(uuid())
+  inviterId    String
+  inviteeId    String?
+  inviteeEmail String?
+  token        String       @unique @default(uuid())
+  status       InviteStatus @default(PENDING)
+  expiresAt    DateTime?
+  acceptedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  inviter User @relation("sentInvites", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee User? @relation("receivedInvites", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@index([inviteeEmail, status])
+}
+
+model Relationship {
+  id        String             @id @default(uuid())
+  status    RelationshipStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  members RelationshipMember[]
+  intentionSessions IntentionSession[]
+  conversationChoices ConversationChoice[]
+}
+
+model ConversationChoice {
+  id             String   @id @default(uuid())
+  relationshipId String
+  userId         String
+  packKey        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  relationship Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([relationshipId, userId])
+  @@index([relationshipId])
+  @@index([userId])
+}
+
+model RelationshipMember {
+  id             String @id @default(uuid())
+  relationshipId String
+  userId         String
+
+  relationship Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([relationshipId, userId])
+  @@index([relationshipId])
+  @@index([userId])
+}
+
+model IntentionSession {
+  id             String                 @id @default(uuid())
+  relationshipId String
+  createdById    String
+  topic          String                 @default("Our next 12 months")
+  packKey        String                 @default("direction")
+  status         IntentionSessionStatus @default(COLLECTING)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  relationship Relationship       @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  createdBy    User               @relation("IntentionSessionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  responses    IntentionResponse[]
+  nextSteps    SharedNextStep[]
+
+  @@index([relationshipId, status])
+  @@index([createdById])
+}
+
+model IntentionResponse {
+  id                String    @id @default(uuid())
+  sessionId         String
+  userId            String
+  answers           Json
+  shareKeys         String[]
+  contextNotes      Json      @default("{}")
+  contextShareKeys  String[]  @default([])
+  submittedAt       DateTime  @default(now())
+  revealConsentedAt DateTime?
+  updatedAt         DateTime  @updatedAt
+
+  session IntentionSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([userId])
+}
+
+model SharedNextStep {
+  id           String         @id @default(uuid())
+  sessionId    String
+  proposedById String
+  title        String
+  details      String?
+  targetDate   DateTime?
+  status       NextStepStatus @default(PROPOSED)
+  acceptedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  session    IntentionSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  proposedBy User             @relation("NextStepProposer", fields: [proposedById], references: [id], onDelete: Cascade)
+  reflections Reflection[]
+
+  @@index([sessionId, status])
+  @@index([proposedById])
+}
+
+model Reflection {
+  id         String            @id @default(uuid())
+  nextStepId String
+  userId     String
+  outcome    ReflectionOutcome
+  note       String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  nextStep SharedNextStep @relation(fields: [nextStepId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([nextStepId, userId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}

@@ -1,0 +1,20 @@
+.problemCardContainer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid var(--stone-100); }
+.problemCardContainer > .problemCard { opacity: 0; transform: translateY(18px); transition: opacity 500ms ease, transform 500ms ease; }
+.isVisible > .problemCard { opacity: 1; transform: none; }
+.isVisible > .problemCard:nth-child(2) { transition-delay: 100ms; }
+.isVisible > .problemCard:nth-child(3) { transition-delay: 200ms; }
+.problemCard { position: relative; min-height: 310px; padding: 34px 30px 40px; border-right: 1px solid var(--stone-100); background: transparent; transition: background 180ms ease; }
+.problemCard:last-child { border-right: 0; }
+.problemCard:hover { background: rgba(255, 253, 248, 0.72); }
+.problemIcon { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 58px; border: 1px solid var(--ink); border-radius: 50%; color: var(--ink); font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; }
+.problemTitle { max-width: 260px; margin-bottom: 14px; color: var(--ink); font-family: var(--font-display); font-size: 1.55rem; font-weight: 650; line-height: 1.1; letter-spacing: -0.035em; }
+.problemDescription { max-width: 330px; color: var(--stone-500); font-size: 0.86rem; line-height: 1.7; }
+.problemCard:nth-child(1) .problemIcon { background: var(--blush); }
+.problemCard:nth-child(2) .problemIcon { background: var(--gold); }
+.problemCard:nth-child(3) .problemIcon { background: var(--sage); }
+@media (max-width: 760px) {
+  .problemCardContainer { grid-template-columns: 1fr; }
+  .problemCard { min-height: auto; padding: 28px 0; border-right: 0; border-bottom: 1px solid var(--stone-100); }
+  .problemIcon { margin-bottom: 30px; }
+}
+@media (prefers-reduced-motion: reduce) { .problemCardContainer > .problemCard { opacity: 1; transform: none; transition: none; } }

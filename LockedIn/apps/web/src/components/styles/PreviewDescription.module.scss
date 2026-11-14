@@ -1,0 +1,14 @@
+.previewContainer { position: relative; padding: clamp(90px, 11vw, 150px) 0; border-top: 1px solid rgba(32, 24, 47, 0.12); }
+.previewInner { max-width: 1320px; margin: 0 auto; padding: 0 max(5vw, 32px); }
+.previewHeader { display: grid; grid-template-columns: minmax(150px, 0.32fr) minmax(0, 1fr); gap: 30px; align-items: start; margin-bottom: 24px; }
+.previewTitle { padding-top: 10px; color: var(--accent); font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.11em; text-transform: uppercase; }
+.previewHeading { max-width: 850px; color: var(--ink); font-family: var(--font-display); font-size: clamp(2.8rem, 5.4vw, 5.6rem); font-weight: 650; line-height: 0.96; letter-spacing: -0.06em; }
+.previewDescription { max-width: 620px; margin: 0 0 65px calc(32% + 30px); color: var(--stone-500); font-size: 1rem; line-height: 1.7; }
+
+@media (max-width: 760px) {
+  .previewContainer { padding: 78px 0; }
+  .previewInner { padding: 0 20px; }
+  .previewHeader { grid-template-columns: 1fr; gap: 12px; }
+  .previewHeading { font-size: clamp(2.6rem, 12vw, 4rem); }
+  .previewDescription { margin: 0 0 45px; }
+}

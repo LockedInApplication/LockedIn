@@ -1,0 +1,47 @@
+.chromeCard {
+    border-radius: 2px;
+    border: 1px solid var(--stone-100);
+    padding: 36px 24px;
+    background-color: var(--paper);
+    position: relative;
+    overflow: hidden;
+}
+
+.chromeHeader {
+    margin: -36px -24px 0;
+    padding: 14px 24px 12px;
+    border-bottom: 1px solid var(--stone-100);
+    background-color: var(--paper);
+    border-radius: 0;
+}
+
+.chromeControls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chromeIndex { color: var(--accent); font-family: var(--font-mono); font-size: 0.61rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+
+.chromeTitle {
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.61rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.chromeBody {
+    padding: 28px 24px;
+}
+
+// Use with ChromeCard bodyTightBottom — removes gap under the last line in the body
+.chromeBodyTight {
+    padding-bottom: 15px;
+}
+
+// Same prop: removes chrome card bottom padding so the body can sit flush to the rounded bottom
+.chromeCardTightBottom {
+    padding-bottom: 0;
+}

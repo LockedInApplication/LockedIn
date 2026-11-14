@@ -1,0 +1,61 @@
+.toast {
+  display: flex;
+  align-items: center;  
+  justify-content: space-between; 
+  gap: 8px;
+
+  position: fixed;
+  top: 16px;
+  right: 0;
+  width: min(88vw, 280px);
+  padding: 8px 10px;
+  border-radius: 8px 0 0 8px;
+  color: var(--ink);
+  font-size: 12px;
+  z-index: 1100;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.28);
+  transition: transform 180ms ease, opacity 180ms ease;
+  background-color: white;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.toast p {
+  margin: 0px;
+  line-height: 1.25;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.375;
+}
+
+.toast::before {
+  content: "";
+  background-color: red;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+}
+
+.visible {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hidden {
+  transform: translateX(105%);
+  opacity: 0;
+}
+
+.dismissButton {
+  margin-top: 4px;
+  border: 0;
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  cursor: pointer;
+}

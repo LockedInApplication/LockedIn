@@ -1,0 +1,68 @@
+{
+
+     "name": "api",
+
+     "version": "1.0.0",
+
+     "license": "MIT",
+
+     "type": "module",
+
+     "scripts": {
+
+          "dev": "tsx watch api/src/server.ts",
+
+          "prisma": "cd api && prisma",
+
+          "prisma:migrate": "cd api && prisma migrate dev",
+
+          "prisma:generate": "cd api && prisma generate"
+
+     },
+
+     "dependencies": {
+
+          "@fastify/cors": "^11.2.0",
+
+          "@fastify/jwt": "^10.0.0",
+
+          "@fastify/static": "^9.0.0",
+
+          "@fastify/swagger": "^9.7.0",
+
+          "@prisma/adapter-pg": "^7.6.0",
+
+          "@prisma/client": "^7.6.0",
+
+          "better-auth": "^1.5.6",
+
+          "fastify": "^5.8.4",
+
+          "pg": "^8.20.0",
+
+          "resend": "^6.10.0",
+
+          "zod": "^4.3.6"
+
+     },
+
+     "devDependencies": {
+
+          "@types/node": "^25.5.0",
+
+          "nodemon": "^3.1.14",
+
+          "prisma": "^7.6.0",
+
+          "ts-node": "^10.9.2",
+
+          "ts-node-dev": "^2.0.0",
+
+          "tsx": "^4.21.0",
+
+          "typescript": "^6.0.2"
+
+     }
+
+}
+

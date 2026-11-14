@@ -16,7 +16,11 @@
 
           "prisma:migrate": "cd api && prisma migrate dev",
 
-          "prisma:generate": "cd api && prisma generate"
+          "prisma:generate": "cd api && prisma generate",
+
+          "test": "vitest run",
+
+          "test:watch": "vitest"
 
      },
 
@@ -60,7 +64,9 @@
 
           "tsx": "^4.21.0",
 
-          "typescript": "^6.0.2"
+          "typescript": "^6.0.2",
+
+          "vitest": "^4.1.12"
 
      }
 

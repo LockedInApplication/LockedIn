@@ -4,6 +4,7 @@ import { getAuthenticatedUser } from "../../lib/session.js";
 import { isRelationshipMember } from "../relationships/relationship-access.service.js";
 import { atlasWords } from "./atlas.catalog.js";
 import { getCompletedAtlasChapter } from "./atlas-chapter.service.js";
+import { withNotifications } from "../notifications/index.js";
 import {
   heardConfirmationSchema,
   heardSummarySchema,
@@ -62,16 +63,19 @@ export async function registerAtlasRoutes(server: FastifyInstance): Promise<void
         return sendError(reply, 404, "That meaning landmark is not available.");
       }
 
-      const active = await prisma.meaningChapter.findFirst({
+      const result=await withNotifications(relationshipId,user.id,async tx=>{
+      const active = await tx.meaningChapter.findFirst({
         where: { relationshipId, wordKey, status: { not: "SHARED" } },
         orderBy: { createdAt: "desc" },
       });
       if (active) return { chapterId: active.id, existing: true };
 
-      const chapter = await prisma.meaningChapter.create({
+      const chapter = await tx.meaningChapter.create({
         data: { relationshipId, wordKey, createdById: user.id },
       });
-      return reply.code(201).send({ chapterId: chapter.id, existing: false });
+      return {chapterId:chapter.id,existing:false};
+      });
+      return reply.code(result.existing?200:201).send(result);
     },
   );
 
@@ -94,18 +98,20 @@ export async function registerAtlasRoutes(server: FastifyInstance): Promise<void
         return sendError(reply, 409, "This meaning chapter can no longer be edited.");
       }
 
-      await prisma.meaningResponse.upsert({
+      return withNotifications(chapter.relationshipId, user.id, async tx => {
+      await tx.meaningResponse.upsert({
         where: { chapterId_userId: { chapterId: chapter.id, userId: user.id } },
         update: { ...parsed.data, heardSummary: null, heardStatus: null },
         create: { chapterId: chapter.id, userId: user.id, ...parsed.data },
       });
 
-      const responseCount = await prisma.meaningResponse.count({ where: { chapterId: chapter.id } });
-      await prisma.meaningChapter.update({
+      const responseCount = await tx.meaningResponse.count({ where: { chapterId: chapter.id } });
+      await tx.meaningChapter.update({
         where: { id: chapter.id },
         data: { status: responseCount === 2 ? "DISCOVERING" : "COLLECTING" },
       });
       return { saved: true, bothReady: responseCount === 2 };
+      });
     },
   );
 
@@ -131,12 +137,14 @@ export async function registerAtlasRoutes(server: FastifyInstance): Promise<void
         return sendError(reply, 409, "Both private meanings must be ready first.");
       }
 
-      await prisma.meaningResponse.update({
+      return withNotifications(chapter.relationshipId, user.id, async tx => {
+      await tx.meaningResponse.update({
         where: { chapterId_userId: { chapterId: chapter.id, userId: user.id } },
         data: { heardSummary: parsed.data.summary, heardStatus: "PENDING" },
       });
-      await prisma.meaningChapter.update({ where: { id: chapter.id }, data: { status: "CHECKING" } });
+      await tx.meaningChapter.update({ where: { id: chapter.id }, data: { status: "CHECKING" } });
       return { saved: true };
+      });
     },
   );
 
@@ -167,10 +175,10 @@ export async function registerAtlasRoutes(server: FastifyInstance): Promise<void
         return sendError(reply, 409, "Your partner has not submitted what they heard yet.");
       }
 
-      await prisma.meaningResponse.update({
+      await withNotifications(chapter.relationshipId, user.id, tx => tx.meaningResponse.update({
         where: { id: listenerResponse.id },
         data: { heardStatus: parsed.data.status },
-      });
+      }));
       return { saved: true };
     },
   );
@@ -200,11 +208,11 @@ export async function registerAtlasRoutes(server: FastifyInstance): Promise<void
         return sendError(reply, 409, "The definition choice has already begun.");
       }
 
-      const result = await savePersonalDefinitionProposal({
+      const result = await withNotifications(chapter.relationshipId, user.id, tx => savePersonalDefinitionProposal({
         chapterId: chapter.id,
         userId: user.id,
         definition: parsed.data.definition,
-      });
+      }, tx));
       if (result.conflict) return sendError(reply, 409, "The definition choice has already begun.");
       return { saved: true, bothProposed: result.count >= 2 };
     },
@@ -237,12 +245,12 @@ export async function registerAtlasRoutes(server: FastifyInstance): Promise<void
         return sendError(reply, 400, "This choice does not use a proposal ID.");
       }
 
-      const result = await saveMeaningSelection({
+      const result = await withNotifications(chapter.relationshipId, user.id, tx => saveMeaningSelection({
         chapterId: chapter.id,
         userId: user.id,
         mode: parsed.data.mode,
         proposalId: parsed.data.proposalId ?? null,
-      });
+      }, tx));
       if (result.conflict) return sendError(reply, 409, "Your partner moved this choice forward. Refresh and continue together.");
       return { saved: true, resolved: result.resolved };
     },
@@ -261,13 +269,13 @@ export async function registerAtlasRoutes(server: FastifyInstance): Promise<void
         return sendError(reply, 404, "Meaning chapter not found.");
       }
 
-      const result = await saveResolvedDefinition({
+      const result = await withNotifications(chapter.relationshipId, user.id, tx => saveResolvedDefinition({
         chapterId: chapter.id,
         userId: user.id,
         definition: parsed.data.definition,
         kind: parsed.data.kind,
         expectedVersion: parsed.data.expectedVersion,
-      });
+      }, tx));
       if (result.conflict) return sendError(reply, 409, "A newer shared draft is ready. Refresh before editing it.");
       return { saved: true };
     },
@@ -286,11 +294,11 @@ export async function registerAtlasRoutes(server: FastifyInstance): Promise<void
         return sendError(reply, 404, "Meaning chapter not found.");
       }
 
-      const result = await saveFinalApproval({
+      const result = await withNotifications(chapter.relationshipId, user.id, tx => saveFinalApproval({
         chapterId: chapter.id,
         userId: user.id,
         candidateVersion: parsed.data.candidateVersion,
-      });
+      }, tx));
       if (result.conflict) return sendError(reply, 409, "A newer shared draft is ready. Review it before approving.");
       return { approved: true, complete: result.complete };
     },

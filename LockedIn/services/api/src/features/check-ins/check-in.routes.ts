@@ -8,6 +8,7 @@ import { getConversationPack } from "../conversations/conversation.catalog.js";
 import { responseSchema } from "./check-in.schemas.js";
 import { buildSessionView } from "./check-in.view.js";
 import { saveCheckInResponse, revealCheckInResponse } from "./check-in.service.js";
+import { withNotifications } from "../notifications/index.js";
 
 export async function registerCheckInRoutes(server: FastifyInstance) {
   server.put<{ Params: { sessionId: string } }>(
@@ -51,7 +52,7 @@ export async function registerCheckInRoutes(server: FastifyInstance) {
         return sendError(reply, 409, "Answers cannot be changed after you consent to reveal them.");
       }
 
-      await saveCheckInResponse(session.id, user.id, parsed.data);
+      await withNotifications(session.relationshipId, user.id, tx => saveCheckInResponse(session.id, user.id, parsed.data, tx));
 
       return buildSessionView(session.id, user.id);
     },
@@ -76,7 +77,7 @@ export async function registerCheckInRoutes(server: FastifyInstance) {
         return sendError(reply, 409, "Earlier check-in chapters cannot be changed.");
       }
 
-      const revealCount = await revealCheckInResponse(response.id, request.params.sessionId);
+      const revealCount = await withNotifications(response.session.relationshipId, user.id, tx => revealCheckInResponse(response.id, request.params.sessionId, tx));
 
       if (revealCount === 2) {
         const partner = await prisma.relationshipMember.findFirst({

@@ -1,0 +1,56 @@
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  margin: 0 0 30px;
+  padding: clamp(22px, 3vw, 36px);
+  border: 2px solid var(--ink);
+  border-radius: 22px 8px;
+  color: var(--ink);
+  background: linear-gradient(115deg, #fff7d7, #e8f4e9);
+  box-shadow: 5px 6px 0 var(--plum);
+}
+
+.card[data-waiting="true"] { background: linear-gradient(115deg, #f2ecf8, #e7f2fa); }
+.kicker { display: flex; align-items: center; gap: 10px; color: var(--plum); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.06em; }
+.kicker > span { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--ink); border-radius: 50%; background: var(--gold); font-size: 1.1rem; }
+.card h2 { margin: 14px 0 10px; font-family: var(--font-display); font-size: clamp(1.7rem, 3vw, 2.7rem); line-height: 1.1; letter-spacing: -0.04em; }
+.card p { max-width: 65ch; margin: 0; color: #526176; font-size: 0.95rem; line-height: 1.65; overflow-wrap: anywhere; }
+.card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 48px;
+  padding: 14px 20px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  color: white;
+  background: var(--plum);
+  box-shadow: 0 4px 0 var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.card button:hover:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 var(--ink); }
+.card button:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+.card button:disabled { opacity: 0.65; cursor: wait; }
+
+.homeIntro > div:first-child > h1 { font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.05; letter-spacing: -0.05em; }
+.homeIntro > div:first-child > p { margin-top: 14px; }
+.currentAction { scroll-margin-top: 190px; }
+.currentAction:focus-visible { outline: 3px solid var(--plum); outline-offset: 8px; border-radius: 8px; }
+
+@media (max-width: 700px) {
+  .card { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .card button { width: 100%; }
+  .homeIntro { gap: 12px; }
+  .homeIntro > div:first-child > p { margin-bottom: 0; }
+  .currentAction { scroll-margin-top: 250px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card button { transition: none; }
+}

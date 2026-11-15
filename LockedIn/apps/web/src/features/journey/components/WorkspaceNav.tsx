@@ -1,6 +1,6 @@
 "use client";
 
-import styles from "@/app/journey/journey.module.scss";
+import navStyles from "../workspace-nav.module.scss";
 import type { WorkspaceView } from "../journey.navigation";
 
 export default function WorkspaceNav({
@@ -13,20 +13,22 @@ export default function WorkspaceNav({
   const items: Array<{ key: WorkspaceView; label: string; icon: string }> = [
     { key: "home", label: "Home", icon: "⌂" },
     { key: "conversations", label: "Conversations", icon: "◎" },
-    { key: "atlas", label: "Atlas", icon: "✦" },
-    { key: "roadmap", label: "Roadmap", icon: "↗" },
-    { key: "chapters", label: "Chapters", icon: "◌" },
+    { key: "atlas", label: "Understand each other", icon: "✦" },
+    { key: "roadmap", label: "Our next steps", icon: "↗" },
+    { key: "chapters", label: "Past conversations", icon: "◌" },
   ];
 
   return (
-    <nav className={styles.workspaceNav} aria-label="Relationship workspace">
+    <nav className={navStyles.navigation} aria-label="Relationship workspace">
       {items.map((item) => (
         <button
           key={item.key}
-          className={active === item.key ? styles.workspaceNavActive : ""}
+          type="button"
+          className={active === item.key ? navStyles.active : ""}
+          aria-current={active === item.key ? "page" : undefined}
           onClick={() => onChange(item.key)}
         >
-          <span>{item.icon}</span>
+          <span aria-hidden>{item.icon}</span>
           {item.label}
         </button>
       ))}

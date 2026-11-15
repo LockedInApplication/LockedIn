@@ -6,8 +6,12 @@ import { initials } from "@/features/journey/journey.utils";
 import AtlasLandmarkStage from "./AtlasLandmarkStage";
 import AtlasHistory from "./AtlasHistory";
 import type { AtlasWord } from "./atlas.types";
+import AtlasChapterDialog from "./AtlasChapterDialog";
+import { createPortal } from "react-dom";
 
 export type AtlasViewProps = {
+  initialWordKey?:string|null;
+  targetChapterId?:string|null;
   words: AtlasWord[];
   relationshipId: string;
   partnerName: string;
@@ -21,9 +25,12 @@ export default function AtlasView({
   partnerName,
   busy,
   runAction,
+  initialWordKey,
+  targetChapterId,
 }: AtlasViewProps) {
   const suggestedWord = words.find((word) => word.chapter && word.chapter.status !== "SHARED") ?? words[0];
-  const [selectedKey, setSelectedKey] = useState(suggestedWord?.key ?? "support");
+  const [selectedKey, setSelectedKey] = useState(initialWordKey ?? suggestedWord?.key ?? "support");
+  const [targetClosed,setTargetClosed]=useState(false);
   const selectedWord = words.find((word) => word.key === selectedKey) ?? words[0];
   const completedCount = words.filter((word) => word.versionCount > 0).length;
 
@@ -85,6 +92,9 @@ export default function AtlasView({
       </div>
 
       <AtlasHistory word={selectedWord} />
+      {!targetClosed && targetChapterId && (selectedWord.chapter?.id===targetChapterId && selectedWord.chapter.status==="SHARED" || selectedWord.previousDefinitions?.some(c=>c.id===targetChapterId)) ? createPortal(
+        <AtlasChapterDialog chapterId={targetChapterId} wordTitle={selectedWord.title} onClose={()=>setTargetClosed(true)}/>,document.body,
+      ):null}
 
       <AtlasLandmarkStage
         key={`${selectedWord.key}-${selectedWord.chapter?.id ?? "new"}-${selectedWord.chapter?.status ?? "empty"}-${selectedWord.chapter?.candidateVersion ?? 0}`}

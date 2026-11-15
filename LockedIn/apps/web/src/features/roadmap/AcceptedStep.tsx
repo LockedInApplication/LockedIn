@@ -23,7 +23,7 @@ export default function AcceptedStep({
   const complete = Boolean(step.ownReflection && step.partnerReflection.submitted);
 
   return (
-    <section className={styles.acceptedCard}>
+    <section id={`step-${encodeURIComponent(step.id)}`} tabIndex={-1} className={styles.acceptedCard}>
       <div className={styles.acceptedTop}>
         <span className={styles.acceptedIcon}>{stepNumber}</span>
         <div>

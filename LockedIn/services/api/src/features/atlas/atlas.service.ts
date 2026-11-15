@@ -1,5 +1,5 @@
-import { prisma } from "../../lib/prisma.js";
 import { resolveMeaningSelections } from "./atlas.state.js";
+import { inTransaction, type NotificationTx } from "../notifications/index.js";
 
 export async function savePersonalDefinitionProposal({
   chapterId,
@@ -9,8 +9,8 @@ export async function savePersonalDefinitionProposal({
   chapterId: string;
   userId: string;
   definition: string;
-}) {
-  return prisma.$transaction(async (tx) => {
+}, transaction?: NotificationTx) {
+  return inTransaction(transaction, async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "MeaningChapter" WHERE "id" = ${chapterId} FOR UPDATE`;
     const current = await tx.meaningChapter.findUnique({
       where: { id: chapterId },
@@ -60,8 +60,8 @@ export async function saveMeaningSelection({
   userId: string;
   mode: "PROPOSAL" | "BLEND" | "KEEP_BOTH";
   proposalId: string | null;
-}) {
-  return prisma.$transaction(async (tx) => {
+}, transaction?: NotificationTx) {
+  return inTransaction(transaction, async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "MeaningChapter" WHERE "id" = ${chapterId} FOR UPDATE`;
     const current = await tx.meaningChapter.findUnique({
       where: { id: chapterId },
@@ -128,8 +128,8 @@ export async function saveResolvedDefinition({
   definition: string;
   kind: "BLEND" | "REVISION" | "PAIRED";
   expectedVersion: number;
-}) {
-  return prisma.$transaction(async (tx) => {
+}, transaction?: NotificationTx) {
+  return inTransaction(transaction, async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "MeaningChapter" WHERE "id" = ${chapterId} FOR UPDATE`;
     const current = await tx.meaningChapter.findUnique({ where: { id: chapterId } });
     if (
@@ -164,8 +164,8 @@ export async function saveFinalApproval({
   chapterId: string;
   userId: string;
   candidateVersion: number;
-}) {
-  return prisma.$transaction(async (tx) => {
+}, transaction?: NotificationTx) {
+  return inTransaction(transaction, async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "MeaningChapter" WHERE "id" = ${chapterId} FOR UPDATE`;
     const current = await tx.meaningChapter.findUnique({ where: { id: chapterId } });
     if (

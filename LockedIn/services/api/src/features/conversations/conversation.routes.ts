@@ -7,6 +7,7 @@ import { sendJourneyEmailSafely } from "../journey-notifications/journey-email.s
 import { conversationPacks, getConversationPack } from "./conversation.catalog.js";
 import { conversationChoiceSchema } from "./conversation.schemas.js";
 import { chooseConversation } from "./conversation.service.js";
+import { withNotifications } from "../notifications/index.js";
 
 export async function registerConversationRoutes(server: FastifyInstance) {
   server.post<{ Params: { relationshipId: string }; Body: { packKey: string | null } }>(
@@ -29,7 +30,7 @@ export async function registerConversationRoutes(server: FastifyInstance) {
         return sendError(reply, 400, "Choose a valid conversation.");
       }
 
-      const result = await chooseConversation(relationshipId, user.id, parsed.data.packKey);
+      const result = await withNotifications(relationshipId, user.id, tx => chooseConversation(relationshipId, user.id, parsed.data.packKey, tx));
 
       if ("error" in result && result.error) {
         return sendError(reply, 409, result.error);
@@ -74,9 +75,9 @@ export async function registerConversationRoutes(server: FastifyInstance) {
         return sendError(reply, 403, "You do not have access to this relationship space.");
       }
 
-      await prisma.conversationChoice.deleteMany({
+      await withNotifications(request.params.relationshipId, user.id, tx => tx.conversationChoice.deleteMany({
         where: { relationshipId: request.params.relationshipId, userId: user.id },
-      });
+      }));
       return { withdrawn: true };
     },
   );

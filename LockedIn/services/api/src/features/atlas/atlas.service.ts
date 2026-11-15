@@ -93,7 +93,7 @@ export async function saveMeaningSelection({
       return { conflict: false, resolved: true };
     }
 
-    if (resolution.conflict || !resolution.definition) {
+    if (resolution.conflict) {
       return { conflict: true, resolved: false };
     }
 

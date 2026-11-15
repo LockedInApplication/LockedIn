@@ -9,12 +9,10 @@ export type MeaningProposalInput = {
   definition: string;
 };
 
-export type AtlasResolution = {
-  status: "RESOLVING" | "PROPOSED" | "CONFLICT";
-  definition: string | null;
-  proposalKind: "PAIRED" | null;
-  conflict: boolean;
-};
+export type AtlasResolution =
+  | { status: "PROPOSED"; definition: string; proposalKind: "PAIRED" | null; conflict: false }
+  | { status: "RESOLVING"; definition: null; proposalKind: null; conflict: false }
+  | { status: "CONFLICT"; definition: null; proposalKind: null; conflict: true };
 
 export function resolveMeaningSelections(
   selections: MeaningSelectionInput[],

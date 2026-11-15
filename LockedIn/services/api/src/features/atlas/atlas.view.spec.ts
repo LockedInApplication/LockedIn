@@ -77,6 +77,29 @@ function supportChapter(chapter: AtlasChapterRecord) {
 }
 
 describe("buildAtlasWordsView", () => {
+  it("reveals partner meaning details after both private responses exist", () => {
+    const chapter = supportChapter({ ...baseChapter, responses: [ownResponse, partnerResponse] });
+    expect(chapter.partnerResponse).toEqual({
+      submitted: true, name: "Kwame", id: "response-partner", definition: "Intentional presence",
+      example: "Making time to listen", notMeaning: "Agreeing with everything", heardSummary: null, heardStatus: null,
+    });
+  });
+
+  it("reveals both original proposals and the partner selection after both choices exist", () => {
+    const chapter = supportChapter({
+      ...baseChapter, proposals: [partnerProposal, ownProposal],
+      selections: [
+        { userId: ownUser.id, mode: "PROPOSAL", proposalId: partnerProposal.id },
+        { userId: partnerUser.id, mode: "PROPOSAL", proposalId: ownProposal.id },
+      ],
+    });
+    expect(chapter.proposals).toEqual([
+      { id: "proposal-own", definition: "Steady care in action", proposedByCurrentUser: true, proposedByName: "Evans" },
+      { id: "proposal-partner", definition: "Intentional presence", proposedByCurrentUser: false, proposedByName: "Kwame" },
+    ]);
+    expect(chapter.partnerSelection).toEqual({ mode: "PROPOSAL", proposalId: "proposal-own" });
+  });
+
   it("keeps partner response details private until both people submit", () => {
     const chapter = supportChapter({
       ...baseChapter,

@@ -1,6 +1,6 @@
 # LockedIn Feature-Slice Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Reorganize LockedIn's journey experience into maintainable feature-based vertical slices without changing any user-visible, API, authentication, persistence, or routing behavior.
 
@@ -46,7 +46,7 @@
 - Consumes: existing npm workspaces as independent `apps/web` and `services` projects.
 - Produces: `npm test` and `npm run test:watch` in both projects; Vitest configured for TypeScript and the web `@/` alias.
 
-- [ ] **Step 1: Record the baseline before dependency changes**
+- [x] **Step 1: Record the baseline before dependency changes**
 
 Run:
 
@@ -58,27 +58,27 @@ cd .. && git diff --check
 
 Expected: all commands pass except the known unrelated `avatar.tsx` image optimization warning.
 
-- [ ] **Step 2: Write failing harness tests**
+- [x] **Step 2: Write failing harness tests**
 
 Create one `describe("test harness")` test per project asserting `1 + 1 === 2`, and add `test` scripts that reference `vitest run` before Vitest is installed.
 
-- [ ] **Step 3: Run the tests to verify the harness is unavailable**
+- [x] **Step 3: Run the tests to verify the harness is unavailable**
 
 Run: `npm test` in each project.
 
 Expected: FAIL because `vitest` is not installed.
 
-- [ ] **Step 4: Install and configure Vitest**
+- [x] **Step 4: Install and configure Vitest**
 
 Add `vitest` as a dev dependency to both projects. Configure the web alias `@` to `apps/web/src` and use the Node environment. Add `test` and `test:watch` scripts.
 
-- [ ] **Step 5: Run the harness tests**
+- [x] **Step 5: Run the harness tests**
 
 Run: `npm test` in both projects.
 
 Expected: two harness test files pass.
 
-- [ ] **Step 6: Commit the harness separately**
+- [x] **Step 6: Commit the harness separately**
 
 ```bash
 git add apps/web/package.json apps/web/package-lock.json apps/web/vitest.config.ts apps/web/src/test services/package.json services/package-lock.json services/vitest.config.ts services/api/src/test
@@ -103,31 +103,31 @@ git commit -m "test: add journey refactor harness"
 - Consumes: current `JourneyOverview`, `JourneySession`, `AtlasWord`, and related public shapes from `lib/journey.ts`.
 - Produces: `initials(name: string): string`, `formatDate(value: string | null): string | null`, `daysUntil(value: string | null, now?: Date): number`, `addDays(value: string, days: number): string`, `getProgress(overview: JourneyOverview): number`, `journeyRequest<T>(path: string, init?: RequestInit): Promise<T>`, and compatibility re-exports from `@/lib/journey`.
 
-- [ ] **Step 1: Write failing utility characterization tests**
+- [x] **Step 1: Write failing utility characterization tests**
 
 Test exact current outputs for initials, null date formatting, same-day `daysUntil`, future-day clamping, `addDays`, and progress values 0 through 5 using minimal `JourneyOverview` fixtures.
 
-- [ ] **Step 2: Run the utility test to verify it fails**
+- [x] **Step 2: Run the utility test to verify it fails**
 
 Run: `cd apps/web && npm test -- journey.utils.spec.ts`
 
 Expected: FAIL because `journey.utils.ts` does not exist.
 
-- [ ] **Step 3: Move the current utility implementations without rewriting them**
+- [x] **Step 3: Move the current utility implementations without rewriting them**
 
 Export the signatures above from `journey.utils.ts`; inject `now` only for deterministic tests while preserving the default current-time behavior. Move the request client and error class to `journey.client.ts`. Split types by their owning feature and build `JourneyOverview` in `journey.types.ts` from those imports.
 
-- [ ] **Step 4: Turn `lib/journey.ts` into a compatibility facade**
+- [x] **Step 4: Turn `lib/journey.ts` into a compatibility facade**
 
 Re-export all existing public names so current consumers compile unchanged, then update `workspace.tsx` to import utilities rather than defining them locally.
 
-- [ ] **Step 5: Verify utility tests and the web build**
+- [x] **Step 5: Verify utility tests and the web build**
 
 Run: `cd apps/web && npm test -- journey.utils.spec.ts && npm run build -- --webpack && npm run lint`
 
 Expected: tests and build pass; lint has no new warnings.
 
-- [ ] **Step 6: Commit the utility/type slice**
+- [x] **Step 6: Commit the utility/type slice**
 
 ```bash
 git add apps/web/src/features apps/web/src/lib/journey.ts apps/web/src/app/journey/workspace.tsx
@@ -151,35 +151,35 @@ git commit -m "refactor: extract journey client contracts"
 - Consumes: `AtlasWord`, `AtlasChapter`, `journeyRequest`, shared date/initial helpers, `relationshipId`, `partnerName`, `busy`, and the existing `runAction` callback signature.
 - Produces: `AtlasView(props: AtlasViewProps): JSX.Element`, `getAtlasChoiceState(chapter: AtlasChapter): "awaiting-proposals" | "choosing" | "crossed" | "separate" | "mixed" | "final-draft" | "shared"`, and unchanged Atlas markup/class-name usage.
 
-- [ ] **Step 1: Write failing Atlas state tests**
+- [x] **Step 1: Write failing Atlas state tests**
 
 Cover awaiting proposals, both proposals ready, crossed choices, separate self-choices, mixed blend/keep-both choices, final candidate, and shared states using complete typed fixtures.
 
-- [ ] **Step 2: Run the Atlas state tests to verify they fail**
+- [x] **Step 2: Run the Atlas state tests to verify they fail**
 
 Run: `cd apps/web && npm test -- atlas.state.spec.ts`
 
 Expected: FAIL because `atlas.state.ts` does not exist.
 
-- [ ] **Step 3: Implement the state helper from current inline predicates**
+- [x] **Step 3: Implement the state helper from current inline predicates**
 
 Move only the existing `bothProposals`, crossed-choice, and separate-choice derivation into `getAtlasChoiceState`; do not alter labels or transitions.
 
-- [ ] **Step 4: Move Atlas components in dependency order**
+- [x] **Step 4: Move Atlas components in dependency order**
 
 Move `AtlasDefinitionConvergence`, `AtlasPrivateForm`, `AtlasDiscovery`, `AtlasLandmarkStage`, then `AtlasView`. Preserve prop types, JSX ordering, endpoint strings, success messages, local state initialization, and every `styles.*` class reference.
 
-- [ ] **Step 5: Replace inline Atlas code with the feature export**
+- [x] **Step 5: Replace inline Atlas code with the feature export**
 
 Import `AtlasView` into `workspace.tsx`; retain the current render branch and props exactly.
 
-- [ ] **Step 6: Verify the Atlas slice**
+- [x] **Step 6: Verify the Atlas slice**
 
 Run: `cd apps/web && npm test -- atlas.state.spec.ts && npm run build -- --webpack && npm run lint`
 
 Expected: tests/build pass and `workspace.tsx` no longer contains `function Atlas...` definitions.
 
-- [ ] **Step 7: Commit the Atlas frontend slice**
+- [x] **Step 7: Commit the Atlas frontend slice**
 
 ```bash
 git add apps/web/src/features/atlas apps/web/src/app/journey/workspace.tsx
@@ -204,45 +204,45 @@ git commit -m "refactor: extract atlas frontend slice"
 - Consumes: the existing Prisma client, authenticated user IDs, relationship membership, Fastify server, and current Zod request bodies.
 - Produces: `atlasWords`, `buildAtlasView(relationshipId: string, userId: string, partnerName: string)`, `registerAtlasRoutes(server: FastifyInstance): Promise<void>`, `resolveMeaningSelections(selections, proposals): AtlasResolution`, and `isRelationshipMember(relationshipId: string, userId: string): Promise<boolean>`.
 
-- [ ] **Step 1: Write failing Atlas resolution tests**
+- [x] **Step 1: Write failing Atlas resolution tests**
 
 Assert that equal proposal IDs select that definition, two keep-both choices preserve both strings in current order, crossed/separate/mixed choices return `RESOLVING`, and an unknown selected proposal returns the current conflict outcome.
 
-- [ ] **Step 2: Write failing Atlas privacy/view tests**
+- [x] **Step 2: Write failing Atlas privacy/view tests**
 
 Assert that partner response details are absent before both submit, partner proposals are absent before both propose, partner selection is absent before both select, and current-version approvals ignore older versions.
 
-- [ ] **Step 3: Run Atlas API tests to verify they fail**
+- [x] **Step 3: Run Atlas API tests to verify they fail**
 
 Run: `cd services && npm test -- atlas.state.spec.ts atlas.view.spec.ts`
 
 Expected: FAIL because Atlas feature modules do not exist.
 
-- [ ] **Step 4: Extract the catalog, schemas, and pure resolution helper**
+- [x] **Step 4: Extract the catalog, schemas, and pure resolution helper**
 
 Move values and logic exactly; keep existing keys, prompts, Zod limits, status strings, paired-definition separator, and error outcomes unchanged.
 
-- [ ] **Step 5: Extract the Atlas view builder and service transactions**
+- [x] **Step 5: Extract the Atlas view builder and service transactions**
 
 Move Prisma queries, row locks, optimistic version checks, and state transitions without changing query ordering or response serialization.
 
-- [ ] **Step 6: Extract and register Atlas routes**
+- [x] **Step 6: Extract and register Atlas routes**
 
 Export `registerAtlasRoutes`; call it from `journeyRoutes` while preserving every current route path, method, status code, and error string.
 
-- [ ] **Step 7: Verify concurrency and privacy tests**
+- [x] **Step 7: Verify concurrency and privacy tests**
 
 Run: `cd services && npm test -- atlas.state.spec.ts atlas.view.spec.ts && npm exec tsc -- --noEmit --skipLibCheck`
 
 Expected: all tests and type checking pass.
 
-- [ ] **Step 8: Verify Prisma and live route registration**
+- [x] **Step 8: Verify Prisma and live route registration**
 
 Run: `npm run prisma:generate`, `npx prisma migrate status` from `services/api`, and an unauthenticated Fastify/curl request to a representative Atlas endpoint.
 
 Expected: schema is current; route responds with the existing 401 rather than 404.
 
-- [ ] **Step 9: Commit the Atlas API slice**
+- [x] **Step 9: Commit the Atlas API slice**
 
 ```bash
 git add services/api/src/features/atlas services/api/src/features/relationships services/api/src/routes/journey.routes.ts
@@ -269,31 +269,31 @@ git commit -m "refactor: extract atlas api slice"
 - Consumes: existing conversation/check-in types, `journeyRequest`, format helpers, busy state, `runAction`, and current navigation callbacks.
 - Produces: unchanged `ConversationLibrary`, `SessionStage`, and `CheckInTimeline` entrypoints plus `alignmentBadge(item: AlignmentItem): string`.
 
-- [ ] **Step 1: Write the failing alignment badge tests**
+- [x] **Step 1: Write the failing alignment badge tests**
 
 Assert exact labels for shared-this-time, still-shared, new-shared, changed, worth-discussing, aligned fallback, and discussion fallback.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cd apps/web && npm test -- alignment.spec.ts`
 
 Expected: FAIL because the feature helper does not exist.
 
-- [ ] **Step 3: Move the alignment helper and components**
+- [x] **Step 3: Move the alignment helper and components**
 
 Move components in leaf-first order while preserving all form field names, endpoint paths, request bodies, copy, option ordering, consent behavior, and class names.
 
-- [ ] **Step 4: Replace inline definitions with feature imports**
+- [x] **Step 4: Replace inline definitions with feature imports**
 
 Keep the same `activeView` branch order and callbacks in `workspace.tsx`.
 
-- [ ] **Step 5: Verify conversations/check-ins**
+- [x] **Step 5: Verify conversations/check-ins**
 
 Run: `cd apps/web && npm test -- alignment.spec.ts && npm run build -- --webpack && npm run lint`
 
 Expected: tests/build pass and no conversation/check-in component functions remain in `workspace.tsx`.
 
-- [ ] **Step 6: Commit the frontend slices**
+- [x] **Step 6: Commit the frontend slices**
 
 ```bash
 git add apps/web/src/features/conversations apps/web/src/features/check-ins apps/web/src/app/journey/workspace.tsx
@@ -319,35 +319,35 @@ git commit -m "refactor: extract conversation and check-in ui"
 - Consumes: relationship access service, Prisma, Fastify, notification service, and unchanged catalog values.
 - Produces: `conversationPacks`, `getConversationPack(packKey?: string)`, `buildAlignment`, `addAlignmentTrends`, `buildCheckInSnapshot`, `buildSessionView`, `registerConversationRoutes`, and `registerCheckInRoutes`.
 
-- [ ] **Step 1: Write failing alignment/trend tests**
+- [x] **Step 1: Write failing alignment/trend tests**
 
 Pin exact option labels, context visibility, aligned classification, new-shared/still-shared/shared-this-time transitions, changed answers, and worth-discussing fallbacks.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd services && npm test -- alignment.spec.ts`
 
 Expected: FAIL because the check-in alignment module does not exist.
 
-- [ ] **Step 3: Extract catalogs, schemas, and pure alignment functions**
+- [x] **Step 3: Extract catalogs, schemas, and pure alignment functions**
 
 Move current values and functions unchanged, including question and option ordering.
 
-- [ ] **Step 4: Extract check-in views/services and routes**
+- [x] **Step 4: Extract check-in views/services and routes**
 
 Preserve reveal consent, private context filtering, active session selection, archive behavior, conversation-choice matching, transactions, response shapes, and notification calls.
 
-- [ ] **Step 5: Register feature routes from the journey composer**
+- [x] **Step 5: Register feature routes from the journey composer**
 
 Remove moved route bodies only after the new registrations compile.
 
-- [ ] **Step 6: Verify API behavior**
+- [x] **Step 6: Verify API behavior**
 
 Run: `cd services && npm test -- alignment.spec.ts && npm exec tsc -- --noEmit --skipLibCheck && npm run prisma:generate`
 
 Expected: all commands pass.
 
-- [ ] **Step 7: Commit the API slices**
+- [x] **Step 7: Commit the API slices**
 
 ```bash
 git add services/api/src/features/conversations services/api/src/features/check-ins services/api/src/routes/journey.routes.ts
@@ -378,25 +378,25 @@ git commit -m "refactor: extract conversation and check-in api"
 - Consumes: journey/check-in types, Prisma, Fastify, relationship access, format/date helpers, `runAction`, and busy state.
 - Produces: `RoadmapView`, `reflectionOpensAt(targetDate: Date | null, now?: Date): Date | null`, `nextStepView`, and `registerRoadmapRoutes`.
 
-- [ ] **Step 1: Write failing reflection-date tests**
+- [x] **Step 1: Write failing reflection-date tests**
 
 Assert null dates, future dates, same-day midnight behavior, and current `reflectionAvailable` outcomes with an injected fixed clock.
 
-- [ ] **Step 2: Run date tests to verify they fail**
+- [x] **Step 2: Run date tests to verify they fail**
 
 Run: `cd services && npm test -- roadmap.dates.spec.ts`
 
 Expected: FAIL because `roadmap.dates.ts` does not exist.
 
-- [ ] **Step 3: Extract the roadmap frontend components leaf-first**
+- [x] **Step 3: Extract the roadmap frontend components leaf-first**
 
 Preserve form values, date calculations, reflection locks, proposal ordering, request bodies, success messages, and class names.
 
-- [ ] **Step 4: Extract roadmap schemas, dates, views, services, and routes**
+- [x] **Step 4: Extract roadmap schemas, dates, views, services, and routes**
 
 Preserve proposal acceptance/decline behavior, multiple accepted steps, target-date normalization, reflection privacy, status transitions, and response shapes.
 
-- [ ] **Step 5: Verify roadmap slices**
+- [x] **Step 5: Verify roadmap slices**
 
 Run:
 
@@ -407,7 +407,7 @@ cd ../../services && npm test -- roadmap.dates.spec.ts && npm exec tsc -- --noEm
 
 Expected: all commands pass.
 
-- [ ] **Step 6: Commit roadmap slices**
+- [x] **Step 6: Commit roadmap slices**
 
 ```bash
 git add apps/web/src/features/roadmap apps/web/src/app/journey/workspace.tsx services/api/src/features/roadmap services/api/src/routes/journey.routes.ts
@@ -439,29 +439,29 @@ git commit -m "refactor: extract roadmap slices"
 - Consumes: all feature entrypoints and view builders created in Tasks 2–7.
 - Produces: `JourneyWorkspace`, `buildJourneyOverview(userId: string): Promise<JourneyOverviewPayload>`, and composed `journeyRoutes(server: FastifyInstance)` while keeping current facade exports.
 
-- [ ] **Step 1: Write failing overview empty-state tests**
+- [x] **Step 1: Write failing overview empty-state tests**
 
 Using controlled repository/service dependencies, assert no-relationship users receive `relationship: null`, `session: null`, null conversation selection, empty history, default Atlas words, and pending invitations unchanged.
 
-- [ ] **Step 2: Run the overview tests to verify they fail**
+- [x] **Step 2: Run the overview tests to verify they fail**
 
 Run: `cd services && npm test -- overview.service.spec.ts`
 
 Expected: FAIL because `overview.service.ts` does not exist.
 
-- [ ] **Step 3: Extract invitation frontend/API code**
+- [x] **Step 3: Extract invitation frontend/API code**
 
 Preserve invite generation, copy-to-clipboard behavior, acceptance flow, expiration handling, emails, error messages, and response shape.
 
-- [ ] **Step 4: Extract the overview service and composed API plugin**
+- [x] **Step 4: Extract the overview service and composed API plugin**
 
 Build the payload from existing feature view builders in the current query/order semantics. Keep `routes/journey.routes.ts` as a one-line compatibility export.
 
-- [ ] **Step 5: Extract the Journey shell**
+- [x] **Step 5: Extract the Journey shell**
 
 Move loading, auth redirect, invitation token handling, notices, sign-out, active view state, and feature composition to `JourneyWorkspace.tsx`. Keep `app/journey/workspace.tsx` as a default re-export.
 
-- [ ] **Step 6: Verify the composed system**
+- [x] **Step 6: Verify the composed system**
 
 Run:
 
@@ -472,7 +472,7 @@ cd ../../services && npm test && npm exec tsc -- --noEmit --skipLibCheck && npm 
 
 Expected: all tests/builds pass; compatibility files contain no domain implementation.
 
-- [ ] **Step 7: Commit invitations and composition**
+- [x] **Step 7: Commit invitations and composition**
 
 ```bash
 git add apps/web/src/features/invitations apps/web/src/features/journey apps/web/src/app/journey/workspace.tsx services/api/src/features/invitations services/api/src/features/journey services/api/src/features/journey-notifications services/api/src/routes/journey.routes.ts
@@ -495,35 +495,35 @@ git commit -m "refactor: compose journey feature slices"
 - Consumes: all existing Journey class selectors and media/keyframe blocks.
 - Produces: the same `styles.<className>` CSS-module exports and compiled cascade, with the root module acting as an ordered Sass entrypoint.
 
-- [ ] **Step 1: Capture baseline visual references**
+- [x] **Step 1: Capture baseline visual references**
 
 Capture representative authenticated Journey states at current desktop and mobile widths before moving rules. Record reduced-motion CSS behavior. If browser capture is unavailable, record the compiled CSS checksum and selector/media-query inventory instead.
 
-- [ ] **Step 2: Write failing style-structure tests**
+- [x] **Step 2: Write failing style-structure tests**
 
 Assert that the planned six partials exist, the root module imports them in the required order, all current locally referenced class names remain present in the compiled module, and mobile/reduced-motion media blocks remain present.
 
-- [ ] **Step 3: Run the structural test to verify it fails**
+- [x] **Step 3: Run the structural test to verify it fails**
 
 Run: `cd apps/web && npm test -- style-structure.spec.ts`
 
 Expected: FAIL because feature style partials do not exist.
 
-- [ ] **Step 4: Move rules mechanically while preserving source order**
+- [x] **Step 4: Move rules mechanically while preserving source order**
 
 Move complete selector blocks, their related keyframes, and responsive overrides together. Do not rename classes, merge declarations, change values, or reorder imports.
 
-- [ ] **Step 5: Verify CSS structure and production build**
+- [x] **Step 5: Verify CSS structure and production build**
 
 Run: `cd apps/web && npm test -- style-structure.spec.ts && npm run build -- --webpack && npm run lint`
 
 Expected: structural tests/build pass with no missing CSS-module exports.
 
-- [ ] **Step 6: Compare visual references**
+- [x] **Step 6: Compare visual references**
 
 Repeat the Task 9 Step 1 capture method. Expected: no layout, typography, color, spacing, responsive, or reduced-motion differences.
 
-- [ ] **Step 7: Commit the style slices**
+- [x] **Step 7: Commit the style slices**
 
 ```bash
 git add apps/web/src/features/*/styles apps/web/src/app/journey/journey.module.scss
@@ -540,7 +540,7 @@ git commit -m "refactor: split journey styles by feature"
 - Consumes: every prior task deliverable.
 - Produces: verified behavior-preserving feature-slice architecture and a clean handoff.
 
-- [ ] **Step 1: Run the complete automated verification matrix**
+- [x] **Step 1: Run the complete automated verification matrix**
 
 ```bash
 cd apps/web
@@ -561,29 +561,39 @@ git diff --check
 
 Expected: all commands pass; only the pre-existing `avatar.tsx` image warning may remain.
 
-- [ ] **Step 2: Audit file size and dependency direction**
+- [x] **Step 2: Audit file size and dependency direction**
 
 Run line counts for Journey feature files and search imports for cycles or cross-feature internals.
 
 Expected: no product file exceeds roughly 500 lines without a documented reason; features import public entrypoints/types, not another feature's internal components.
 
-- [ ] **Step 3: Verify local and public runtime health**
+- [x] **Step 3: Verify local and public runtime health**
 
 Check web `/journey`, API `/api/journey/overview`, public ngrok `/journey`, and a representative new Atlas route.
 
 Expected: web/public routes return 200; unauthenticated API requests preserve current 401 behavior; authenticated overview remains 200.
 
-- [ ] **Step 4: Review the complete diff for behavior changes**
+- [x] **Step 4: Review the complete diff for behavior changes**
 
 Confirm no Prisma migration/schema change, no API route/path/method change, no text change, no endpoint string change, and no CSS value change beyond file movement.
 
-- [ ] **Step 5: Commit verification-only fixes if any**
+- [x] **Step 5: Commit verification-only fixes if any**
 
 ```bash
 git add <only-files-changed-by-verification>
 git commit -m "fix: preserve journey behavior after extraction"
 ```
 
-- [ ] **Step 6: Request final code review before integration**
+- [x] **Step 6: Request final code review before integration**
 
 Use `superpowers:requesting-code-review` against the complete refactor and resolve only verified findings through the receiving-review workflow.
+
+## Completion evidence
+
+Implemented from baseline `dabd654` in independently verified commits. Final checks: 25 web tests and 37 API tests pass; web lint, both TypeScript checks, production build, Prisma generation, migration status, and diff checks pass. The only ESLint warning is the existing avatar image warning. All feature files are below 500 lines, and neither application's import graph has a runtime cycle.
+
+The final reviewer identified two extraction regressions in legacy Atlas states; both were reproduced with failing tests and corrected. Transaction tests cover lock ordering, first/second selections, stale revisions/approvals, and version-specific dual approval; removing the row locks makes five tests fail. Positive privacy controls verify the dual-key reveal. Existing dependency resolutions were restored, with newer test-runner requirements nested separately; a clean npm install succeeds.
+
+The compiled Journey CSS is byte-identical to the baseline (80,005 bytes, SHA-256 `7d1813255b7a546593d709d9c769f357ff45d72978674f1b79f99653a43bfe35`). Additional ordered shell/context partials preserve the original interleaving. Browser screenshot comparison and actual simultaneous database transaction tests were not run; the accepted CSS fallback and transaction-boundary tests were used.
+
+All 19 HTTP method/path pairs and Prisma schema/migrations are unchanged. The refactored production Journey page returns 200, an existing local authenticated session receives overview 200, unauthenticated overview/Atlas requests return the existing 401, and the existing local/ngrok Journey pages return 200. The temporary production verification server was stopped; no test users, relationship records, or emails were created.

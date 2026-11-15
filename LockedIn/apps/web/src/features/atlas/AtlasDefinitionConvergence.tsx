@@ -27,7 +27,7 @@ export default function AtlasDefinitionConvergence({
   const ownProposal = chapter.proposals.find((proposal) => proposal.proposedByCurrentUser);
   const partnerProposal = chapter.proposals.find((proposal) => !proposal.proposedByCurrentUser);
   const choiceState = getAtlasChoiceState(chapter);
-  const bothProposals = choiceState !== "awaiting-proposals";
+  const bothProposals = Boolean(ownProposal && partnerProposal);
 
   const choose = (mode: "PROPOSAL" | "BLEND" | "KEEP_BOTH", proposalId?: string) =>
     runAction(

@@ -4,16 +4,17 @@ import { useNotifications } from "./use-notifications";
 import NotificationPanel from "./NotificationPanel";
 import type { NotificationItem } from "./notification.types";
 import inboxStyles from "./notification.module.scss";
-export default function NotificationBell({ userId, onOpen, onActivity, onExpired }: {
+export default function NotificationBell({ userId, onOpen, onActivity, onExpired,onStatusChange }: {
     userId: string;
     onOpen: (item: NotificationItem) => Promise<boolean>;
     onActivity: () => void;
     onExpired: () => void;
+    onStatusChange?:()=>void;
 }) {
     const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement>(null);
     const button = useRef<HTMLButtonElement>(null);
-    const notifications = useNotifications(userId, onActivity, onExpired);
+    const notifications = useNotifications(userId, onActivity, onExpired,onStatusChange);
     const close = () => { setOpen(false); button.current?.focus(); };
     useEffect(() => {
         if (!open)

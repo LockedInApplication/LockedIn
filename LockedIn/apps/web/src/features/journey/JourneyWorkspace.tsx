@@ -2,7 +2,7 @@
 
 import { RoadmapView } from "@/features/roadmap";
 import EmptyWorkspace from "@/features/journey/components/EmptyWorkspace";
-import { ConnectionStage } from "@/features/invitations";
+import { ConnectionStage,InvitationReview,InvitationManager,SentInvitations } from "@/features/invitations";
 import WorkspaceHeader from "./components/WorkspaceHeader";
 import WorkspaceNav from "./components/WorkspaceNav";
 import ProgressRail from "./components/ProgressRail";
@@ -42,11 +42,14 @@ export default function JourneyWorkspace() {
   const [inviteLink, setInviteLink] = useState("");
   const [activeView, navigateView, workspaceLocation] = useWorkspaceNavigation();
   const [newActivity,setNewActivity]=useState(false);
+  const [invitationRevision,setInvitationRevision]=useState(0);
   const dirty=useRef(false);
   const targetQuery=new URL(workspaceLocation,"http://localhost").searchParams;
   const targetWord=targetQuery.get("word");
   const targetChapter=targetQuery.get("chapter");
-  const inviteHandled = useRef(false);
+  const invitationReference=targetQuery.get("invitation")??targetQuery.get("invite");
+  const invitationBy=targetQuery.has("invitation")?"id":"token";
+  const invitationManagerOpen=targetQuery.get("invitations")==="manage";
 
   useEffect(()=>{
     const hash=new URL(workspaceLocation,"http://localhost").hash.slice(1);
@@ -57,6 +60,7 @@ export default function JourneyWorkspace() {
   },[workspaceLocation,overview]);
 
   const onActivity=useCallback(()=>setNewActivity(true),[]);
+  const onInvitationUpdate=useCallback(()=>setInvitationRevision(value=>value+1),[]);
   const onExpired=useCallback(()=>{
     const returnTo=`${window.location.pathname}${window.location.search}${window.location.hash}`;
     router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
@@ -92,45 +96,8 @@ export default function JourneyWorkspace() {
   }, [router]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function initialize() {
-      const token = new URLSearchParams(window.location.search).get("invite");
-      if (token && !inviteHandled.current) {
-        inviteHandled.current = true;
-        try {
-          await journeyRequest(`/api/journey/invites/${encodeURIComponent(token)}/accept`, {
-            method: "POST",
-          });
-          const connectedUrl = new URL(window.location.href);
-          connectedUrl.searchParams.delete("invite");
-          window.history.replaceState(window.history.state, "", `${connectedUrl.pathname}${connectedUrl.search}${connectedUrl.hash}`);
-          if (!cancelled) {
-            setNotice({ tone: "success", message: "You are connected. Your shared space is ready." });
-          }
-        } catch (error) {
-          if (error instanceof JourneyApiError && error.status === 401) {
-            const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-            router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
-            return;
-          }
-          if (!cancelled) {
-            setNotice({
-              tone: "error",
-              message: error instanceof Error ? error.message : "Unable to accept this invitation.",
-            });
-          }
-        }
-      }
-
-      if (!cancelled) await loadOverview();
-    }
-
-    initialize();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadOverview, router]);
+    void loadOverview();
+  }, [loadOverview]);
 
   const runAction = useCallback(
     async (action: () => Promise<unknown>, successMessage?: string) => {
@@ -162,6 +129,8 @@ export default function JourneyWorkspace() {
         body: JSON.stringify({ email }),
       });
       const link = `${window.location.origin}/journey?invite=${result.token}`;
+      dirty.current=false;
+      onInvitationUpdate();
       setInviteLink(link);
       await navigator.clipboard?.writeText(link).catch(() => undefined);
       setNotice({
@@ -254,9 +223,32 @@ export default function JourneyWorkspace() {
     );
   };
 
+  const header=<WorkspaceHeader onSignOut={signOut}
+    onInvitations={invitationManagerOpen?undefined:()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey?invitations=manage");}}
+    notifications={<NotificationBell key={overview.user.id} userId={overview.user.id} onOpen={openNotification} onActivity={onActivity} onExpired={onExpired} onStatusChange={onInvitationUpdate}/>}/>;
+
+  if(invitationManagerOpen)return <div className={styles.page}>{header}<main className={styles.main}>
+    <InvitationManager key={overview.user.id} revision={invitationRevision} onClose={()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey");}}/>
+  </main></div>;
+
+  // Review is exclusive: no journey forms can acquire unsaved input behind it.
+  if(invitationReference)return <div className={styles.page}>
+    {header}
+    <main className={styles.main}>
+      <InvitationReview key={`${invitationBy}:${invitationReference}`} reference={invitationReference} by={invitationBy}
+        onClose={()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey");}}
+        onHandled={async decision=>{
+          const fresh=await loadOverview();
+          if(!fresh)throw new Error("Your choice was saved, but your space could not reload. Please refresh.");
+          setNewActivity(false);navigateWorkspaceUrl("/journey");
+          setNotice({tone:"success",message:decision==="accept"?"You are connected. Your answers remain private until the sharing steps you choose.":decision==="block"?"Invitation block saved. Only you can remove it in Invitations. Existing shared spaces are unchanged.":"Invitation declined. No shared space was created."});
+        }}/>
+    </main>
+  </div>;
+
   return (
     <div className={styles.page}>
-      <WorkspaceHeader onSignOut={signOut} notifications={<NotificationBell key={overview.user.id} userId={overview.user.id} onOpen={openNotification} onActivity={onActivity} onExpired={onExpired}/>}/>
+      {header}
 
       <main className={styles.main} onChangeCapture={()=>{dirty.current=true;}}>
         {newActivity?<aside className={notificationStyles.activity} aria-label="New shared activity">
@@ -296,18 +288,17 @@ export default function JourneyWorkspace() {
         ) : null}
 
         {!overview.relationship ? (
+          <>
           <ConnectionStage
             pendingInvites={overview.pendingInvites}
             inviteLink={inviteLink}
             busy={busy}
             onInvite={handleInvite}
-            onAccept={(token) =>
-              runAction(
-                () => journeyRequest(`/api/journey/invites/${token}/accept`, { method: "POST" }),
-                "You are connected. Your shared space is ready.",
-              )
-            }
+            onReview={id=>{if(confirmDiscard())navigateWorkspaceUrl(`/journey?invitation=${encodeURIComponent(id)}`);}}
           />
+          <SentInvitations key={overview.user.id} revision={invitationRevision}
+            onViewAll={()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey?invitations=manage");}}/>
+          </>
         ) : activeView === "conversations" ? (
           <ConversationLibrary
             packs={overview.conversationPacks}

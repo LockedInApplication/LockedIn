@@ -3,6 +3,7 @@ export const notificationCatalog: Record<string, {
     message: string;
     view: string;
 }> = {
+    INVITATION_RECEIVED: {title:"You’ve been invited to a shared space",message:"Review the invitation. Connecting does not reveal any answers.",view:"invitations"},
     INVITATION_ACCEPTED: { title: "Your shared space is ready", message: "Your invitation was accepted. Begin when you are ready.", view: "home" },
     CONVERSATION_CHOICE: { title: "A conversation suggestion is waiting", message: "Review your choices and decide together.", view: "conversations" },
     CONVERSATION_READY: { title: "Your conversation is ready", message: "Your private questions are ready to answer.", view: "home" },

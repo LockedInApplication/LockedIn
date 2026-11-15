@@ -25,7 +25,8 @@ export default function NotificationPanel({ items, loading, error, connection, n
       <span className={inboxStyles.itemIcon} aria-hidden>{item.resolvedAt ? "✓" : "✦"}</span>
       <div><h3>{item.title}</h3><p>{item.message}</p>
         <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</time>
-        {item.resolvedAt ? <span className={inboxStyles.completed}>Already completed or updated</span> : <button type="button" className={inboxStyles.openActivity} onClick={() => onOpen(item)}>Open activity <span aria-hidden>↗</span></button>}
+        {item.resolvedAt ? <span className={inboxStyles.completed}>{item.invitationStatus?`Invitation ${item.invitationStatus.toLowerCase()}`:"Already completed or updated"}</span>:null}
+        {!item.resolvedAt || item.kind==="INVITATION_RECEIVED"?<button type="button" className={inboxStyles.openActivity} onClick={() => onOpen(item)}>{item.kind==="INVITATION_RECEIVED"?"Review invitation":"Open activity"} <span aria-hidden>↗</span></button>:null}
       </div>
     </li>)}</ul>
     {nextCursor ? <button className={inboxStyles.more} type="button" onClick={onMore} disabled={loading}>{loading ? "Loading…" : "Earlier updates"}</button> : null}

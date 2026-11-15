@@ -13,7 +13,8 @@ try {
   const url=new URL(process.env.DATABASE_URL);url.pathname=`/${name}`;
   const env={...process.env,DATABASE_URL:url.toString(),NOTIFICATIONS_INTEGRATION:'true',BETTER_AUTH_SECRET:'notification-integration-only-secret-at-least-32-characters',BETTER_AUTH_URL:'http://localhost:8000',APP_URL:'http://localhost:3001',REQUIRE_EMAIL_VERIFICATION:'false'};
   execFileSync('npm',['run','prisma','--','migrate','deploy'],{env,stdio:'pipe'});
-  execFileSync('npm',['test','--','api/src/features/notifications/notification.integration.spec.ts'],{env,stdio:'inherit'});
+  const files=process.env.NOTIFICATION_TEST_FILES?.split(',')??['api/src/features/notifications/notification.integration.spec.ts','api/src/features/invitations/invitation.integration.spec.ts','api/src/features/invitations/invitation-boundaries.integration.spec.ts'];
+  execFileSync('npm',['test','--',...files],{env,stdio:'inherit'});
   if(process.env.NOTIFICATION_BROWSER_SCRIPT)execFileSync('node',[process.env.NOTIFICATION_BROWSER_SCRIPT],{env,stdio:'inherit'});
 } finally {
   if(created)await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);

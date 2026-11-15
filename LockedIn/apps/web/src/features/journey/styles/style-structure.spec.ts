@@ -40,6 +40,8 @@ describe("Journey Sass extraction", () => {
     const files = readdirSync(features, { recursive: true }).filter((file) => String(file).endsWith(".tsx"));
     for (const file of files) {
       const source = readFileSync(`${features}${file}`, "utf8");
+      // This assertion owns the Journey Sass module, not unrelated feature modules.
+      if (!/import\s+styles\s+from\s+["']@\/app\/journey\/journey\.module\.scss["']/.test(source)) continue;
       for (const match of source.matchAll(/styles\.([A-Za-z_]\w*)/g)) {
         expect(classes.has(match[1]), `${file}: ${match[1]}`).toBe(true);
       }

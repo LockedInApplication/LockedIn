@@ -9,7 +9,7 @@ import { buildAtlasView } from "../atlas/atlas.view.js";
 type OverviewUser = { id: string; email: string; name: string | null };
 
 export async function buildJourneyOverview(userId: string, authenticatedUser?: OverviewUser) {
-  const user = authenticatedUser ?? await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, email: true, name: true } });
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, email: true, name: true, displayName:true, avatarPreset:true } });
     const [pendingInvites, relationship] = await Promise.all([
       prisma.relationshipInvite.findMany({
         where: {
@@ -103,7 +103,7 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
     }
 
     return {
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, email: user.email, name: user.displayName??user.name, ...(user.avatarPreset?{avatarPreset:user.avatarPreset}:{}) },
       pendingInvites: pendingInvites.map((invite) => ({
         id: invite.id,
         token: invite.token,
@@ -122,6 +122,7 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
             partner: {
               name: partner?.displayName ?? partner?.name ?? partner?.email ?? "Your partner",
               email: partner?.email ?? "",
+              ...(partner?.avatarPreset?{avatarPreset:partner.avatarPreset}:{}),
             },
           }
         : null,

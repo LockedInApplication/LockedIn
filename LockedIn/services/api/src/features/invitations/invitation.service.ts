@@ -3,6 +3,7 @@ import {invitationFailure as failure,INVITATION_UNAVAILABLE} from "./invitation.
 import {lockInvitationUsers as lockUsers,isInvitationRecipient as isRecipient,isPendingInvitation as isPending,activeDeclinePause,invitationBlockBetween,type InvitationUser as Recipient} from "./invitation-access.service.js";
 import { persistTask, notificationBroker } from "../notifications/index.js";
 import { recordInvitationNotification, resolveInvitationNotifications } from "./invitation-notifications.service.js";
+import { inAppActivityAllowed } from "../notifications/notification-preferences.js";
 export async function createInvitation(inviterId: string, email: string) {
     const result = await prisma.$transaction(async (tx) => {
         await lockUsers(tx, [inviterId]);
@@ -20,7 +21,7 @@ export async function createInvitation(inviterId: string, email: string) {
         return { ok: true as const, invite, created: !existing, recipientId: recipient?.id ?? null };
     });
     if (result.ok && result.recipientId)
-        notificationBroker.publish(result.recipientId);
+        notificationBroker.publish(result.recipientId,await inAppActivityAllowed(prisma,result.recipientId));
     if(result.ok)notificationBroker.publish(inviterId,false);
     return result;
 }
@@ -62,8 +63,8 @@ export async function acceptInvitation(inviteId: string, inviterId: string, user
         return { ok: true as const, relationship };
     });
     if (result.ok) {
-        notificationBroker.publish(inviterId);
-        notificationBroker.publish(userId);
+        notificationBroker.publish(inviterId,await inAppActivityAllowed(prisma,inviterId));
+        notificationBroker.publish(userId,await inAppActivityAllowed(prisma,userId));
     }
     return result;
 }

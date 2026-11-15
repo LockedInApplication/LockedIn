@@ -86,6 +86,9 @@ model User {
   name          String?
   emailVerified Boolean  @default(false)
   image         String?
+  avatarPreset  String   @default("initials")
+  activityEmails Boolean @default(true)
+  inAppActivity Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -161,6 +164,7 @@ model Relationship {
 }
 
 model Notification {
+  suppressed     Boolean      @default(false)
   id             BigInt       @id @default(autoincrement())
   recipientId    String
   relationshipId String?

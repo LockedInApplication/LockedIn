@@ -9,7 +9,7 @@ export default function NotificationBell({ userId, onOpen, onActivity, onExpired
     onOpen: (item: NotificationItem) => Promise<boolean>;
     onActivity: () => void;
     onExpired: () => void;
-    onStatusChange?:()=>void;
+    onStatusChange?:(activity?:boolean)=>void;
 }) {
     const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement>(null);

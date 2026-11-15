@@ -1,0 +1,253 @@
+.stageGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.8fr);
+  gap: 22px;
+}
+
+.primaryCard,
+.sideCard,
+.focusCard,
+.formCard,
+.waitingCard,
+.alignmentHeader,
+.nextStepCard,
+.proposalCard,
+.proposalBoard,
+.proposalHistory,
+.roadmapBoard,
+.acceptedCard,
+.timelineCard {
+  border: 1px solid rgba(19, 34, 56, 0.08);
+  border-radius: 28px;
+  background: white;
+  box-shadow: 0 16px 50px rgba(19, 34, 56, 0.06);
+}
+
+.primaryCard,
+.sideCard,
+.formCard,
+.nextStepCard,
+.proposalCard,
+.proposalBoard,
+.proposalHistory,
+.roadmapBoard,
+.acceptedCard,
+.timelineCard {
+  padding: clamp(24px, 4vw, 42px);
+}
+
+.primaryCard {
+  position: relative;
+  overflow: hidden;
+}
+
+.primaryCard::after {
+  position: absolute;
+  right: -90px;
+  bottom: -140px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(22, 163, 148, 0.07);
+  content: "";
+}
+
+.cardNumber {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  color: #dbe4e7;
+  font-size: 3rem;
+  font-weight: 800;
+}
+
+.primaryCard h2,
+.focusCard h2,
+.formCard h2,
+.waitingCard h2,
+.alignmentHeader h2,
+.nextStepCard h2,
+.proposalCard h2,
+.acceptedCard h2 {
+  margin: 10px 0;
+  color: #132238;
+  font-size: clamp(1.6rem, 3vw, 2.55rem);
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+}
+
+.primaryCard > p,
+.focusCopy > p,
+.waitingCard > p,
+.alignmentHeader p,
+.nextStepCard > div > p,
+.proposalCard > p,
+.acceptedTop p {
+  max-width: 680px;
+  color: #637187;
+  line-height: 1.7;
+}
+
+.inviteForm {
+  position: relative;
+  z-index: 1;
+  margin-top: 32px;
+}
+
+.inviteForm > label,
+.nextStepCard label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #34445a;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.inviteForm > div {
+  display: flex;
+  gap: 9px;
+  margin-top: 7px;
+}
+
+.inviteForm input,
+.nextStepCard input,
+.nextStepCard textarea,
+.reflectionForm textarea {
+  width: 100%;
+  border: 1px solid #dce3e8;
+  border-radius: 13px;
+  outline: none;
+  color: #15263c;
+  background: #fbfcfc;
+  font: inherit;
+}
+
+.inviteForm input,
+.nextStepCard input {
+  min-height: 50px;
+  padding: 0 14px;
+}
+
+.inviteForm input:focus,
+.nextStepCard input:focus,
+.nextStepCard textarea:focus,
+.reflectionForm textarea:focus {
+  border-color: #16a394;
+  box-shadow: 0 0 0 3px rgba(22, 163, 148, 0.1);
+}
+
+.inviteForm button,
+.pendingInvite button,
+.primaryAction,
+.inviteLink button {
+  border: 0;
+  border-radius: 13px;
+  color: white;
+  background: #132238;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.inviteForm button {
+  flex: 0 0 auto;
+  padding: 0 20px;
+}
+
+.inviteForm button:hover,
+.pendingInvite button:hover,
+.primaryAction:hover {
+  transform: translateY(-1px);
+}
+
+.inviteForm button:disabled,
+.pendingInvite button:disabled,
+.primaryAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
+.inviteLink {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #dce7e4;
+  border-radius: 14px;
+  background: #f4fbf9;
+}
+
+.inviteLink > span {
+  grid-column: 1 / -1;
+  color: #08786d;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.inviteLink code {
+  overflow: hidden;
+  color: #4d5b6c;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inviteLink button {
+  padding: 5px 10px;
+}
+
+.sideCard > .eyebrow {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.pendingInvite {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 11px;
+  align-items: center;
+  padding: 15px 0;
+  border-top: 1px solid #edf0f2;
+}
+
+.pendingInvite div p {
+  color: #768394;
+  font-size: 0.78rem;
+}
+
+.pendingInvite button {
+  grid-column: 1 / -1;
+  padding: 10px;
+  background: #16a394;
+}
+
+.emptyState {
+  display: grid;
+  place-items: center;
+  min-height: 250px;
+  color: #7a8797;
+  text-align: center;
+}
+
+.emptyState span {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  color: #087f73;
+  background: #effaf7;
+  font-size: 1.4rem;
+}
+
+.emptyState p {
+  max-width: 260px;
+  font-size: 0.88rem;
+}

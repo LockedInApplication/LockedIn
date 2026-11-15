@@ -15,9 +15,7 @@ export default function ChromeCard({ title, children, bodyTightBottom }: ChromeC
         >
             <div className={styles.chromeHeader}>
                 <div className={styles.chromeControls}>
-                    <div className={styles.chromeDotRed} aria-hidden />
-                    <div className={styles.chromeDotYellow} aria-hidden />
-                    <div className={styles.chromeDotGreen} aria-hidden />
+                    <span className={styles.chromeIndex} aria-hidden>LockedIn /</span>
                     <div className={styles.chromeTitle}>{title}</div>
                 </div>
             </div>

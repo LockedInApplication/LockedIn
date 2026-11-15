@@ -8,28 +8,28 @@ export default function PrivacyContainer() {
 
   const privacyCards = [
     {
-      icon: "🔐",
-      title: "End-to-End Privacy",
+      icon: "P",
+      title: "Private by Default",
       description:
-        "Your data is encrypted and never sold or shared with third parties.",
+        "Your answers begin as yours alone. You decide which responses can be compared.",
     },
     {
-      icon: "🤝",
+      icon: "M",
       title: "Mutual Consent",
       description:
         "Nothing happens without both people agreeing. Symmetry is the rule.",
     },
     {
-      icon: "💬",
-      title: "Soft Language",
+      icon: "Ø",
+      title: "No Relationship Score",
       description:
-        "Our alerts are gentle observations — never accusations or judgments.",
+        "Alignment and difference are presented without ranking your relationship or declaring a winner.",
     },
     {
-      icon: "🗑️",
-      title: "Right to Delete",
+      icon: "↺",
+      title: "No Forced Timeline",
       description:
-        "Leave anytime and your data is permanently removed within 24 hours. Nothing happens without both people agreeing. Symmetry is the rule.",
+        "Pause, revise, decline, or leave. A healthy choice does not have to look like constant progress.",
     },
   ];
   return (
@@ -46,7 +46,7 @@ export default function PrivacyContainer() {
       </div>
      
         <div className={styles.trustcontainer}>
-          <div className={styles.shield}>🛡️</div>
+          <div className={styles.shield}>✓</div>
           <p className={styles.heading}>
             Built on <em>mutual trust</em>
           </p>

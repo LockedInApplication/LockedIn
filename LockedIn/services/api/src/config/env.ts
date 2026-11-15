@@ -12,6 +12,11 @@ export const env = {
   DATABASE_URL: process.env.DATABASE_URL,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
+  APP_URL: process.env.APP_URL || "http://localhost:3001",
+  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || "http://localhost:8000",
+  REQUIRE_EMAIL_VERIFICATION:
+    process.env.REQUIRE_EMAIL_VERIFICATION ??
+    (process.env.NODE_ENV === "production" ? "true" : "false"),
 };
 
 export function requireEnv(name: keyof typeof env): string {

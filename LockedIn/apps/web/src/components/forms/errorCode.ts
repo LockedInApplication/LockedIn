@@ -1,0 +1,28 @@
+export const ERROR_MESSAGES = {
+  USER_NOT_FOUND: "We couldn’t find an account with that information.",
+  FAILED_TO_CREATE_USER: "Something went wrong while creating your account. Try again.",
+  FAILED_TO_CREATE_SESSION: "We couldn’t log you in. Please try again.",
+  FAILED_TO_UPDATE_USER: "Failed to update your profile. Please retry.",
+  FAILED_TO_GET_SESSION: "Session error. Please log in again.",
+  INVALID_PASSWORD: "Incorrect password. Please try again.",
+  INVALID_EMAIL: "Please enter a valid email address.",
+  INVALID_EMAIL_OR_PASSWORD: "Invalid email or password.",
+  SOCIAL_ACCOUNT_ALREADY_LINKED: "This social account is already linked to another user.",
+  PROVIDER_NOT_FOUND: "Authentication provider is not available.",
+  INVALID_TOKEN: "Invalid or corrupted link. Please request a new one.",
+  ID_TOKEN_NOT_SUPPORTED: "This login method is not supported.",
+  FAILED_TO_GET_USER_INFO: "Unable to fetch user info. Try again.",
+  USER_EMAIL_NOT_FOUND: "No email found for this account.",
+  EMAIL_NOT_VERIFIED: "Please verify your email before logging in.",
+  PASSWORD_TOO_SHORT: "Password is too short (min 8 characters).",
+  PASSWORD_TOO_LONG: "Password is too long.",
+  USER_ALREADY_EXISTS: "An account with this email already exists.",
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
+    "An account with this email already exists. Log in or reset your password.",
+  EMAIL_CAN_NOT_BE_UPDATED: "Email cannot be changed.",
+  CREDENTIAL_ACCOUNT_NOT_FOUND: "No login credentials found. Try another method.",
+  SESSION_EXPIRED: "Your session has expired. Please log in again.",
+  FAILED_TO_UNLINK_LAST_ACCOUNT: "You cannot remove your only login method.",
+  ACCOUNT_NOT_FOUND: "Account not found.",
+  USER_ALREADY_HAS_PASSWORD: "This account already has a password set."
+} as const;

@@ -1,0 +1,29 @@
+.card { position: relative; max-width: 880px; margin: 25px auto 42px; padding: clamp(26px,5vw,54px); border: 2px solid #231b33; border-radius: 28px; background: linear-gradient(120deg,#fff6d8,#e4f3e5); box-shadow: 7px 8px 0 #4b335f; scroll-margin-top: 100px; }
+.card:focus-visible { outline: 3px solid #719fe7; outline-offset: 5px; }
+.seal { width: 60px; height: 60px; display: grid; place-items: center; border: 2px solid #231b33; border-radius: 50%; background: #fbd45d; font-size: 28px; margin-bottom: 22px; box-shadow: 3px 4px 0 #231b33; }
+.kicker { font-size: 11px; letter-spacing: .13em; font-weight: 800; color: #71518d; }
+.card h2 { font-size: clamp(27px,4vw,42px); line-height: 1.12; margin: 14px 0 24px; color: #231b33; }
+.card p { line-height: 1.6; font-size: 17px; color: #5e5768; }
+.card strong { color: #231b33; }
+.privacy { max-width: 580px; }
+.card .expiry { font-size: 13px; }
+.message { padding: 15px 18px; border-radius: 15px; background: #fffdf8b8; }
+.actions { display: flex; gap: 14px; margin-top: 26px; flex-wrap: wrap; }
+.actions button, .message button { padding: 13px 22px; border: 2px solid #231b33; border-radius: 14px; font: inherit; font-weight: 750; cursor: pointer; }
+.accept { color: white; background: #4b335f; box-shadow: 0 4px 0 #231b33; }
+.decline { color: #4b335f; background: #fffdf8; }
+.boundaries { margin-top: 22px; border-top: 1px solid #d9d4d4; padding-top: 15px; color: #655d6b; font-size: 13px; }
+.boundaries summary { cursor: pointer; font-weight: 700; }
+.block { border: 1px solid #b8a6c8; border-radius: 12px; padding: 11px 15px; background: #fffdf8; color: #4b335f; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
+.close { display: block; margin-top: 28px; padding: 5px 0; border: 0; background: transparent; text-decoration: underline; text-underline-offset: 4px; color: #5e5768; cursor: pointer; font: inherit; font-size: 14px; }
+.card button:disabled { opacity: .55; cursor: not-allowed; }
+.card button:focus-visible { outline: 3px solid #719fe7; outline-offset: 4px; }
+@media(max-width:500px) {
+  .card { padding: 22px; margin: 15px 0 30px; }
+  .seal { width: 48px; height: 48px; margin-bottom: 16px; font-size: 24px; }
+  .card h2 { font-size: 27px; margin: 12px 0 16px; }
+  .card p { font-size: 15px; line-height: 1.5; margin: 12px 0; overflow-wrap: anywhere; }
+  .actions { flex-direction: column; margin-top: 20px; gap: 12px; }
+  .actions button { width: 100%; }
+  .close { margin-top: 20px; }
+}

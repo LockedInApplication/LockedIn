@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -22,41 +21,130 @@ enum RelationshipStatus {
   BLOCKED
 }
 
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  phone        String?  @unique
-  displayName  String?
-  username     String?  @unique
-  name         String?
-  emailVerified Boolean @default(false)
-  image        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum IntentionSessionStatus {
+  COLLECTING
+  READY_TO_REVEAL
+  REVEALED
+  ACTION_CHOSEN
+  REFLECTED
+  ARCHIVED
+}
 
-  invitesSent             RelationshipInvite[] @relation("sentInvites")
-  invitesReceived         RelationshipInvite[] @relation("receivedInvites")
-  relationshipMemberships RelationshipMember[]
-  sessions                Session[]
-  accounts                Account[]
+enum NextStepStatus {
+  PROPOSED
+  ACCEPTED
+  COMPLETED
+  PAUSED
+  REVISED
+  DECLINED
+}
+
+enum ReflectionOutcome {
+  COMPLETED
+  CHANGED
+  PAUSED
+  NOT_RELEVANT
+}
+
+enum MeaningChapterStatus {
+  COLLECTING
+  DISCOVERING
+  CHECKING
+  PROPOSING
+  CHOOSING
+  RESOLVING
+  PROPOSED
+  SHARED
+}
+
+enum MeaningCheckStatus {
+  PENDING
+  CONFIRMED
+  ALMOST
+  MISSING
+}
+
+enum MeaningProposalKind {
+  PERSONAL
+  BLEND
+  REVISION
+  PAIRED
+}
+
+enum MeaningSelectionMode {
+  PROPOSAL
+  BLEND
+  KEEP_BOTH
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  phone         String?  @unique
+  displayName   String?
+  username      String?  @unique
+  name          String?
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  invitesSent                RelationshipInvite[]        @relation("sentInvites")
+  invitesReceived            RelationshipInvite[]        @relation("receivedInvites")
+  relationshipMemberships    RelationshipMember[]
+  intentionSessionsCreated   IntentionSession[]          @relation("IntentionSessionCreator")
+  intentionResponses         IntentionResponse[]
+  proposedNextSteps          SharedNextStep[]            @relation("NextStepProposer")
+  reflections                Reflection[]
+  conversationChoices        ConversationChoice[]
+  meaningChaptersCreated     MeaningChapter[]            @relation("MeaningChapterCreator")
+  meaningDefinitionsProposed MeaningChapter[]            @relation("MeaningDefinitionProposer")
+  meaningResponses           MeaningResponse[]
+  meaningDefinitionProposals MeaningDefinitionProposal[]
+  meaningSelections          MeaningSelection[]
+  meaningFinalApprovals      MeaningFinalApproval[]
+  sessions                   Session[]
+  accounts                   Account[]
+  notifications              Notification[]
+  invitationBlocksCreated    InvitationBlock[] @relation("InvitationBlockOwner")
+  invitationBlocksReceived   InvitationBlock[] @relation("InvitationBlockTarget")
 
   @@map("user")
 }
 
 model RelationshipInvite {
-  id        String       @id @default(uuid())
-  inviterId String
-  inviteeId String
-  status    InviteStatus @default(PENDING)
-  expiresAt DateTime?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id           String       @id @default(uuid())
+  inviterId    String
+  inviteeId    String?
+  inviteeEmail String?
+  token        String       @unique @default(uuid())
+  status       InviteStatus @default(PENDING)
+  expiresAt    DateTime?
+  acceptedAt   DateTime?
+  declinedAt   DateTime?
+  withdrawnAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  inviter User @relation("sentInvites", fields: [inviterId], references: [id], onDelete: Cascade)
-  invitee User @relation("receivedInvites", fields: [inviteeId], references: [id], onDelete: Cascade)
+  inviter User  @relation("sentInvites", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee User? @relation("receivedInvites", fields: [inviteeId], references: [id], onDelete: Cascade)
+  notifications Notification[]
 
   @@index([inviterId])
   @@index([inviteeId])
+  @@index([inviteeEmail, status])
+  @@index([inviterId, inviteeId, declinedAt])
+}
+
+model InvitationBlock {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker User @relation("InvitationBlockOwner",fields:[blockerId],references:[id],onDelete:Cascade)
+  blocked User @relation("InvitationBlockTarget",fields:[blockedId],references:[id],onDelete:Cascade)
+  @@unique([blockerId,blockedId])
+  @@index([blockedId])
 }
 
 model Relationship {
@@ -65,7 +153,141 @@ model Relationship {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  members RelationshipMember[]
+  members             RelationshipMember[]
+  intentionSessions   IntentionSession[]
+  conversationChoices ConversationChoice[]
+  meaningChapters     MeaningChapter[]
+  notifications       Notification[]
+}
+
+model Notification {
+  id             BigInt       @id @default(autoincrement())
+  recipientId    String
+  relationshipId String?
+  invitationId   String?
+  kind           String
+  entityId       String
+  wordKey        String?
+  eventKey       String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  readAt         DateTime?
+  resolvedAt     DateTime?
+  recipient      User         @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  relationship   Relationship? @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  invitation     RelationshipInvite? @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientId, eventKey])
+  @@index([recipientId, id])
+  @@index([relationshipId])
+  @@index([invitationId])
+}
+
+model MeaningChapter {
+  id                           String               @id @default(uuid())
+  relationshipId               String
+  wordKey                      String
+  createdById                  String
+  status                       MeaningChapterStatus @default(COLLECTING)
+  sharedDefinition             String?
+  sharedDefinitionProposedById String?
+  candidateVersion             Int                  @default(0)
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
+
+  relationship               Relationship                @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  createdBy                  User                        @relation("MeaningChapterCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  sharedDefinitionProposedBy User?                       @relation("MeaningDefinitionProposer", fields: [sharedDefinitionProposedById], references: [id], onDelete: SetNull)
+  responses                  MeaningResponse[]
+  proposals                  MeaningDefinitionProposal[]
+  selections                 MeaningSelection[]
+  finalApprovals             MeaningFinalApproval[]
+
+  @@index([relationshipId, wordKey, createdAt])
+  @@index([createdById])
+}
+
+model MeaningDefinitionProposal {
+  id         String              @id @default(uuid())
+  chapterId  String
+  userId     String?
+  kind       MeaningProposalKind
+  definition String
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  chapter    MeaningChapter     @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  user       User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  selections MeaningSelection[]
+
+  @@index([chapterId, kind, createdAt])
+  @@index([userId])
+}
+
+model MeaningSelection {
+  id         String               @id @default(uuid())
+  chapterId  String
+  userId     String
+  mode       MeaningSelectionMode
+  proposalId String?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  chapter  MeaningChapter             @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  user     User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposal MeaningDefinitionProposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  @@unique([chapterId, userId])
+  @@index([proposalId])
+}
+
+model MeaningFinalApproval {
+  id               String   @id @default(uuid())
+  chapterId        String
+  userId           String
+  candidateVersion Int
+  createdAt        DateTime @default(now())
+
+  chapter MeaningChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chapterId, userId, candidateVersion])
+  @@index([chapterId, candidateVersion])
+}
+
+model MeaningResponse {
+  id           String              @id @default(uuid())
+  chapterId    String
+  userId       String
+  definition   String
+  example      String
+  notMeaning   String
+  heardSummary String?
+  heardStatus  MeaningCheckStatus?
+  submittedAt  DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  chapter MeaningChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chapterId, userId])
+  @@index([userId])
+}
+
+model ConversationChoice {
+  id             String   @id @default(uuid())
+  relationshipId String
+  userId         String
+  packKey        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  relationship Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([relationshipId, userId])
+  @@index([relationshipId])
+  @@index([userId])
 }
 
 model RelationshipMember {
@@ -78,6 +300,80 @@ model RelationshipMember {
 
   @@unique([relationshipId, userId])
   @@index([relationshipId])
+  @@index([userId])
+}
+
+model IntentionSession {
+  id             String                 @id @default(uuid())
+  relationshipId String
+  createdById    String
+  topic          String                 @default("Our next 12 months")
+  packKey        String                 @default("direction")
+  status         IntentionSessionStatus @default(COLLECTING)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  relationship Relationship        @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  createdBy    User                @relation("IntentionSessionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  responses    IntentionResponse[]
+  nextSteps    SharedNextStep[]
+
+  @@index([relationshipId, status])
+  @@index([createdById])
+}
+
+model IntentionResponse {
+  id                String    @id @default(uuid())
+  sessionId         String
+  userId            String
+  answers           Json
+  shareKeys         String[]
+  contextNotes      Json      @default("{}")
+  contextShareKeys  String[]  @default([])
+  submittedAt       DateTime  @default(now())
+  revealConsentedAt DateTime?
+  updatedAt         DateTime  @updatedAt
+
+  session IntentionSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([userId])
+}
+
+model SharedNextStep {
+  id           String         @id @default(uuid())
+  sessionId    String
+  proposedById String
+  title        String
+  details      String?
+  targetDate   DateTime?
+  status       NextStepStatus @default(PROPOSED)
+  acceptedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  session     IntentionSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  proposedBy  User             @relation("NextStepProposer", fields: [proposedById], references: [id], onDelete: Cascade)
+  reflections Reflection[]
+
+  @@index([sessionId, status])
+  @@index([proposedById])
+}
+
+model Reflection {
+  id         String            @id @default(uuid())
+  nextStepId String
+  userId     String
+  outcome    ReflectionOutcome
+  note       String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  nextStep SharedNextStep @relation(fields: [nextStepId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([nextStepId, userId])
   @@index([userId])
 }
 

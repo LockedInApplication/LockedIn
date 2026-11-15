@@ -1,42 +1,60 @@
-// Global element styles and resets (html, body, a, etc.) go here.
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Onest:wght@400;500;600;700&display=swap");
+
+// LockedIn's visual system is intentionally warm, direct, and human.
 
 :root {
-    --cream: #FAF8F5;
-    --warm-white: #FFFEF9;
-    --stone-50: #F7F5F0;
-    --stone-100: #EDEAD9;
-    --stone-300: #C9C4B2;
-    --stone-500: #8A8471;
-    --stone-700: #4A4640;
-    --ink: #1C1916;
-    --accent: #4A6FA5;
-    --accent-light: #7295C2;
-    --accent-pale: #EBF0F8;
-    --blush: #E8D5CC;
-    --sage: #B5C4B1;
-    --gold: #C4A882;
-    --gold-light: #F0E4D4;
-    --alert-soft: #F5EDD8;
-    --alert-text: #8A6830;
-    --success: #8FAF8A;
-    --r: 16px;
-    --r-lg: 24px;
-    --shadow-sm: 0 1px 4px rgba(28,25,22,0.06), 0 0 0 1px rgba(28,25,22,0.04);
-    --shadow-md: 0 4px 24px rgba(28,25,22,0.08), 0 0 0 1px rgba(28,25,22,0.04);
-    --shadow-lg: 0 16px 48px rgba(28,25,22,0.10), 0 0 0 1px rgba(28,25,22,0.04);
-    --font-serif: "Playfair Display", serif;
-  }
+  --cream: #f4efe6;
+  --warm-white: #fffdf8;
+  --stone-50: #eee8df;
+  --stone-100: #ded6ca;
+  --stone-300: #a89e94;
+  --stone-500: #655f68;
+  --stone-700: #302b3d;
+  --ink: #20182f;
+  --accent: #f25c4f;
+  --accent-light: #ff8d7f;
+  --accent-pale: #fff0eb;
+  --blush: #f5a6b6;
+  --sage: #a9dfcb;
+  --gold: #f2bd4d;
+  --gold-light: #fff5d8;
+  --alert-soft: #fff4de;
+  --alert-text: #8f5c12;
+  --success: #247a66;
+  --plum: #4b315f;
+  --plum-deep: #20182f;
+  --paper: #fffdf8;
+  --r: 14px;
+  --r-lg: 22px;
+  --r-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(32, 24, 47, 0.06), 0 0 0 1px rgba(32, 24, 47, 0.06);
+  --shadow-md: 0 14px 34px rgba(32, 24, 47, 0.09), 0 0 0 1px rgba(32, 24, 47, 0.05);
+  --shadow-lg: 0 26px 70px rgba(32, 24, 47, 0.14), 0 0 0 1px rgba(32, 24, 47, 0.05);
+  --font-sans: "Onest", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque", "Arial Narrow", sans-serif;
+  --font-serif: var(--font-display);
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
  
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
  
-  html { scroll-behavior: smooth; }
+  html { 
+    scroll-behavior: smooth;
+    width: 100%;
+    overflow-x: hidden;
+  }
  
   body {
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--font-sans);
     background: var(--cream);
     color: var(--ink);
     font-size: 16px;
     line-height: 1.6;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
+
+  button, input, textarea, select { font: inherit; }
+  ::selection { color: var(--ink); background: var(--sage); }
+  :focus-visible { outline: 3px solid rgba(242, 92, 79, 0.34); outline-offset: 3px; }

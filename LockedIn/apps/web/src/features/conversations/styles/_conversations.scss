@@ -1,0 +1,226 @@
+.librarySection,
+.sectionHero,
+.emptyWorkspace,
+.alignmentNextPrompt {
+  padding: clamp(26px, 4vw, 44px);
+  border: 1px solid rgba(19, 34, 56, 0.08);
+  border-radius: 28px;
+  background: white;
+  box-shadow: 0 16px 50px rgba(19, 34, 56, 0.06);
+}
+
+.libraryHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 28px;
+}
+
+.libraryHeader > div {
+  max-width: 700px;
+}
+
+.libraryHeader h2,
+.sectionHero h2,
+.emptyWorkspace h2 {
+  margin: 8px 0 10px;
+  color: #182a42;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  letter-spacing: -0.05em;
+}
+
+.libraryHeader p,
+.sectionHero p,
+.emptyWorkspace p,
+.alignmentNextPrompt p {
+  margin: 0;
+  color: #66758a;
+  line-height: 1.65;
+}
+
+.inProgressPill {
+  padding: 9px 12px;
+  border-radius: 999px;
+  color: #9a641c;
+  background: #fff8e8;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.choiceBoard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr) auto;
+  gap: 22px;
+  align-items: center;
+  margin-bottom: 22px;
+  padding: 22px;
+  border: 1px solid #dce8e5;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f1faf8, #fbfdfc);
+}
+
+.choiceBoard h3 {
+  margin: 7px 0;
+  color: #203249;
+  font-size: 1.2rem;
+}
+
+.choiceBoard p {
+  margin: 0;
+  color: #68778b;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.choiceStates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.choiceStates > div {
+  display: grid;
+  gap: 4px;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid rgba(19, 34, 56, 0.08);
+  border-radius: 12px;
+  background: white;
+}
+
+.choiceStates span {
+  color: #8793a1;
+  font-size: 0.63rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.choiceStates strong {
+  color: #2b3d52;
+  font-size: 0.76rem;
+}
+
+.choiceStates button {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  color: #9b4b4b;
+  background: transparent;
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.choiceBoard > button {
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid #bcdcd5;
+  border-radius: 12px;
+  color: #08776d;
+  background: white;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.choiceBoard > .eitherSelected {
+  color: white;
+  background: #087f73;
+}
+
+.packGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.packCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+  padding: 22px;
+  border: 1px solid #e2e8ea;
+  border-radius: 20px;
+  background: linear-gradient(150deg, white, #f8fbfa);
+}
+
+.packIcon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  color: #087f73;
+  background: #e9f8f5;
+  font-size: 1.35rem;
+}
+
+.packCard > span {
+  color: #8793a1;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.packChoiceBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 21px;
+  margin-bottom: 8px;
+}
+
+.packChoiceBadges span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #08776d;
+  background: #e9f8f5;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.packCard h3 {
+  margin: 9px 0;
+  color: #213249;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+}
+
+.packCard p {
+  margin: 0 0 20px;
+  color: #69778a;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.packCard button {
+  min-height: 42px;
+  margin-top: auto;
+  border: 1px solid #d7e2df;
+  border-radius: 11px;
+  color: #08776d;
+  background: white;
+  font: inherit;
+  font-size: 0.73rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.packCard button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pack_blue .packIcon { color: #176a92; background: #edf7fc; }
+.pack_coral .packIcon { color: #a45145; background: #fff0ec; }
+.pack_gold .packIcon { color: #94621e; background: #fff8e8; }
+.pack_plum .packIcon { color: #804d75; background: #f9eef7; }
+.pack_slate .packIcon { color: #4f6272; background: #edf1f3; }

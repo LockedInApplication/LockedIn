@@ -9,9 +9,9 @@ export default function StepsContainer()
 
     return(
         <div ref={ref} className={`${styles.stepContainer} ${isVisible ? styles.isVisible : ""}`}>
-            <Step icon="✉️" title="Invite" description="Send your partner a relationship confirmation invite through LockedIn. It takes less than 30 seconds and starts with mutual inten"/>
-            <Step icon="🔒" title="Confirm" description="Both people independently confirm. Only when both agree is the relationship made official — symmetry by design, no one-sided status."/>
-            <Step icon="🔗" title="Transparency" description="LockedIn quietly monitors connection patterns and sends gentle, non-accusatory alerts if something unusual emerges — giving you peace of mind.."/>
+            <Step icon="01" title="Reflect privately" description="Each person answers independently before seeing the other's perspective. Sharing stays off by default."/>
+            <Step icon="02" title="Reveal by choice" description="Compare only the answers both people consent to share. Differences are never turned into a score."/>
+            <Step icon="03" title="Choose together" description="Turn the conversation into one small next step that either person can accept, revise, pause, or decline."/>
         </div>
     )
 }

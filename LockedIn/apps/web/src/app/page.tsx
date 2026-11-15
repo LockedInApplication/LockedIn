@@ -15,38 +15,43 @@ export default function Home() {
       <Navbar />
       <Hero />
       <PreviewDescription
-        title="The Problem"
-        heading="Modern relationships lack transparency"
-        shortDescription="In a hyper-connected world, trust is harder to build and easier to break. LockedIn exists because clarity shouldn't be a luxury."
+        title="The gap"
+        heading="Important conversations rarely become shared decisions"
+        shortDescription="Two people can care deeply about each other and still carry different expectations about timing, priorities, and what comes next."
         bg="var(--warm-white)"
-        children={<ProblemCardContainer />}
-      />
+      >
+        <ProblemCardContainer />
+      </PreviewDescription>
       <PreviewDescription
+        id="how-it-works"
         title="How It Works"
-        heading="Three steps to complete clarity"
-        shortDescription="Simple, mutual, and respectful — LockedIn puts both people in control from day one."
+        heading="From private reflection to one shared next step"
+        shortDescription="Each person has a voice at every stage. Nothing becomes shared until both people choose it."
         bg="var(--cream)"
-        children={<StepsContainer />}
-      />
+      >
+        <StepsContainer />
+      </PreviewDescription>
       <PreviewDescription
+        id="preview"
         title="Product Preview"
-        heading="Designed for calm, not conflict"
-        shortDescription="Every screen is crafted to feel gentle, clear, and trustworthy — because how something feels matters as much as what it does."
+        heading="A roadmap built by both of you"
+        shortDescription="LockedIn does not grade your relationship. It helps you notice shared ground, discuss differences, and follow through at your own pace."
         bg="var(--stone-50)"
-        children={<ProductReviewCardContainer />}
-      />
+      >
+        <ProductReviewCardContainer />
+      </PreviewDescription>
 
       <PreviewDescription
+        id="trust"
         title="TRUST & PRIVACY"
-        heading="We don't accuse.
-        We illuminate."
-        shortDescription="LockedIn is built on a foundation of consent and respect. We believe transparency and privacy aren't opposites — they're partners."
+        heading="Choice is part of every step."
+        shortDescription="Private answers stay private unless you choose to reveal them. Different answers are conversation topics—not warnings or compatibility scores."
         bg="var(--warm-white)"
-        children={<PrivacyContainer />}
-      />
+      >
+        <PrivacyContainer />
+      </PreviewDescription>
       <FooterHero />
       <Footer />
     </div>
-    
   );
 }

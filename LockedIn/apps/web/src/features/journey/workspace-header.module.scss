@@ -1,0 +1,93 @@
+.desktop {
+  display: contents;
+}
+.mobile {
+  display: none;
+}
+.actions {
+  position: relative;
+}
+@media (max-width: 700px) {
+  .header {
+    min-height: 72px;
+    padding: 10px 16px;
+    gap: 12px;
+  }
+  .header > a {
+    flex-shrink: 0;
+    min-height: 44px;
+  }
+  .actions {
+    gap: 12px;
+  }
+  .desktop {
+    display: none;
+  }
+  .mobile {
+    display: block;
+    position: relative;
+  }
+  .avatarButton {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--plum);
+    > span:first-child {
+      width: 44px;
+      height: 44px;
+      font-size: 18px;
+    }
+  }
+  .avatarButton:focus-visible,
+  .panel button:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .chevron {
+    font-size: 14px;
+  }
+  .panel {
+    position: absolute;
+    z-index: 35;
+    top: calc(100% + 12px);
+    right: 0;
+    width: min(270px, calc(100vw - 32px));
+    padding: 10px;
+    border: 2px solid var(--ink);
+    border-radius: 18px;
+    background: #fffdf8;
+    box-shadow: 4px 5px 0 var(--plum);
+    p {
+      margin: 4px 8px 10px;
+      overflow-wrap: anywhere;
+      font-size: 0.85rem;
+      color: var(--stone-500);
+    }
+    button {
+      display: block;
+      width: 100%;
+      min-height: 48px;
+      padding: 12px;
+      text-align: left;
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 650;
+      background: none;
+      border: 0;
+      border-radius: 10px;
+      color: var(--plum);
+      cursor: pointer;
+    }
+    button:hover {
+      background: #f1e9f7;
+    }
+  }
+}

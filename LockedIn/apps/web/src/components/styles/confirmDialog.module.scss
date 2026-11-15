@@ -1,0 +1,96 @@
+.dialog {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 36px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  margin: auto;
+  padding: clamp(24px, 5vw, 34px);
+  border: 2px solid #282036;
+  border-radius: 24px;
+  background: #fffdf8;
+  color: #211930;
+  box-shadow: 7px 8px 0 #bda6cc;
+  &::backdrop {
+    background: rgba(33, 25, 48, 0.48);
+    backdrop-filter: blur(3px);
+  }
+  &[open] {
+    animation: arrive 0.16s ease-out;
+  }
+  h2 {
+    font-size: clamp(24px, 5vw, 30px);
+    line-height: 1.15;
+    letter-spacing: -0.035em;
+    margin: 12px 0;
+  }
+  button {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 13px 15px;
+    cursor: pointer;
+    border-radius: 12px;
+  }
+  button:focus-visible {
+    outline: 3px solid #9473b0;
+    outline-offset: 4px;
+  }
+}
+.mark {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 2px solid #282036;
+  border-radius: 50%;
+  background: #ffdc76;
+  font-size: 28px;
+  box-shadow: 2px 3px 0 #282036;
+}
+.eyebrow {
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  color: #71518d;
+  margin: 22px 0 0;
+}
+.description {
+  color: #68616f;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 12px 0 24px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  button {
+    flex: 1 1 150px;
+  }
+}
+.keep {
+  background: #b0dfcd;
+  color: #211930;
+  border: 2px solid #282036;
+  box-shadow: 0 3px 0 #282036;
+}
+.leave {
+  background: #fffdf8;
+  color: #633c62;
+  border: 1px solid #b8a6c8;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog[open] {
+    animation: none;
+  }
+}

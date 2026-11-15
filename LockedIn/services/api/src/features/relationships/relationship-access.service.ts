@@ -21,7 +21,7 @@ export async function getActiveRelationship(userId: string) {
       members: {
         include: {
           user: {
-            select: { id: true, name: true, displayName: true, email: true },
+            select: { id: true, name: true, displayName: true, email: true, avatarPreset:true },
           },
         },
       },

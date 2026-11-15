@@ -8,6 +8,11 @@ export async function authRoutes(server: FastifyInstance) {
     url: "/api/auth/*",
     handler: async (request, reply) => {
       try {
+        const expectedOwner=request.headers["x-profile-owner"];
+        if(expectedOwner && request.url.split("?")[0]==="/api/auth/change-password") {
+          const session=await auth.api.getSession({headers:fromNodeHeaders(request.headers)});
+          if(!session || session.user.id!==expectedOwner) return reply.code(409).send({message:"Your account changed. Reload this page before saving."});
+        }
         const host = request.headers.host ?? "localhost:8000";
         const protocol =
           (request.headers["x-forwarded-proto"] as string | undefined) ??

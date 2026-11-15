@@ -26,6 +26,11 @@ beforeEach(() => {
 });
 
 describe("buildJourneyOverview", () => {
+  it("uses persisted preferred name and avatar rather than stale authenticated identity",async()=>{
+    repository.user.findUniqueOrThrow.mockResolvedValue({...user,displayName:"Preferred",avatarPreset:"sun"});
+    const overview=await buildJourneyOverview(user.id,user);
+    expect(overview.user).toMatchObject({name:"Preferred",avatarPreset:"sun"});
+  });
   it("preserves the complete empty state before a relationship exists", async () => {
     const overview = await buildJourneyOverview(user.id);
     expect(overview.user).toEqual(user);

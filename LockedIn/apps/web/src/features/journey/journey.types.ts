@@ -35,7 +35,7 @@ export type JourneySession = {
 };
 
 export type JourneyOverview = {
-  user: { id: string; email: string; name: string };
+  user: { id: string; email: string; name: string; avatarPreset?:string };
   pendingInvites: Array<{
     id: string;
     token: string;
@@ -44,7 +44,7 @@ export type JourneyOverview = {
   }>;
   relationship: {
     id: string;
-    partner: { name: string; email: string };
+    partner: { name: string; email: string; avatarPreset?:string };
   } | null;
   session: JourneySession | null;
   checkInHistory: CheckInSnapshot[];

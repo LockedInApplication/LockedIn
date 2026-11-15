@@ -4,6 +4,7 @@ import { RoadmapView } from "@/features/roadmap";
 import EmptyWorkspace from "@/features/journey/components/EmptyWorkspace";
 import { ConnectionStage,InvitationReview,InvitationManager,SentInvitations } from "@/features/invitations";
 import WorkspaceHeader from "./components/WorkspaceHeader";
+import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import WorkspaceNav from "./components/WorkspaceNav";
 import ProgressRail from "./components/ProgressRail";
 import SharedJourneyPath from "./components/SharedJourneyPath";
@@ -25,7 +26,6 @@ import {
 } from "@/lib/journey";
 import {
   getProgress,
-  initials,
 } from "@/features/journey/journey.utils";
 import styles from "@/app/journey/journey.module.scss";
 import guidanceStyles from "./next-action.module.scss";
@@ -60,7 +60,8 @@ export default function JourneyWorkspace() {
   },[workspaceLocation,overview]);
 
   const onActivity=useCallback(()=>setNewActivity(true),[]);
-  const onInvitationUpdate=useCallback(()=>setInvitationRevision(value=>value+1),[]);
+  const [quietRevision,setQuietRevision]=useState(0);
+  const onInvitationUpdate=useCallback((activity?:boolean)=>{setInvitationRevision(value=>value+1);if(activity===false)setQuietRevision(value=>value+1);},[]);
   const onExpired=useCallback(()=>{
     const returnTo=`${window.location.pathname}${window.location.search}${window.location.hash}`;
     router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
@@ -98,6 +99,15 @@ export default function JourneyWorkspace() {
   useEffect(() => {
     void loadOverview();
   }, [loadOverview]);
+
+  useEffect(()=>{
+    if(!quietRevision||dirty.current||busy)return;
+    const controller=new AbortController();
+    void journeyRequest<JourneyOverview>("/api/journey/overview",{signal:controller.signal,cache:"no-store"}).then(data=>{
+      if(!controller.signal.aborted&&!dirty.current)setOverview(data);
+    }).catch(()=>{/* The normal refresh and retry controls remain available. */});
+    return()=>controller.abort();
+  },[quietRevision,busy]);
 
   const runAction = useCallback(
     async (action: () => Promise<unknown>, successMessage?: string) => {
@@ -224,6 +234,7 @@ export default function JourneyWorkspace() {
   };
 
   const header=<WorkspaceHeader onSignOut={signOut}
+    user={overview.user} onProfile={()=>{if(confirmDiscard())router.push("/profile");}}
     onInvitations={invitationManagerOpen?undefined:()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey?invitations=manage");}}
     notifications={<NotificationBell key={overview.user.id} userId={overview.user.id} onOpen={openNotification} onActivity={onActivity} onExpired={onExpired} onStatusChange={onInvitationUpdate}/>}/>;
 
@@ -267,11 +278,12 @@ export default function JourneyWorkspace() {
             </p>
           </div>
           <div className={styles.memberCard}>
-            <span className={styles.avatar}>{initials(overview.user.name || overview.user.email)}</span>
+            <ProfileAvatar name={overview.user.name || overview.user.email} preset={overview.user.avatarPreset}/>
             <div>
               <strong>{overview.user.name || "Your space"}</strong>
               <span>{overview.relationship ? `Connected with ${overview.relationship.partner.name}` : "Start privately"}</span>
             </div>
+            {overview.relationship?<ProfileAvatar name={overview.relationship.partner.name} preset={overview.relationship.partner.avatarPreset}/>:null}
           </div>
         </section>
 

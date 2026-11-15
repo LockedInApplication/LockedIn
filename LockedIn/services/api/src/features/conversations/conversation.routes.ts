@@ -1,15 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../../lib/prisma.js";
-import { env } from "../../config/env.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
 import { isRelationshipMember } from "../relationships/relationship-access.service.js";
-import { sendJourneyEmailSafely } from "../journey-notifications/journey-email.service.js";
-import { conversationPacks, getConversationPack } from "./conversation.catalog.js";
+import { conversationPacks } from "./conversation.catalog.js";
 import { conversationChoiceSchema } from "./conversation.schemas.js";
-import { chooseConversation } from "./conversation.service.js";
 import { withNotifications } from "../notifications/index.js";
+import { registerConversationSuggestionRoutes } from "./conversation-suggestion.routes.js";
+import { performConversationChoice } from "./conversation-choice.action.js";
 
 export async function registerConversationRoutes(server: FastifyInstance) {
+  await registerConversationSuggestionRoutes(server);
   server.post<{ Params: { relationshipId: string }; Body: { packKey: string | null } }>(
     "/api/journey/relationships/:relationshipId/conversation-choice",
     async (request, reply) => {
@@ -30,36 +30,10 @@ export async function registerConversationRoutes(server: FastifyInstance) {
         return sendError(reply, 400, "Choose a valid conversation.");
       }
 
-      const result = await withNotifications(relationshipId, user.id, tx => chooseConversation(relationshipId, user.id, parsed.data.packKey, tx));
+      const result = await performConversationChoice(request,user,relationshipId,parsed.data.packKey);
 
-      if ("error" in result && result.error) {
-        return sendError(reply, 409, result.error);
-      }
-
-      const partner = await prisma.relationshipMember.findFirst({
-        where: { relationshipId, userId: { not: user.id } },
-        include: { user: true },
-      });
-      if (partner?.user.email) {
-        const chosenTitle =
-          parsed.data.packKey === null
-            ? "either conversation"
-            : getConversationPack(parsed.data.packKey).title;
-        await sendJourneyEmailSafely(request, {
-          to: partner.user.email,
-          name: partner.user.name,
-          subject: result.started
-            ? "Your next LockedIn conversation is ready"
-            : "Your partner made a conversation choice",
-          heading: result.started
-            ? "You both chose the same conversation."
-            : "A conversation choice is waiting for you.",
-          message: result.started
-            ? "Your private prompts are ready. Each person still controls what is eventually revealed."
-            : `${user.name ?? "Your partner"} selected ${chosenTitle}. You can accept it, suggest another topic, or choose “Either works for me.”`,
-          actionLabel: result.started ? "Begin privately" : "Review the choices",
-          url: `${env.APP_URL}/journey`,
-        });
+      if ("error" in result) {
+        return sendError(reply, 409, result.error??'This conversation is no longer available.');
       }
 
       return reply.code(result.started ? 201 : 200).send(result);

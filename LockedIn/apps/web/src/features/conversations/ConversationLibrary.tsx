@@ -1,9 +1,9 @@
 "use client";
-
-import styles from "@/app/journey/journey.module.scss";
+import { useState, useRef, useEffect } from "react";
 import type { JourneyOverview } from "@/features/journey/journey.types";
 import type { ConversationPack } from "./conversation.types";
-
+import ConversationTopicPreview from "./ConversationTopicPreview";
+import styles from "./conversation-library.module.scss";
 export type ConversationLibraryProps = {
   packs: ConversationPack[];
   selection: JourneyOverview["conversationSelection"];
@@ -12,92 +12,146 @@ export type ConversationLibraryProps = {
   busy: boolean;
   onStart: (packKey: string | null) => void;
   onWithdraw: () => void;
+  onContinue?: () => void;
 };
-
 export default function ConversationLibrary({
   packs,
   selection,
-  currentPackKey,
   canStart,
   busy,
   onStart,
   onWithdraw,
+  onContinue,
 }: ConversationLibraryProps) {
-  const packName = (packKey: string | null) =>
-    packKey === null
+  const [preview, setPreview] = useState<ConversationPack | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const previousTopic = useRef<string | null>(null);
+  const section = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (preview) {
+      previousTopic.current = preview.key;
+      heading.current?.focus();
+    } else if (previousTopic.current)
+      section.current
+        ?.querySelector<HTMLButtonElement>(
+          `[data-topic="${CSS.escape(previousTopic.current)}"]`,
+        )
+        ?.focus({ preventScroll: true });
+  }, [preview]);
+  const partner = selection?.partnerChoice,
+    own = selection?.ownChoice;
+  const name = (key: string | null) =>
+    key === null
       ? "Either conversation"
-      : packs.find((pack) => pack.key === packKey)?.title ?? "A conversation";
-
+      : (packs.find((p) => p.key === key)?.title ?? "Unavailable topic");
+  if (preview)
+    return (
+      <ConversationTopicPreview
+        pack={preview}
+        canStart={canStart}
+        busy={busy}
+        headingRef={heading}
+        onBack={() => setPreview(null)}
+        onSuggest={() => onStart(preview.key)}
+      />
+    );
   return (
-    <section className={styles.librarySection}>
-      <div className={styles.libraryHeader}>
-        <div>
-          <span className={styles.eyebrow}>GUIDED CONVERSATIONS</span>
-          <h2>Choose what matters now.</h2>
-          <p>Each topic starts privately. Answers and written context are shared only with fresh consent.</p>
-        </div>
-        {!canStart ? <span className={styles.inProgressPill}>Finish your current check-in first</span> : null}
-      </div>
-      {canStart ? (
-        <div className={styles.choiceBoard}>
-          <div>
-            <span className={styles.eyebrow}>CHOOSE TOGETHER</span>
-            <h3>No conversation begins until both choices meet.</h3>
-            <p>
-              Suggest a topic, accept your partner&apos;s suggestion, choose another, or say
-              that either works for you.
-            </p>
-          </div>
-          <div className={styles.choiceStates}>
-            <div>
-              <span>You</span>
-              <strong>{selection?.ownChoice.submitted ? packName(selection.ownChoice.packKey) : "No choice yet"}</strong>
-              {selection?.ownChoice.submitted ? <button onClick={onWithdraw} disabled={busy}>Withdraw</button> : null}
-            </div>
-            <div>
-              <span>{selection?.partnerChoice.name ?? "Your partner"}</span>
-              <strong>{selection?.partnerChoice.submitted ? packName(selection.partnerChoice.packKey) : "Waiting for their choice"}</strong>
-            </div>
-          </div>
+    <section
+      ref={section}
+      className={styles.library}
+      aria-label="Conversation topics"
+    >
+      <h2>What’s on your mind?</h2>
+      <p>Pick a topic to suggest to {partner?.name ?? "your partner"}.</p>
+      {partner?.submitted ? (
+        <aside className={styles.suggestion}>
+          <span className={styles.kicker}>{partner.name} suggested</span>
+          <h3>{name(partner.packKey)}</h3>
+          {partner.packKey === null ? (
+            <p>They’re happy for you to choose a topic.</p>
+          ) : null}
           <button
-            className={selection?.ownChoice.submitted && selection.ownChoice.packKey === null ? styles.eitherSelected : ""}
-            disabled={busy}
-            onClick={() => onStart(null)}
+            type="button"
+            disabled={busy || !canStart}
+            onClick={() => {
+              const pack = packs.find((p) => p.key === partner.packKey);
+              if (pack) setPreview(pack);
+            }}
+            hidden={partner.packKey === null}
           >
-            Either works for me
+            Review suggestion →
+          </button>
+        </aside>
+      ) : null}
+      {own?.submitted ? (
+        <div className={styles.own}>
+          <span>
+            Your choice: <strong>{name(own.packKey)}</strong>
+          </span>
+          <button type="button" disabled={busy} onClick={onWithdraw}>
+            Withdraw
           </button>
         </div>
       ) : null}
-      <div className={styles.packGrid}>
-        {packs.map((pack) => (
-          <article className={`${styles.packCard} ${styles[`pack_${pack.accent}`] ?? ""}`} key={pack.key}>
-            <div className={styles.packIcon}>{pack.icon}</div>
-            <div className={styles.packChoiceBadges}>
-              {selection?.ownChoice.submitted && selection.ownChoice.packKey === pack.key ? <span>Your suggestion</span> : null}
-              {selection?.partnerChoice.submitted && selection.partnerChoice.packKey === pack.key ? <span>{selection.partnerChoice.name}&apos;s suggestion</span> : null}
-            </div>
-            <span>{pack.questionCount} private prompts</span>
-            <h3>{pack.title}</h3>
-            <p>{pack.description}</p>
+      {!canStart ? (
+        <div>
+          <p role="status">
+            Finish your current check-in together before choosing another
+            conversation.
+          </p>
+          {onContinue ? (
             <button
-              disabled={busy || !canStart}
-              onClick={() => onStart(pack.key)}
+              type="button"
+              className={styles.secondary}
+              disabled={busy}
+              onClick={onContinue}
             >
-              {currentPackKey === pack.key && !canStart
-                ? "Current conversation"
-                : selection?.partnerChoice.submitted &&
-                    selection.partnerChoice.packKey === pack.key &&
-                    selection.ownChoice.packKey !== pack.key
-                  ? "Accept this suggestion"
-                  : selection?.ownChoice.submitted && selection.ownChoice.packKey === pack.key
-                    ? "Your suggestion"
-                : busy
-                  ? "Preparing..."
-                  : "Suggest this conversation"}
+              Continue current conversation →
             </button>
-          </article>
+          ) : null}
+        </div>
+      ) : null}
+      <h3>Explore topics</h3>
+      <div className={styles.topics}>
+        {packs.map((pack) => (
+          <button
+            className={styles.topic}
+            key={pack.key}
+            data-topic={pack.key}
+            type="button"
+            disabled={busy}
+            onClick={() => setPreview(pack)}
+          >
+            <span className={styles.icon} aria-hidden>
+              {pack.icon}
+            </span>
+            <span>
+              <strong>{pack.title}</strong>
+              <small>{pack.questionCount} private prompts · View topic</small>
+            </span>
+            <span aria-hidden>›</span>
+          </button>
         ))}
       </div>
+      <button
+        type="button"
+        className={styles.secondary}
+        disabled={busy || !canStart}
+        onClick={() => onStart(null)}
+      >
+        Either works for me
+      </button>
+      <p className={styles.privacy}>
+        Your answers begin privately. Sharing them is a separate choice.
+      </p>
+      <details>
+        <summary>How choosing together works</summary>
+        <p>
+          Suggest a topic, accept your partner’s suggestion, or choose Either. A
+          conversation begins only when your choices meet. You can withdraw your
+          choice.
+        </p>
+      </details>
     </section>
   );
 }

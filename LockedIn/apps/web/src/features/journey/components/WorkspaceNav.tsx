@@ -6,9 +6,11 @@ import type { WorkspaceView } from "../journey.navigation";
 export default function WorkspaceNav({
   active,
   onChange,
+  compact=false,
 }: {
   active: WorkspaceView;
   onChange: (view: WorkspaceView) => void;
+  compact?:boolean;
 }) {
   const items: Array<{ key: WorkspaceView; label: string; icon: string }> = [
     { key: "home", label: "Home", icon: "⌂" },
@@ -19,7 +21,7 @@ export default function WorkspaceNav({
   ];
 
   return (
-    <nav className={navStyles.navigation} aria-label="Relationship workspace">
+    <nav className={`${navStyles.navigation} ${compact?navStyles.compact:''}`} aria-label="Relationship workspace">
       {items.map((item) => (
         <button
           key={item.key}

@@ -29,6 +29,9 @@ import {
 } from "@/features/journey/journey.utils";
 import styles from "@/app/journey/journey.module.scss";
 import guidanceStyles from "./next-action.module.scss";
+import ConversationSuggestionView from "../conversations/ConversationSuggestionView";
+import conversationStyles from "../conversations/conversation-library.module.scss";
+import {useJourneyHistoryGuard} from './use-journey-history-guard';
 
 type Notice = { tone: "success" | "error"; message: string } | null;
 
@@ -44,9 +47,11 @@ export default function JourneyWorkspace() {
   const [newActivity,setNewActivity]=useState(false);
   const [invitationRevision,setInvitationRevision]=useState(0);
   const dirty=useRef(false);
+  useJourneyHistoryGuard(dirty);
   const targetQuery=new URL(workspaceLocation,"http://localhost").searchParams;
   const targetWord=targetQuery.get("word");
   const targetChapter=targetQuery.get("chapter");
+  const suggestionReference=activeView==="conversations"?targetQuery.get("suggestion"):null;
   const invitationReference=targetQuery.get("invitation")??targetQuery.get("invite");
   const invitationBy=targetQuery.has("invitation")?"id":"token";
   const invitationManagerOpen=targetQuery.get("invitations")==="manage";
@@ -261,7 +266,7 @@ export default function JourneyWorkspace() {
     <div className={styles.page}>
       {header}
 
-      <main className={styles.main} onChangeCapture={()=>{dirty.current=true;}}>
+      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''}`} onChangeCapture={()=>{dirty.current=true;}}>
         {newActivity?<aside className={notificationStyles.activity} aria-label="New shared activity">
           <span>✦ There’s new activity. Your unfinished answers have been left untouched.</span>
           <button type="button" disabled={busy} onClick={async()=>{
@@ -269,7 +274,7 @@ export default function JourneyWorkspace() {
             if(await loadOverview())setNewActivity(false);
           }}>Refresh when ready</button>
         </aside>:null}
-        <section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
+        {activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
           <div>
             <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
             <h1>{isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>
@@ -285,10 +290,10 @@ export default function JourneyWorkspace() {
             </div>
             {overview.relationship?<ProfileAvatar name={overview.relationship.partner.name} preset={overview.relationship.partner.avatarPreset}/>:null}
           </div>
-        </section>
+        </section>:null}
 
-        {overview.relationship ? (
-          <WorkspaceNav active={activeView} onChange={setActiveView} />
+        {suggestionReference?null:overview.relationship ? (
+          <WorkspaceNav active={activeView} onChange={setActiveView} compact={activeView==='conversations'} />
         ) : (
           <ProgressRail current={progress} />
         )}
@@ -299,7 +304,12 @@ export default function JourneyWorkspace() {
           </div>
         ) : null}
 
-        {!overview.relationship ? (
+        {suggestionReference ? (
+          <ConversationSuggestionView key={`${overview.user.id}:${suggestionReference}`} notificationId={suggestionReference} revision={`${quietRevision}:${invitationRevision}:${newActivity}`} busy={busy}
+            onHome={()=>{if(confirmDiscard())navigateWorkspaceUrl('/journey');}}
+            onBrowse={()=>{if(confirmDiscard())navigateWorkspaceUrl('/journey?view=conversations');}}
+            onAccept={async()=>{await runAction(async()=>{const result=await journeyRequest<{started:boolean}>(`/api/journey/notifications/${encodeURIComponent(suggestionReference)}/conversation-suggestion`,{method:'POST'});if(result.started)navigateWorkspaceUrl('/journey');},'Your conversation choice was saved.');}}/>
+        ) : !overview.relationship ? (
           <>
           <ConnectionStage
             pendingInvites={overview.pendingInvites}
@@ -319,6 +329,7 @@ export default function JourneyWorkspace() {
             canStart={!overview.session || overview.session.bothRevealed}
             busy={busy}
             onStart={startConversation}
+            onContinue={()=>setActiveView('home')}
             onWithdraw={() =>
               runAction(
                 () =>

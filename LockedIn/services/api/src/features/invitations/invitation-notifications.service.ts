@@ -1,9 +1,11 @@
 import { prisma } from "../../lib/prisma.js";
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { notificationBroker } from "../notifications/notification.broker.js";
+import { inAppActivityAllowed } from "../notifications/notification-preferences.js";
 export async function recordInvitationNotification(tx: Prisma.TransactionClient, invitationId: string, recipientId: string) {
+    const suppressed = !await inAppActivityAllowed(tx,recipientId);
     return tx.notification.createMany({ data: [{
-                recipientId, invitationId, relationshipId: null, kind: "INVITATION_RECEIVED",
+                recipientId, invitationId, suppressed, relationshipId: null, kind: "INVITATION_RECEIVED",
                 entityId: invitationId, wordKey: null, eventKey: `invitation-received:${invitationId}`,
             }], skipDuplicates: true });
 }
@@ -36,5 +38,6 @@ export async function ensureInvitationNotifications(user: {
         return created;
     });
     if (count)
-        notificationBroker.publish(user.id);
+        notificationBroker.publish(user.id,await inAppActivityAllowed(prisma,user.id));
+    return count;
 }

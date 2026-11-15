@@ -10,7 +10,7 @@ export function notificationSnapshot(tx: NotificationTx, id: string) {
             meaningChapters: { select: { id: true, wordKey: true, status: true, candidateVersion: true, responses: { select: { id: true, userId: true, heardStatus: true } }, proposals: { select: { userId: true, kind: true } }, selections: { select: { userId: true } }, finalApprovals: { select: { userId: true, candidateVersion: true } } } },
         } });
 }
-export const eligibleNotifications = (userId: string):Prisma.NotificationWhereInput => ({recipientId:userId,OR:[
+export const eligibleNotifications = (userId: string):Prisma.NotificationWhereInput => ({recipientId:userId,suppressed:false,OR:[
     {relationship:{status:"ACTIVE",members:{some:{userId}}}},
     {kind:"INVITATION_RECEIVED",invitation:{inviteeId:userId}},
 ]});

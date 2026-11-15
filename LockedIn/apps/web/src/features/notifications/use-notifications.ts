@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL, JourneyApiError } from "@/features/journey/journey.client";
 import { fetchNotifications, readNotification } from "./notification.client";
 import type { ConnectionState, NotificationInbox } from "./notification.types";
-export function useNotifications(userId: string, onActivity: () => void, onExpired: () => void,onStatusChange?:()=>void) {
+export function useNotifications(userId: string, onActivity: () => void, onExpired: () => void,onStatusChange?:(activity?:boolean)=>void) {
     const [inbox, setInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, nextCursor: null });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -51,9 +51,10 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
             if (abort.signal.aborted)
                 return;
             void load();
-            onStatusChange?.();
             try {
-                if (JSON.parse((event as MessageEvent).data).activity)
+                const activity=JSON.parse((event as MessageEvent).data).activity===true;
+                onStatusChange?.(activity);
+                if (activity)
                     onActivity();
             }
             catch { /* Never trust stream data as domain content. */ }

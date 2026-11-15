@@ -3,6 +3,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getAuthenticatedUser } from "../../lib/session.js";
 import { notificationBroker } from "./notification.broker.js";
 import { notificationFingerprint } from "./notification.repository.js";
+import { inAppActivityAllowed } from "./notification-preferences.js";
+import { prisma } from "../../lib/prisma.js";
 export function registerStream(server: FastifyInstance) {
     const streams = new Set<Readable>();
     server.addHook("preClose", async () => { for (const stream of streams)
@@ -37,7 +39,7 @@ export function registerStream(server: FastifyInstance) {
                 if (stream.destroyed)
                     return;
                 if (next !== fingerprint) {
-                    const activity = next.split(":")[1] !== fingerprint.split(":")[1];
+                    const activity = next.split(":")[1] !== fingerprint.split(":")[1] && await inAppActivityAllowed(prisma,userId);
                     fingerprint = next;
                     emit("notifications-changed", { activity });
                 }

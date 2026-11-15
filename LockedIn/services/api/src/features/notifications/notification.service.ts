@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma.js";
 import { notificationSnapshot, type NotificationTx } from "./notification.repository.js";
 import { deriveTasks, taskDelta, type NotificationTask } from "./notification.tasks.js";
 import { notificationBroker } from "./notification.broker.js";
+import { inAppActivityAllowed } from "./notification-preferences.js";
 export function inTransaction<T>(tx: NotificationTx | undefined, work: (tx: NotificationTx) => Promise<T>): Promise<T> {
     return tx ? work(tx) : prisma.$transaction(work);
 }
@@ -10,7 +11,8 @@ export async function persistTask(tx: NotificationTx, task: NotificationTask) {
     if(previous && !previous.resolvedAt)return;
     // A resolved task becoming actionable again is a new occurrence, not a read reset
     // on an old row. Its committed predecessor ID makes retries stable under the lock.
-    await tx.notification.create({data:{...task,eventKey:previous?`${task.eventKey}::${previous.id}`:task.eventKey}});
+    const suppressed = !await inAppActivityAllowed(tx,task.recipientId);
+    await tx.notification.create({data:{...task,suppressed,eventKey:previous?`${task.eventKey}::${previous.id}`:task.eventKey}});
 }
 function taskKeyFilter(eventKey:string) {
     return {OR:[{eventKey},{eventKey:{startsWith:`${eventKey}::`}}]};
@@ -39,6 +41,6 @@ export async function withNotifications<T>(relationshipId: string, actorId: stri
         return value;
     });
     for (const id of recipients)
-        notificationBroker.publish(id);
+        notificationBroker.publish(id, await inAppActivityAllowed(prisma,id));
     return result;
 }

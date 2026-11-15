@@ -1,0 +1,115 @@
+.workspaceNav {
+  position: sticky;
+  top: 86px;
+  z-index: 15;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 38px 0 28px;
+  padding: 6px;
+  border: 1px solid rgba(19, 34, 56, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 35px rgba(19, 34, 56, 0.07);
+  backdrop-filter: blur(18px);
+}
+
+.workspaceNav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 13px;
+  color: #68768a;
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.workspaceNav button span {
+  font-size: 1rem;
+}
+
+.workspaceNav .workspaceNavActive {
+  color: white;
+  background: #132238;
+  box-shadow: 0 8px 20px rgba(19, 34, 56, 0.18);
+}
+
+.dashboardOverview {
+  display: grid;
+  grid-template-columns: 1.5fr repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.dashboardLead,
+.dashboardOverview > button {
+  min-height: 150px;
+  padding: 22px;
+  border: 1px solid rgba(19, 34, 56, 0.08);
+  border-radius: 20px;
+  text-align: left;
+}
+
+.dashboardLead {
+  color: white;
+  background: linear-gradient(135deg, #132238, #1d3d56);
+}
+
+.dashboardLead .eyebrow {
+  color: #8be1d4;
+}
+
+.dashboardLead h2 {
+  margin: 10px 0 18px;
+  font-size: 1.55rem;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+}
+
+.dashboardLead p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 0.76rem;
+}
+
+.dashboardOverview > button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  color: #24354a;
+  background: white;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.dashboardOverview > button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(19, 34, 56, 0.08);
+}
+
+.dashboardOverview > button span {
+  color: #84909e;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dashboardOverview > button strong {
+  margin-top: 16px;
+  font-size: 1.05rem;
+}
+
+.dashboardOverview > button small {
+  margin-top: auto;
+  color: #087f73;
+  font-size: 0.7rem;
+  font-weight: 750;
+}

@@ -1,0 +1,63 @@
+.contextComposer {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed #dfe6e8;
+}
+
+.contextComposer > label:first-child {
+  color: #34445a;
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.contextComposer > label:first-child span {
+  color: #8a95a3;
+  font-weight: 500;
+}
+
+.contextComposer textarea {
+  min-height: 92px;
+  padding: 12px;
+  border: 1px solid #dce3e8;
+  border-radius: 12px;
+  outline: none;
+  color: #24354a;
+  background: white;
+  font: inherit;
+  font-size: 0.78rem;
+  resize: vertical;
+}
+
+.contextComposer textarea:focus {
+  border-color: #16a394;
+  box-shadow: 0 0 0 3px rgba(22, 163, 148, 0.1);
+}
+
+.alignmentCard > .sharedContext {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #f6f9f8;
+}
+
+.sharedContext p {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  color: #435369;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.sharedContext p span {
+  color: #087f73;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

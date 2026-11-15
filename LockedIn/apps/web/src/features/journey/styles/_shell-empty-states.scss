@@ -1,0 +1,50 @@
+.roadmapPage {
+  display: grid;
+  gap: 20px;
+}
+
+.sectionHero {
+  background: linear-gradient(135deg, #f4fbf9, white);
+}
+
+.sectionHero p {
+  max-width: 720px;
+}
+
+.emptyWorkspace {
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+  text-align: center;
+}
+
+.emptyWorkspace > span {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  color: #087f73;
+  background: #eaf8f5;
+  font-size: 1.5rem;
+}
+
+.emptyWorkspace p {
+  max-width: 520px;
+}
+
+.emptyWorkspace .primaryAction {
+  margin-top: 20px;
+}
+
+.alignmentNextPrompt {
+  display: flex;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #f4fbf9, white);
+}
+
+.alignmentNextPrompt h3 {
+  margin: 7px 0;
+  color: #213249;
+  font-size: 1.35rem;
+}

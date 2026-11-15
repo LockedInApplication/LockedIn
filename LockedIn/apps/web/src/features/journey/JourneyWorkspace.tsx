@@ -32,6 +32,7 @@ import guidanceStyles from "./next-action.module.scss";
 import ConversationSuggestionView from "../conversations/ConversationSuggestionView";
 import conversationStyles from "../conversations/conversation-library.module.scss";
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
+import {useCompactWorkspace,useResponsiveActionRef} from './use-compact-workspace';
 
 type Notice = { tone: "success" | "error"; message: string } | null;
 
@@ -47,6 +48,8 @@ export default function JourneyWorkspace() {
   const [newActivity,setNewActivity]=useState(false);
   const [invitationRevision,setInvitationRevision]=useState(0);
   const dirty=useRef(false);
+  const compactWorkspace=useCompactWorkspace();
+  const actionRef=useResponsiveActionRef();
   useJourneyHistoryGuard(dirty);
   const targetQuery=new URL(workspaceLocation,"http://localhost").searchParams;
   const targetWord=targetQuery.get("word");
@@ -242,6 +245,8 @@ export default function JourneyWorkspace() {
     user={overview.user} onProfile={()=>{if(confirmDiscard())router.push("/profile");}}
     onInvitations={invitationManagerOpen?undefined:()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey?invitations=manage");}}
     notifications={<NotificationBell key={overview.user.id} userId={overview.user.id} onOpen={openNotification} onActivity={onActivity} onExpired={onExpired} onStatusChange={onInvitationUpdate}/>}/>;
+  const mobileHome=isHome&&compactWorkspace;
+  const nextAction=<NextActionCard cardRef={actionRef} overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction}/>;
 
   if(invitationManagerOpen)return <div className={styles.page}>{header}<main className={styles.main}>
     <InvitationManager key={overview.user.id} revision={invitationRevision} onClose={()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey");}}/>
@@ -266,7 +271,7 @@ export default function JourneyWorkspace() {
     <div className={styles.page}>
       {header}
 
-      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''}`} onChangeCapture={()=>{dirty.current=true;}}>
+      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${mobileHome?guidanceStyles.mobileHome:''}`} onChangeCapture={()=>{dirty.current=true;}}>
         {newActivity?<aside className={notificationStyles.activity} aria-label="New shared activity">
           <span>✦ There’s new activity. Your unfinished answers have been left untouched.</span>
           <button type="button" disabled={busy} onClick={async()=>{
@@ -274,14 +279,15 @@ export default function JourneyWorkspace() {
             if(await loadOverview())setNewActivity(false);
           }}>Refresh when ready</button>
         </aside>:null}
+        {mobileHome?<><h1 className={guidanceStyles.greeting}>Hi, {overview.user.name?.trim().split(/\s+/)[0]||'there'}.</h1>{nextAction}</>:null}
         {activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
-          <div>
+          {!mobileHome?<div>
             <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
             <h1>{isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>
             <p>
               {isHome ? "Pick up where you left off, one step at a time." : "Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept."}
             </p>
-          </div>
+          </div>:null}
           <div className={styles.memberCard}>
             <ProfileAvatar name={overview.user.name || overview.user.email} preset={overview.user.avatarPreset}/>
             <div>
@@ -367,12 +373,7 @@ export default function JourneyWorkspace() {
           )
         ) : (
           <>
-            <NextActionCard
-              overview={overview}
-              busy={busy}
-              onNavigate={setActiveView}
-              onFocusCurrent={focusCurrentAction}
-            />
+            {!mobileHome?nextAction:null}
             <SharedJourneyPath
               session={overview.session}
               historyCount={overview.checkInHistory.length}

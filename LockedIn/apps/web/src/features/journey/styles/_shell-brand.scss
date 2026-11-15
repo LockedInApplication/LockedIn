@@ -1,0 +1,235 @@
+/* -------------------------------------------------------------------------- */
+/* 2026 brand refresh: a shared journal rather than a generic SaaS dashboard. */
+/* -------------------------------------------------------------------------- */
+
+.page {
+  color: var(--ink);
+  background:
+    linear-gradient(90deg, rgba(32, 24, 47, 0.028) 1px, transparent 1px),
+    linear-gradient(rgba(32, 24, 47, 0.028) 1px, transparent 1px),
+    var(--cream);
+  background-size: 40px 40px;
+}
+
+.header {
+  min-height: 76px;
+  padding-inline: max(4vw, 24px);
+  border-color: rgba(32, 24, 47, 0.14);
+  background: rgba(244, 239, 230, 0.92);
+}
+
+.brand {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+.privacyPill,
+.datePill {
+  border-color: rgba(242, 92, 79, 0.28);
+  border-radius: 4px;
+  color: #9b342c;
+  background: var(--accent-pale);
+  font-family: var(--font-mono);
+  font-size: 0.61rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.textButton { color: var(--plum); font-weight: 650; }
+.main { width: min(1280px, 91vw); padding-top: 62px; }
+
+.intro h1 {
+  max-width: 900px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: clamp(3.2rem, 7vw, 7.2rem);
+  font-weight: 650;
+  line-height: 0.88;
+  letter-spacing: -0.075em;
+}
+.intro > div:first-child > p { color: var(--stone-500); font-size: 1rem; }
+.eyebrow { color: var(--accent); font-family: var(--font-mono); font-size: 0.64rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+
+.memberCard {
+  border-color: rgba(32, 24, 47, 0.18);
+  border-radius: 2px;
+  background: var(--paper);
+  box-shadow: 7px 7px 0 var(--sage);
+}
+.avatar { border-radius: 50%; background: linear-gradient(135deg, var(--accent) 0 50%, var(--plum) 50%); }
+
+.workspaceNav {
+  top: 88px;
+  gap: 0;
+  margin-top: 40px;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid rgba(32, 24, 47, 0.16);
+  border-bottom: 1px solid rgba(32, 24, 47, 0.16);
+  border-radius: 0;
+  background: rgba(244, 239, 230, 0.94);
+  box-shadow: none;
+}
+.workspaceNav button { min-height: 54px; border-right: 1px solid rgba(32, 24, 47, 0.12); border-radius: 0; color: var(--stone-500); font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.workspaceNav button:last-child { border-right: 0; }
+.workspaceNav .workspaceNavActive { color: white; background: var(--plum); box-shadow: inset 0 -4px 0 var(--accent); }
+
+.progressRail {
+  margin-block: 48px 26px;
+  padding: 20px 8px;
+  border: 0;
+  border-top: 1px solid rgba(32, 24, 47, 0.16);
+  border-bottom: 1px solid rgba(32, 24, 47, 0.16);
+  border-radius: 0;
+  background: transparent;
+}
+.progressRail li > span { border-color: rgba(32, 24, 47, 0.24); color: var(--ink); background: var(--cream); font-family: var(--font-mono); }
+.progressRail small { font-family: var(--font-mono); font-size: 0.61rem; }
+.progressRail .progressDone,
+.progressRail .progressCurrent { color: var(--accent); }
+.progressRail .progressDone > span { border-color: var(--accent); background: var(--accent); }
+.progressRail .progressCurrent > span { border-color: var(--accent); box-shadow: 0 0 0 5px rgba(242, 92, 79, 0.13); }
+
+.primaryCard,
+.sideCard,
+.focusCard,
+.formCard,
+.waitingCard,
+.alignmentHeader,
+.nextStepCard,
+.proposalCard,
+.proposalBoard,
+.proposalHistory,
+.roadmapBoard,
+.acceptedCard,
+.timelineCard,
+.librarySection,
+.sectionHero,
+.emptyWorkspace,
+.alignmentNextPrompt {
+  border-color: rgba(32, 24, 47, 0.16);
+  border-radius: 3px;
+  background: var(--paper);
+  box-shadow: none;
+}
+.primaryCard { border-left: 6px solid var(--accent); }
+.primaryCard::after { right: -80px; bottom: -145px; background: var(--blush); opacity: 0.35; }
+.cardNumber { color: rgba(75, 49, 95, 0.12); font-family: var(--font-display); font-size: 4rem; }
+
+.primaryCard h2,
+.focusCard h2,
+.formCard h2,
+.waitingCard h2,
+.alignmentHeader h2,
+.nextStepCard h2,
+.proposalCard h2,
+.acceptedCard h2,
+.libraryHeader h2,
+.sectionHero h2,
+.emptyWorkspace h2,
+.timelineHeader h2,
+.roadmapHeader h2 {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+}
+
+.primaryCard > p,
+.focusCopy > p,
+.waitingCard > p,
+.alignmentHeader p,
+.nextStepCard > div > p,
+.proposalCard > p,
+.acceptedTop p,
+.libraryHeader p,
+.sectionHero p,
+.emptyWorkspace p,
+.alignmentNextPrompt p { color: var(--stone-500); }
+
+.inviteForm input,
+.nextStepCard input,
+.nextStepCard textarea,
+.reflectionForm textarea,
+.contextComposer textarea {
+  border-color: var(--stone-100);
+  border-radius: 3px;
+  color: var(--ink);
+  background: white;
+}
+.inviteForm input:focus,
+.nextStepCard input:focus,
+.nextStepCard textarea:focus,
+.reflectionForm textarea:focus,
+.contextComposer textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(242, 92, 79, 0.13); }
+
+.inviteForm button,
+.pendingInvite button,
+.primaryAction,
+.inviteLink button {
+  border-radius: 5px;
+  background: var(--ink);
+  box-shadow: 3px 3px 0 var(--accent);
+}
+.inviteLink { border-color: var(--sage); border-radius: 3px; background: #eef8f2; }
+.inviteLink > span { color: var(--success); font-family: var(--font-mono); }
+
+.dashboardOverview { grid-template-columns: 1.45fr repeat(3, 1fr); gap: 10px; }
+.dashboardLead,
+.dashboardOverview > button { min-height: 168px; border-color: rgba(32, 24, 47, 0.17); border-radius: 2px; }
+.dashboardLead { position: relative; overflow: hidden; background: var(--plum); }
+.dashboardLead::after { position: absolute; right: -35px; bottom: -35px; width: 110px; height: 110px; border-radius: 50%; background: var(--accent); content: ""; }
+.dashboardLead .eyebrow { color: var(--gold); }
+.dashboardLead h2 { position: relative; z-index: 1; font-family: var(--font-display); font-size: 1.8rem; font-weight: 650; }
+.dashboardOverview > button { background: var(--paper); }
+.dashboardOverview > button:hover { transform: translate(-3px, -3px); box-shadow: 5px 5px 0 var(--sage); }
+.dashboardOverview > button span { color: var(--accent); font-family: var(--font-mono); font-size: 0.61rem; }
+.dashboardOverview > button strong { color: var(--ink); font-family: var(--font-display); font-size: 1.2rem; }
+.dashboardOverview > button small { color: var(--plum); }
+
+.choiceBoard { border-color: var(--ink); border-radius: 2px; background: var(--sage); box-shadow: 7px 7px 0 var(--plum); }
+.choiceBoard h3 { color: var(--ink); font-family: var(--font-display); font-size: 1.4rem; }
+.choiceStates > div { border-color: rgba(32, 24, 47, 0.16); border-radius: 2px; background: rgba(255,255,255,0.72); }
+.choiceStates span { color: var(--plum); font-family: var(--font-mono); }
+.choiceBoard > button { border-color: var(--ink); border-radius: 4px; color: var(--ink); background: white; }
+.choiceBoard > .eitherSelected { color: white; background: var(--plum); }
+
+.packGrid { gap: 10px; }
+.packCard { min-height: 315px; border-color: rgba(32, 24, 47, 0.17); border-radius: 2px; background: var(--paper); transition: transform 160ms ease, box-shadow 160ms ease; }
+.packCard:hover { transform: translate(-3px, -3px); box-shadow: 6px 6px 0 var(--blush); }
+.packIcon { border-radius: 50%; color: var(--ink); background: var(--gold-light); }
+.packCard > span,
+.packChoiceBadges span { font-family: var(--font-mono); }
+.packCard h3 { color: var(--ink); font-family: var(--font-display); font-size: 1.45rem; font-weight: 650; }
+.packCard p { color: var(--stone-500); }
+.packCard button { border-color: var(--ink); border-radius: 4px; color: var(--ink); background: transparent; }
+.packCard button:hover { color: white; background: var(--ink); }
+.pack_blue .packIcon { color: var(--ink); background: #b7ddeb; }
+.pack_coral .packIcon { color: var(--ink); background: var(--blush); }
+.pack_gold .packIcon { color: var(--ink); background: var(--gold); }
+.pack_plum .packIcon { color: white; background: var(--plum); }
+.pack_slate .packIcon { color: var(--ink); background: var(--sage); }
+
+.sectionHero { border-left: 6px solid var(--accent); background: var(--paper); }
+.emptyWorkspace > span { color: white; background: var(--plum); }
+.alignmentNextPrompt { border-left: 6px solid var(--sage); background: var(--paper); }
+.safetyBar { border-color: rgba(32, 24, 47, 0.16); border-radius: 2px; background: rgba(255,253,248,0.75); }
+.notice { border-radius: 3px; color: var(--success); background: #eef8f2; }
+.loadingPage { color: var(--stone-500); background: var(--cream); }
+
+@media (max-width: 900px) {
+  .dashboardOverview { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .page { background-size: 30px 30px; }
+  .main { width: min(100% - 28px, 1280px); }
+  .intro h1 { font-size: clamp(3.2rem, 15vw, 5rem); }
+  .workspaceNav { top: 76px; }
+  .workspaceNav button { font-size: 0.52rem; }
+  .dashboardOverview { grid-template-columns: 1fr; }
+  .choiceBoard { box-shadow: 5px 5px 0 var(--plum); }
+}

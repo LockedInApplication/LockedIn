@@ -1,0 +1,174 @@
+@media (max-width: 900px) {
+  .choiceBoard {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .choiceBoard > button {
+    width: fit-content;
+  }
+  .dashboardOverview {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .packGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .libraryHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .proposalGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .proposalHistory article {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .intro,
+  .stageGrid,
+  .focusCard,
+  .nextStepCard {
+    grid-template-columns: 1fr;
+  }
+
+  .timelineHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .checkInAction {
+    max-width: none;
+  }
+
+  .checkInAction span {
+    text-align: left;
+  }
+
+  .memberCard {
+    width: fit-content;
+  }
+
+  .focusCard {
+    align-items: start;
+  }
+
+  .focusCard .primaryAction {
+    width: fit-content;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 0 18px;
+  }
+
+  .privacyPill {
+    display: none;
+  }
+
+  .main {
+    width: min(100% - 28px, 1180px);
+    padding-top: 42px;
+  }
+
+  .workspaceNav {
+    top: 76px;
+    margin-top: 24px;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .workspaceNav button {
+    flex-direction: column;
+    gap: 2px;
+    min-height: 52px;
+    padding: 5px 2px;
+    font-size: 0.58rem;
+  }
+
+  .workspaceNav button span {
+    font-size: 0.9rem;
+  }
+
+  .dashboardOverview,
+  .packGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .choiceStates {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardLead,
+  .dashboardOverview > button {
+    min-height: 132px;
+  }
+
+  .intro {
+    gap: 26px;
+  }
+
+  .intro h1 {
+    font-size: 2.65rem;
+  }
+
+  .progressRail {
+    margin-top: 36px;
+    padding-inline: 5px;
+  }
+
+  .progressRail small {
+    font-size: 0.58rem;
+  }
+
+  .progressRail li > span {
+    width: 28px;
+    height: 28px;
+  }
+
+  .progressRail::before {
+    top: 33px;
+  }
+
+  .inviteForm > div,
+  .formFooter,
+  .proposalActions,
+  .safetyBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inviteForm button,
+  .formFooter button,
+  .proposalActions button {
+    min-height: 48px;
+  }
+
+  .optionGrid,
+  .alignmentGrid,
+  .reflectionOptions,
+  .snapshotTopics {
+    grid-template-columns: 1fr;
+  }
+
+  .question {
+    padding: 18px;
+  }
+
+  .alignmentHeader {
+    flex-direction: column;
+  }
+
+  .alignmentMark {
+    width: 48px;
+    height: 48px;
+  }
+
+  .acceptedTop {
+    flex-direction: column;
+  }
+}

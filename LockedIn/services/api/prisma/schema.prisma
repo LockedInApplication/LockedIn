@@ -106,6 +106,8 @@ model User {
   sessions                   Session[]
   accounts                   Account[]
   notifications              Notification[]
+  invitationBlocksCreated    InvitationBlock[] @relation("InvitationBlockOwner")
+  invitationBlocksReceived   InvitationBlock[] @relation("InvitationBlockTarget")
 
   @@map("user")
 }
@@ -119,15 +121,30 @@ model RelationshipInvite {
   status       InviteStatus @default(PENDING)
   expiresAt    DateTime?
   acceptedAt   DateTime?
+  declinedAt   DateTime?
+  withdrawnAt  DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   inviter User  @relation("sentInvites", fields: [inviterId], references: [id], onDelete: Cascade)
   invitee User? @relation("receivedInvites", fields: [inviteeId], references: [id], onDelete: Cascade)
+  notifications Notification[]
 
   @@index([inviterId])
   @@index([inviteeId])
   @@index([inviteeEmail, status])
+  @@index([inviterId, inviteeId, declinedAt])
+}
+
+model InvitationBlock {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker User @relation("InvitationBlockOwner",fields:[blockerId],references:[id],onDelete:Cascade)
+  blocked User @relation("InvitationBlockTarget",fields:[blockedId],references:[id],onDelete:Cascade)
+  @@unique([blockerId,blockedId])
+  @@index([blockedId])
 }
 
 model Relationship {
@@ -146,7 +163,8 @@ model Relationship {
 model Notification {
   id             BigInt       @id @default(autoincrement())
   recipientId    String
-  relationshipId String
+  relationshipId String?
+  invitationId   String?
   kind           String
   entityId       String
   wordKey        String?
@@ -156,11 +174,13 @@ model Notification {
   readAt         DateTime?
   resolvedAt     DateTime?
   recipient      User         @relation(fields: [recipientId], references: [id], onDelete: Cascade)
-  relationship   Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  relationship   Relationship? @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  invitation     RelationshipInvite? @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 
   @@unique([recipientId, eventKey])
   @@index([recipientId, id])
   @@index([relationshipId])
+  @@index([invitationId])
 }
 
 model MeaningChapter {

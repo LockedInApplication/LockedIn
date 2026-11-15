@@ -10,13 +10,13 @@ export default function ConnectionStage({
   inviteLink,
   busy,
   onInvite,
-  onAccept,
+  onReview,
 }: {
   pendingInvites: JourneyOverview["pendingInvites"];
   inviteLink: string;
   busy: boolean;
   onInvite: (email: string) => Promise<void>;
-  onAccept: (token: string) => void;
+  onReview: (id: string) => void;
 }) {
   const [email, setEmail] = useState("");
 
@@ -69,7 +69,7 @@ export default function ConnectionStage({
                 <strong>{invite.inviter.name}</strong>
                 <p>invited you to build a shared roadmap.</p>
               </div>
-              <button disabled={busy} onClick={() => onAccept(invite.token)}>Accept</button>
+              <button type="button" disabled={busy} onClick={() => onReview(invite.id)}>Review invitation</button>
             </div>
           ))
         ) : (

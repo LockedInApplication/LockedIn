@@ -1,4 +1,5 @@
 export type NotificationItem = {
+    invitationStatus?:string|null;
     id: string;
     kind: string;
     entityId: string;

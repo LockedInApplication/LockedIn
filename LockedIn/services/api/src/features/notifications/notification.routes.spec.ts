@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+vi.mock("../invitations/invitation-notifications.service.js",()=>({ensureInvitationNotifications:async()=>{}}));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const fake = vi.hoisted(() => ({ user: { id: "a" } as {
         id: string;

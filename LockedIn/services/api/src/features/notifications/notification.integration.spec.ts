@@ -25,14 +25,15 @@ describe.skipIf(process.env.NOTIFICATIONS_INTEGRATION !== "true")("notification 
     afterAll(async () => { await server?.close(); await prisma?.$disconnect(); });
     it("rolls back domain state and notifications together", async () => {
         await expect(service.withNotifications(pair, "notify-a", async (tx) => { await tx.meaningChapter.create({ data: { relationshipId: pair, createdById: "notify-a", wordKey: "space" } }); throw new Error("rollback"); })).rejects.toThrow("rollback");
-        expect(await prisma.meaningChapter.count()).toBe(0);
-        expect(await prisma.notification.count()).toBe(0);
+        // Other integration files use the same disposable DB concurrently.
+        expect(await prisma.meaningChapter.count({where:{relationshipId:pair}})).toBe(0);
+        expect(await prisma.notification.count({where:{relationshipId:pair}})).toBe(0);
     });
     it("creates durable tasks atomically and suppresses no-op duplicates", async () => {
         chapterId = (await service.withNotifications(pair, "notify-a", tx => tx.meaningChapter.create({ data: { relationshipId: pair, createdById: "notify-a", wordKey: "support" } }))).id;
-        expect(await prisma.notification.count()).toBe(2);
+        expect(await prisma.notification.count({where:{relationshipId:pair}})).toBe(2);
         await service.withNotifications(pair, "notify-a", async () => ({ saved: true }));
-        expect(await prisma.notification.count()).toBe(2);
+        expect(await prisma.notification.count({where:{relationshipId:pair}})).toBe(2);
     });
     it("lists only the current recipient and hides another person's IDs", async () => {
         const response = await fetch(`${base}/api/journey/notifications`, { headers: { cookie: cookieA } });
@@ -124,7 +125,7 @@ describe.skipIf(process.env.NOTIFICATIONS_INTEGRATION !== "true")("notification 
             await tx.meaningResponse.create({ data: { chapterId, userId: "notify-b", definition: "PRIVATE", example: "PRIVATE", notMeaning: "PRIVATE" } });
             await tx.meaningChapter.update({ where: { id: chapterId }, data: { status: "DISCOVERING" } });
         });
-        expect(await prisma.notification.count({ where: { kind: "CHAPTER_STARTED", resolvedAt: { not: null } } })).toBe(2);
+        expect(await prisma.notification.count({ where: { relationshipId:pair,kind: "CHAPTER_STARTED", resolvedAt: { not: null } } })).toBe(2);
         await service.withNotifications(pair, "notify-a", tx => tx.relationship.update({ where: { id: pair }, data: { status: "ENDED" } }));
         const inbox = await (await fetch(`${base}/api/journey/notifications`, { headers: { cookie: cookieB } })).json() as Inbox;
         const hidden=new Set((await prisma.notification.findMany({where:{relationshipId:pair},select:{id:true}})).map(n=>String(n.id)));

@@ -3,6 +3,7 @@ import { requireUser, sendError } from "../../lib/journey-http.js";
 import { listNotifications, markNotificationRead } from "./notification.repository.js";
 import { notificationBroker } from "./notification.broker.js";
 import { registerStream } from "./notification.stream.js";
+import { ensureInvitationNotifications } from "../invitations/invitation-notifications.service.js";
 const validId = (value: string) => /^[1-9]\d{0,18}$/.test(value) && BigInt(value) <= 9223372036854775807n;
 export async function registerNotificationRoutes(server: FastifyInstance) {
     const openStream = registerStream(server);
@@ -18,6 +19,7 @@ export async function registerNotificationRoutes(server: FastifyInstance) {
         const before = request.query.before;
         if (before !== undefined && !validId(before))
             return sendError(reply, 400, "Invalid notification cursor.");
+        await ensureInvitationNotifications(user);
         return listNotifications(user.id, before ? BigInt(before) : undefined);
     });
     server.put<{
@@ -40,6 +42,7 @@ export async function registerNotificationRoutes(server: FastifyInstance) {
         const user = await requireUser(request, reply);
         if (!user)
             return;
+        await ensureInvitationNotifications(user);
         return openStream(request, reply, user.id);
     });
 }

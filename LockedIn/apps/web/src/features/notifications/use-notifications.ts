@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL, JourneyApiError } from "@/features/journey/journey.client";
 import { fetchNotifications, readNotification } from "./notification.client";
 import type { ConnectionState, NotificationInbox } from "./notification.types";
-export function useNotifications(userId: string, onActivity: () => void, onExpired: () => void) {
+export function useNotifications(userId: string, onActivity: () => void, onExpired: () => void,onStatusChange?:()=>void) {
     const [inbox, setInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, nextCursor: null });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -51,6 +51,7 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
             if (abort.signal.aborted)
                 return;
             void load();
+            onStatusChange?.();
             try {
                 if (JSON.parse((event as MessageEvent).data).activity)
                     onActivity();
@@ -67,7 +68,7 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
         const focus = () => { void load(); };
         window.addEventListener("focus", focus);
         return () => { abort.abort(); stream.close(); clearInterval(timer); window.removeEventListener("focus", focus); controller.current = null; source.current = null; };
-    }, [userId, load, onActivity, onExpired]);
+    }, [userId, load, onActivity, onExpired,onStatusChange]);
     const markRead = async (id: string) => {
         const signal = controller.current?.signal;
         if (!signal)

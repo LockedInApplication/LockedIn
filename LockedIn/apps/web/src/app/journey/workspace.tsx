@@ -1,9 +1,11 @@
 "use client";
 
+import { RoadmapView } from "@/features/roadmap";
+import EmptyWorkspace from "@/features/journey/components/EmptyWorkspace";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import BrandLogo from "@/components/brandLogo";
 import { AtlasView } from "@/features/atlas";
 import { CheckInTimeline, SessionStage } from "@/features/check-ins";
@@ -11,14 +13,11 @@ import { ConversationLibrary } from "@/features/conversations";
 import { authClient } from "@/utils/authCLient";
 import {
   JourneyApiError,
-  JourneyNextStep,
   JourneyOverview,
   JourneySession,
   journeyRequest,
 } from "@/lib/journey";
 import {
-  daysUntil,
-  formatDate,
   getProgress,
   initials,
 } from "@/features/journey/journey.utils";
@@ -594,55 +593,6 @@ function SharedJourneyPath({
   );
 }
 
-function RoadmapView({
-  session,
-  busy,
-  runAction,
-}: {
-  session: JourneySession | null;
-  busy: boolean;
-  runAction: (action: () => Promise<unknown>, successMessage?: string) => Promise<void>;
-}) {
-  if (!session) {
-    return <EmptyWorkspace title="Your roadmap is still open." detail="Complete a guided conversation, then propose the first next step you both want to take." />;
-  }
-
-  return (
-    <div className={styles.roadmapPage}>
-      <section className={styles.sectionHero}>
-        <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
-        <h2>Agreements with room to change.</h2>
-        <p>Every accepted step keeps its own timing and private reflection. One plan never silently replaces another.</p>
-      </section>
-      {session.nextSteps.length ? <RoadmapSteps session={session} busy={busy} runAction={runAction} /> : null}
-      {session.proposals.length ? <ProposalChoices session={session} busy={busy} runAction={runAction} /> : null}
-      {session.bothRevealed ? <NextStepForm session={session} busy={busy} runAction={runAction} /> : (
-        <div className={styles.noComparison}>Finish the current check-in together before proposing a new roadmap step.</div>
-      )}
-      {session.proposalHistory.length ? <ProposalHistory session={session} /> : null}
-    </div>
-  );
-}
-
-function EmptyWorkspace({
-  title,
-  detail,
-  onAction,
-}: {
-  title: string;
-  detail: string;
-  onAction?: () => void;
-}) {
-  return (
-    <section className={styles.emptyWorkspace}>
-      <span>✦</span>
-      <h2>{title}</h2>
-      <p>{detail}</p>
-      {onAction ? <button className={styles.primaryAction} onClick={onAction}>Choose a conversation</button> : null}
-    </section>
-  );
-}
-
 function ConnectionStage({
   pendingInvites,
   inviteLink,
@@ -718,284 +668,5 @@ function ConnectionStage({
         )}
       </aside>
     </section>
-  );
-}
-
-function NextStepForm({
-  session,
-  busy,
-  runAction,
-}: {
-  session: JourneySession;
-  busy: boolean;
-  runAction: (action: () => Promise<unknown>, successMessage?: string) => Promise<void>;
-}) {
-  const [title, setTitle] = useState("");
-  const [details, setDetails] = useState("");
-  const [targetDate, setTargetDate] = useState("");
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    runAction(
-      () =>
-        journeyRequest(`/api/journey/sessions/${session.id}/next-steps`, {
-          method: "POST",
-          body: JSON.stringify({ title, details: details || undefined, targetDate: targetDate || undefined }),
-        }),
-      "Your proposed next step is ready for your partner to review.",
-    );
-  }
-
-  return (
-    <section className={styles.nextStepCard}>
-      <div>
-        <span className={styles.eyebrow}>
-          {session.nextSteps.length || session.proposals.length ? "ADD TO YOUR ROADMAP" : "CHOOSE WHAT COMES NEXT"}
-        </span>
-        <h2>
-          {session.nextSteps.length || session.proposals.length
-            ? "Suggest another next step."
-            : "Turn the conversation into practical next steps."}
-        </h2>
-        <p>Each accepted step gets its own revisit date and reflection. One idea does not replace another.</p>
-      </div>
-      <form onSubmit={submit}>
-        <label>
-          Next step
-          <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Compare our priorities over coffee" minLength={3} required />
-        </label>
-        <label>
-          A little context <span>optional</span>
-          <textarea value={details} onChange={(event) => setDetails(event.target.value)} placeholder="What would make this conversation feel useful?" />
-        </label>
-        <label>
-          Revisit on <span>optional</span>
-          <input type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} />
-        </label>
-        <button className={styles.primaryAction} disabled={busy || title.trim().length < 3}>
-          {busy ? "Sending proposal..." : "Propose this next step"}
-        </button>
-      </form>
-    </section>
-  );
-}
-
-function ProposalChoices({
-  session,
-  busy,
-  runAction,
-}: {
-  session: JourneySession;
-  busy: boolean;
-  runAction: (action: () => Promise<unknown>, successMessage?: string) => Promise<void>;
-}) {
-  return (
-    <section className={styles.proposalBoard}>
-      <div className={styles.proposalBoardHeader}>
-        <span className={styles.eyebrow}>OPTIONS ON THE TABLE</span>
-        <h2>Suggestions awaiting agreement.</h2>
-        <p>Accepting a suggestion adds it to your roadmap. Other ideas stay available as separate next steps.</p>
-      </div>
-      <div className={styles.proposalGrid}>
-        {session.proposals.map((proposal) => (
-          <article className={styles.proposalOption} key={proposal.id}>
-            <span className={styles.proposerBadge}>
-              {proposal.proposedByCurrentUser ? "Your proposal" : `${proposal.proposedByName}'s proposal`}
-            </span>
-            <h3>{proposal.title}</h3>
-            {proposal.details ? <p>{proposal.details}</p> : null}
-            {proposal.targetDate ? (
-              <span className={styles.datePill}>Revisit · {formatDate(proposal.targetDate)}</span>
-            ) : null}
-            {proposal.proposedByCurrentUser ? (
-              <div className={styles.pendingLine}>Waiting for {session.partnerState.name} to accept this step.</div>
-            ) : (
-              <button
-                className={styles.primaryAction}
-                disabled={busy}
-                onClick={() =>
-                  runAction(
-                    () => journeyRequest(`/api/journey/next-steps/${proposal.id}/accept`, { method: "POST" }),
-                    "This step was added to your shared roadmap.",
-                  )
-                }
-              >
-                {busy ? "Adding..." : "Add to our roadmap"}
-              </button>
-            )}
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ProposalHistory({ session }: { session: JourneySession }) {
-  return (
-    <section className={styles.proposalHistory}>
-      <span className={styles.eyebrow}>OTHER IDEAS YOU CONSIDERED</span>
-      <h3>Nothing was silently discarded.</h3>
-      <div>
-        {session.proposalHistory.map((proposal) => (
-          <article key={proposal.id}>
-            <div>
-              <strong>{proposal.title}</strong>
-              <span>Proposed by {proposal.proposedByCurrentUser ? "you" : proposal.proposedByName}</span>
-            </div>
-            <span className={styles.historyStatus}>
-              {proposal.status === "DECLINED" ? "Closed when another option was chosen" : "Earlier proposal"}
-            </span>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function RoadmapSteps({
-  session,
-  busy,
-  runAction,
-}: {
-  session: JourneySession;
-  busy: boolean;
-  runAction: (action: () => Promise<unknown>, successMessage?: string) => Promise<void>;
-}) {
-  return (
-    <section className={styles.roadmapBoard}>
-      <div className={styles.roadmapHeader}>
-        <span className={styles.eyebrow}>YOUR SHARED NEXT STEPS</span>
-        <h2>A roadmap with room for more than one plan.</h2>
-        <p>Each step has its own timing. Reflect on them independently when their revisit dates arrive.</p>
-      </div>
-      <div className={styles.roadmapList}>
-        {session.nextSteps.map((step, index) => (
-          <AcceptedStep
-            key={step.id}
-            session={session}
-            step={step}
-            stepNumber={index + 1}
-            busy={busy}
-            runAction={runAction}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function AcceptedStep({
-  session,
-  step,
-  stepNumber,
-  busy,
-  runAction,
-}: {
-  session: JourneySession;
-  step: JourneyNextStep;
-  stepNumber: number;
-  busy: boolean;
-  runAction: (action: () => Promise<unknown>, successMessage?: string) => Promise<void>;
-}) {
-  const complete = Boolean(step.ownReflection && step.partnerReflection.submitted);
-
-  return (
-    <section className={styles.acceptedCard}>
-      <div className={styles.acceptedTop}>
-        <span className={styles.acceptedIcon}>{stepNumber}</span>
-        <div>
-          <span className={styles.eyebrow}>{complete ? "REFLECTION COMPLETE" : "MUTUALLY CHOSEN"}</span>
-          <h2>{step.title}</h2>
-          {step.details ? <p>{step.details}</p> : null}
-          {step.targetDate ? <span className={styles.datePill}>Revisit · {formatDate(step.targetDate)}</span> : null}
-        </div>
-      </div>
-
-      {complete ? (
-        <div className={styles.completionPanel}>
-          <strong>You both reflected.</strong>
-          <p>
-            The outcome is not a relationship score. Completing, changing, or pausing a plan can all be intentional choices.
-          </p>
-          <div>
-            <span>Your reflection: {step.ownReflection?.outcome.replaceAll("_", " ").toLowerCase()}</span>
-            <span>{session.partnerState.name}: {step.partnerReflection.outcome?.replaceAll("_", " ").toLowerCase()}</span>
-          </div>
-        </div>
-      ) : step.ownReflection ? (
-        <div className={styles.pendingLine}>Your reflection is private until {session.partnerState.name} submits theirs.</div>
-      ) : !step.reflectionAvailable ? (
-        <div className={styles.reflectionLocked}>
-          <span className={styles.lockIcon}>⌛</span>
-          <div>
-            <span className={styles.eyebrow}>NEXT STEP IN PROGRESS</span>
-            <h3>Reflection opens {formatDate(step.targetDate)}.</h3>
-            <p>
-              Give this shared step the time you both chose. You can return on the revisit date to reflect privately.
-            </p>
-            <strong>
-              {daysUntil(step.reflectionOpensAt)} {daysUntil(step.reflectionOpensAt) === 1 ? "day" : "days"} remaining
-            </strong>
-          </div>
-        </div>
-      ) : (
-        <ReflectionForm
-          busy={busy}
-          onSubmit={(outcome, note) =>
-            runAction(
-              () =>
-                journeyRequest(`/api/journey/next-steps/${step.id}/reflections`, {
-                  method: "POST",
-                  body: JSON.stringify({ outcome, note: note || undefined }),
-                }),
-              "Your reflection is saved privately.",
-            )
-          }
-        />
-      )}
-    </section>
-  );
-}
-
-function ReflectionForm({
-  busy,
-  onSubmit,
-}: {
-  busy: boolean;
-  onSubmit: (outcome: string, note: string) => void;
-}) {
-  const [outcome, setOutcome] = useState("");
-  const [note, setNote] = useState("");
-  const options = useMemo(
-    () => [
-      ["COMPLETED", "We followed through"],
-      ["CHANGED", "What we need has changed"],
-      ["PAUSED", "We want to pause this"],
-      ["NOT_RELEVANT", "This no longer feels relevant"],
-    ],
-    [],
-  );
-
-  return (
-    <form
-      className={styles.reflectionForm}
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (outcome) onSubmit(outcome, note);
-      }}
-    >
-      <span className={styles.eyebrow}>PRIVATE REFLECTION</span>
-      <h3>What feels true now?</h3>
-      <div className={styles.reflectionOptions}>
-        {options.map(([value, label]) => (
-          <label key={value} className={outcome === value ? styles.optionSelected : ""}>
-            <input type="radio" name="outcome" value={value} checked={outcome === value} onChange={() => setOutcome(value)} />
-            <span>{label}</span>
-          </label>
-        ))}
-      </div>
-      <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="A private note for yourself (optional)" />
-      <button className={styles.primaryAction} disabled={!outcome || busy}>{busy ? "Saving..." : "Save my reflection"}</button>
-    </form>
   );
 }

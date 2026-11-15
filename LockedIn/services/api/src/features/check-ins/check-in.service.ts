@@ -1,9 +1,10 @@
 import type { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { responseSchema } from "./check-in.schemas.js";
+import type { NotificationTx } from "../notifications/index.js";
 
-export async function saveCheckInResponse(sessionId: string, userId: string, data: z.infer<typeof responseSchema>) {
-      await prisma.intentionResponse.upsert({
+export async function saveCheckInResponse(sessionId: string, userId: string, data: z.infer<typeof responseSchema>, tx:NotificationTx = prisma) {
+      await tx.intentionResponse.upsert({
         where: { sessionId_userId: { sessionId: sessionId, userId: userId } },
         update: {
           answers: data.answers,
@@ -22,28 +23,28 @@ export async function saveCheckInResponse(sessionId: string, userId: string, dat
         },
       });
 
-      const responseCount = await prisma.intentionResponse.count({
+      const responseCount = await tx.intentionResponse.count({
         where: { sessionId: sessionId },
       });
-      await prisma.intentionSession.update({
+      await tx.intentionSession.update({
         where: { id: sessionId },
         data: { status: responseCount === 2 ? "READY_TO_REVEAL" : "COLLECTING" },
       });
 }
 
-export async function revealCheckInResponse(responseId: string, sessionId: string) {
-      await prisma.intentionResponse.update({
+export async function revealCheckInResponse(responseId: string, sessionId: string, tx:NotificationTx = prisma) {
+      await tx.intentionResponse.update({
         where: { id: responseId },
         data: { revealConsentedAt: new Date() },
       });
 
-      const revealCount = await prisma.intentionResponse.count({
+      const revealCount = await tx.intentionResponse.count({
         where: {
           sessionId: sessionId,
           revealConsentedAt: { not: null },
         },
       });
-      await prisma.intentionSession.update({
+      await tx.intentionSession.update({
         where: { id: sessionId },
         data: { status: revealCount === 2 ? "REVEALED" : "READY_TO_REVEAL" },
       });

@@ -7,7 +7,10 @@ import WorkspaceHeader from "./components/WorkspaceHeader";
 import WorkspaceNav from "./components/WorkspaceNav";
 import ProgressRail from "./components/ProgressRail";
 import SharedJourneyPath from "./components/SharedJourneyPath";
-import type { WorkspaceView } from "./journey.navigation";
+import NextActionCard from "./components/NextActionCard";
+import { useWorkspaceNavigation, navigateWorkspaceUrl } from "./use-workspace-navigation";
+import { NotificationBell, notificationDestination, type NotificationItem } from "@/features/notifications";
+import notificationStyles from "@/features/notifications/notification.module.scss";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BrandLogo from "@/components/brandLogo";
@@ -25,6 +28,7 @@ import {
   initials,
 } from "@/features/journey/journey.utils";
 import styles from "@/app/journey/journey.module.scss";
+import guidanceStyles from "./next-action.module.scss";
 
 type Notice = { tone: "success" | "error"; message: string } | null;
 
@@ -36,16 +40,46 @@ export default function JourneyWorkspace() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [inviteLink, setInviteLink] = useState("");
-  const [activeView, setActiveView] = useState<WorkspaceView>("home");
+  const [activeView, navigateView, workspaceLocation] = useWorkspaceNavigation();
+  const [newActivity,setNewActivity]=useState(false);
+  const dirty=useRef(false);
+  const targetQuery=new URL(workspaceLocation,"http://localhost").searchParams;
+  const targetWord=targetQuery.get("word");
+  const targetChapter=targetQuery.get("chapter");
   const inviteHandled = useRef(false);
+
+  useEffect(()=>{
+    const hash=new URL(workspaceLocation,"http://localhost").hash.slice(1);
+    if(!hash.startsWith("step-"))return;
+    const element=document.getElementById(hash);
+    element?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+    element?.focus({preventScroll:true});
+  },[workspaceLocation,overview]);
+
+  const onActivity=useCallback(()=>setNewActivity(true),[]);
+  const onExpired=useCallback(()=>{
+    const returnTo=`${window.location.pathname}${window.location.search}${window.location.hash}`;
+    router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  },[router]);
+
+  function confirmDiscard() {
+    if(dirty.current && !window.confirm("You have unsaved answers. Leave them and load the latest activity?"))return false;
+    dirty.current=false;return true;
+  }
+  function setActiveView(view:Parameters<typeof navigateView>[0]) {
+    if(view!==activeView && !confirmDiscard())return;
+    navigateView(view);
+  }
 
   const loadOverview = useCallback(async () => {
     try {
       const data = await journeyRequest<JourneyOverview>("/api/journey/overview");
       setOverview(data);
+      return data;
     } catch (error) {
       if (error instanceof JourneyApiError && error.status === 401) {
-        router.replace("/login?returnTo=/journey");
+        const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
         return;
       }
       setNotice({
@@ -68,13 +102,16 @@ export default function JourneyWorkspace() {
           await journeyRequest(`/api/journey/invites/${encodeURIComponent(token)}/accept`, {
             method: "POST",
           });
-          window.history.replaceState({}, "", "/journey");
+          const connectedUrl = new URL(window.location.href);
+          connectedUrl.searchParams.delete("invite");
+          window.history.replaceState(window.history.state, "", `${connectedUrl.pathname}${connectedUrl.search}${connectedUrl.hash}`);
           if (!cancelled) {
             setNotice({ tone: "success", message: "You are connected. Your shared space is ready." });
           }
         } catch (error) {
           if (error instanceof JourneyApiError && error.status === 401) {
-            router.replace(`/login?returnTo=${encodeURIComponent(`/journey?invite=${token}`)}`);
+            const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
             return;
           }
           if (!cancelled) {
@@ -101,6 +138,7 @@ export default function JourneyWorkspace() {
       setNotice(null);
       try {
         await action();
+        dirty.current=false;
         if (successMessage) setNotice({ tone: "success", message: successMessage });
         await loadOverview();
       } catch (error) {
@@ -141,6 +179,7 @@ export default function JourneyWorkspace() {
   }
 
   async function signOut() {
+    if(!confirmDiscard())return;
     await authClient.signOut();
     router.push("/login");
   }
@@ -164,6 +203,39 @@ export default function JourneyWorkspace() {
   }
 
   const progress = getProgress(overview);
+  async function openNotification(item:NotificationItem) {
+    if(busy || !confirmDiscard())return false;
+    const fresh=await loadOverview();
+    if(!fresh)return false;
+    setNewActivity(false);
+    let destination=notificationDestination(item);
+    if(item.view==="home" && item.kind!=="INVITATION_ACCEPTED" && fresh.session?.id!==item.entityId) {
+      destination="/journey?view=chapters";
+      setNotice({tone:"success",message:"This conversation has moved to your past conversations."});
+    }
+    if(item.view==="atlas") {
+      const word=fresh.atlas.words.find(w=>w.key===item.wordKey);
+      if(!word || (word.chapter?.id!==item.entityId && !word.previousDefinitions?.some(c=>c.id===item.entityId))) {
+        setNotice({tone:"success",message:"This activity has already moved on or is no longer available."});
+        return true;
+      }
+    }
+    if(item.view==="roadmap" && ![...(fresh.session?.nextSteps??[]),...(fresh.session?.proposals??[])].some(s=>s.id===item.entityId)) {
+      setNotice({tone:"success",message:"This step has already moved on. You can review your past conversations."});
+      destination="/journey?view=chapters";
+    }
+    navigateWorkspaceUrl(destination);
+    return true;
+  }
+  const isHome = Boolean(overview.relationship && activeView === "home");
+  const focusCurrentAction = () => {
+    const element = document.getElementById("current-action");
+    element?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
+    element?.focus({ preventScroll: true });
+  };
   const startConversation = (packKey: string | null) => {
     if (!overview.relationship) return;
     runAction(
@@ -184,16 +256,22 @@ export default function JourneyWorkspace() {
 
   return (
     <div className={styles.page}>
-      <WorkspaceHeader onSignOut={signOut} />
+      <WorkspaceHeader onSignOut={signOut} notifications={<NotificationBell key={overview.user.id} userId={overview.user.id} onOpen={openNotification} onActivity={onActivity} onExpired={onExpired}/>}/>
 
-      <main className={styles.main}>
-        <section className={styles.intro}>
+      <main className={styles.main} onChangeCapture={()=>{dirty.current=true;}}>
+        {newActivity?<aside className={notificationStyles.activity} aria-label="New shared activity">
+          <span>✦ There’s new activity. Your unfinished answers have been left untouched.</span>
+          <button type="button" disabled={busy} onClick={async()=>{
+            if(!confirmDiscard())return;
+            if(await loadOverview())setNewActivity(false);
+          }}>Refresh when ready</button>
+        </aside>:null}
+        <section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
           <div>
             <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
-            <h1>Build the relationship you both choose.</h1>
+            <h1>{isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>
             <p>
-              Reflect privately, reveal only what feels right, and turn one important
-              conversation into an evolving roadmap you both accept.
+              {isHome ? "Pick up where you left off, one step at a time." : "Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept."}
             </p>
           </div>
           <div className={styles.memberCard}>
@@ -251,6 +329,9 @@ export default function JourneyWorkspace() {
           />
         ) : activeView === "atlas" ? (
           <AtlasView
+            key={`${targetWord??"default"}:${targetChapter??"current"}`}
+            initialWordKey={targetWord}
+            targetChapterId={targetChapter}
             words={overview.atlas.words}
             relationshipId={overview.relationship.id}
             partnerName={overview.relationship.partner.name}
@@ -272,20 +353,21 @@ export default function JourneyWorkspace() {
           )
         ) : (
           <>
+            <NextActionCard
+              overview={overview}
+              busy={busy}
+              onNavigate={setActiveView}
+              onFocusCurrent={focusCurrentAction}
+            />
             <SharedJourneyPath
               session={overview.session}
               historyCount={overview.checkInHistory.length}
               partnerName={overview.relationship.partner.name}
               onNavigate={setActiveView}
-              onFocusCurrent={() =>
-                document.getElementById("current-action")?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                })
-              }
+              onFocusCurrent={focusCurrentAction}
             />
             {overview.session ? (
-              <div id="current-action" className={styles.currentActionStage}>
+              <div id="current-action" tabIndex={-1} className={`${styles.currentActionStage} ${guidanceStyles.currentAction}`}>
                 <SessionStage session={overview.session} busy={busy} runAction={runAction} />
               </div>
             ) : null}

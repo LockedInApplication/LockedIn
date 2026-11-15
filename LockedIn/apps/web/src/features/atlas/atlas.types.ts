@@ -9,6 +9,16 @@ export type AtlasResponse = {
   heardStatus: MeaningCheckStatus | null;
 };
 
+export type AtlasCompletedChapter = {
+  id: string;
+  word: { key: string; title: string; icon: string; color: "coral" | "sage" | "gold" };
+  createdAt: string;
+  sharedAt: string;
+  sharedDefinition: string | null;
+  ownResponse: AtlasResponse | null;
+  partner: { name: string; response: AtlasResponse | null };
+};
+
 export type AtlasChapter = {
   id: string;
   status:

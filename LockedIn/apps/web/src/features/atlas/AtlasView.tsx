@@ -4,9 +4,14 @@ import { useState } from "react";
 import styles from "@/app/journey/journey.module.scss";
 import { initials } from "@/features/journey/journey.utils";
 import AtlasLandmarkStage from "./AtlasLandmarkStage";
+import AtlasHistory from "./AtlasHistory";
 import type { AtlasWord } from "./atlas.types";
+import AtlasChapterDialog from "./AtlasChapterDialog";
+import { createPortal } from "react-dom";
 
 export type AtlasViewProps = {
+  initialWordKey?:string|null;
+  targetChapterId?:string|null;
   words: AtlasWord[];
   relationshipId: string;
   partnerName: string;
@@ -20,9 +25,12 @@ export default function AtlasView({
   partnerName,
   busy,
   runAction,
+  initialWordKey,
+  targetChapterId,
 }: AtlasViewProps) {
   const suggestedWord = words.find((word) => word.chapter && word.chapter.status !== "SHARED") ?? words[0];
-  const [selectedKey, setSelectedKey] = useState(suggestedWord?.key ?? "support");
+  const [selectedKey, setSelectedKey] = useState(initialWordKey ?? suggestedWord?.key ?? "support");
+  const [targetClosed,setTargetClosed]=useState(false);
   const selectedWord = words.find((word) => word.key === selectedKey) ?? words[0];
   const completedCount = words.filter((word) => word.versionCount > 0).length;
 
@@ -60,8 +68,8 @@ export default function AtlasView({
         <div className={styles.atlasCloudTwo} aria-hidden>☁</div>
         {words.map((word, index) => {
           const active = word.key === selectedWord.key;
-          const complete = word.chapter?.status === "SHARED";
-          const inProgress = Boolean(word.chapter && !complete);
+          const complete = word.versionCount > 0 || word.chapter?.status === "SHARED";
+          const inProgress = Boolean(word.chapter && word.chapter.status !== "SHARED");
           return (
             <button
               key={word.key}
@@ -74,7 +82,7 @@ export default function AtlasView({
                 {inProgress ? <b className={styles.atlasPulse} aria-hidden /> : null}
               </span>
               <strong>{word.title}</strong>
-              <small>{complete ? "Shared" : inProgress ? "In progress" : "Unexplored"}</small>
+              <small>{complete && inProgress ? "Shared · new chapter in progress" : complete ? "Shared" : inProgress ? "In progress" : "Unexplored"}</small>
             </button>
           );
         })}
@@ -82,6 +90,11 @@ export default function AtlasView({
           <span>Y</span><span>{initials(partnerName)}</span>
         </div>
       </div>
+
+      <AtlasHistory word={selectedWord} />
+      {!targetClosed && targetChapterId && (selectedWord.chapter?.id===targetChapterId && selectedWord.chapter.status==="SHARED" || selectedWord.previousDefinitions?.some(c=>c.id===targetChapterId)) ? createPortal(
+        <AtlasChapterDialog chapterId={targetChapterId} wordTitle={selectedWord.title} onClose={()=>setTargetClosed(true)}/>,document.body,
+      ):null}
 
       <AtlasLandmarkStage
         key={`${selectedWord.key}-${selectedWord.chapter?.id ?? "new"}-${selectedWord.chapter?.status ?? "empty"}-${selectedWord.chapter?.candidateVersion ?? 0}`}

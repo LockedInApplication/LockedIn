@@ -1,8 +1,8 @@
-import { prisma } from "../../lib/prisma.js";
 import { getConversationPack } from "./conversation.catalog.js";
+import { inTransaction, type NotificationTx } from "../notifications/index.js";
 
-export async function chooseConversation(relationshipId: string, userId: string, packKey: string | null) {
-  return prisma.$transaction(async (tx) => {
+export async function chooseConversation(relationshipId: string, userId: string, packKey: string | null, transaction?: NotificationTx) {
+  return inTransaction(transaction, async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "Relationship" WHERE "id" = ${relationshipId} FOR UPDATE`;
 
         const activeSession = await tx.intentionSession.findFirst({

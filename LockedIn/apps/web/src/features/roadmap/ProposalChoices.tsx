@@ -23,7 +23,7 @@ export default function ProposalChoices({
       </div>
       <div className={styles.proposalGrid}>
         {session.proposals.map((proposal) => (
-          <article className={styles.proposalOption} key={proposal.id}>
+          <article id={`step-${encodeURIComponent(proposal.id)}`} tabIndex={-1} className={styles.proposalOption} key={proposal.id}>
             <span className={styles.proposerBadge}>
               {proposal.proposedByCurrentUser ? "Your proposal" : `${proposal.proposedByName}'s proposal`}
             </span>

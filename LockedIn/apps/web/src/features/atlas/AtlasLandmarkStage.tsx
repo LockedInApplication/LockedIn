@@ -4,6 +4,7 @@ import styles from "@/app/journey/journey.module.scss";
 import { journeyRequest } from "@/features/journey/journey.client";
 import AtlasDiscovery from "./AtlasDiscovery";
 import AtlasPrivateForm from "./AtlasPrivateForm";
+import AtlasSharedChapter from "./AtlasSharedChapter";
 import type { AtlasWord } from "./atlas.types";
 
 export type AtlasLandmarkStageProps = {
@@ -51,6 +52,10 @@ export default function AtlasLandmarkStage({
         </div>
       </article>
     );
+  }
+
+  if (chapter.status === "SHARED" && (!chapter.ownResponse || !chapter.partnerResponse.submitted)) {
+    return <AtlasSharedChapter word={word} chapter={chapter} busy={busy} onStartAgain={startChapter} />;
   }
 
   if (!chapter.ownResponse) {

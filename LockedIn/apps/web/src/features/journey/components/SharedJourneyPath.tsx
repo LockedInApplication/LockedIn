@@ -113,7 +113,7 @@ export default function SharedJourneyPath({
       detail: planChosen
         ? `${session?.nextSteps.length} shared step${session?.nextSteps.length === 1 ? "" : "s"} in motion`
         : "Turn clarity into something you both accept",
-      action: planChosen ? "See your roadmap" : "Choose together",
+      action: planChosen ? "See our next steps" : "Choose together",
       icon: "◇",
       state: planState,
       onClick: () => onNavigate("roadmap"),

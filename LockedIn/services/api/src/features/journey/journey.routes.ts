@@ -8,8 +8,11 @@ import { registerCheckInRoutes } from "../check-ins/check-in.routes.js";
 import { registerRoadmapRoutes } from "../roadmap/roadmap.routes.js";
 import { registerInvitationRoutes } from "../invitations/invitation.routes.js";
 import { buildJourneyOverview } from "./overview.service.js";
+import { withNotifications } from "../notifications/index.js";
+import { registerNotificationRoutes } from "../notifications/notification.routes.js";
 
 export async function journeyRoutes(server: FastifyInstance) {
+  await registerNotificationRoutes(server);
   await registerAtlasRoutes(server);
   await registerConversationRoutes(server);
   await registerCheckInRoutes(server);
@@ -33,10 +36,10 @@ export async function journeyRoutes(server: FastifyInstance) {
         return sendError(reply, 404, "Relationship space not found.");
       }
 
-      await prisma.relationship.update({
+      await withNotifications(request.params.relationshipId, user.id, tx => tx.relationship.update({
         where: { id: request.params.relationshipId },
         data: { status: "ENDED" },
-      });
+      }));
 
       return { left: true };
     },

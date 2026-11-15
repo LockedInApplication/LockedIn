@@ -7,6 +7,7 @@ import { sendJourneyEmailSafely } from "../journey-notifications/journey-email.s
 import { nextStepSchema, reflectionSchema } from "./roadmap.schemas.js";
 import { reflectionOpensAt } from "./roadmap.dates.js";
 import { acceptRoadmapStep, saveRoadmapReflection } from "./roadmap.service.js";
+import { withNotifications } from "../notifications/index.js";
 
 export async function registerRoadmapRoutes(server: FastifyInstance) {
   server.post<{ Params: { sessionId: string } }>(
@@ -35,7 +36,15 @@ export async function registerRoadmapRoutes(server: FastifyInstance) {
       const parsed = nextStepSchema.safeParse(request.body);
       if (!parsed.success) return sendError(reply, 400, "Add a clear, specific next step.");
 
-      const step = await prisma.sharedNextStep.create({
+      const stepData={
+        sessionId:session.id,proposedById:user.id,status:"PROPOSED" as const,
+        title:parsed.data.title,details:parsed.data.details||null,
+        targetDate:parsed.data.targetDate?new Date(`${parsed.data.targetDate}T12:00:00.000Z`):null,
+      };
+      const step = await withNotifications(session.relationshipId, user.id, async tx => {
+        const existing=await tx.sharedNextStep.findFirst({where:stepData});
+        if(existing)return existing;
+        return tx.sharedNextStep.create({
         data: {
           sessionId: session.id,
           proposedById: user.id,
@@ -45,6 +54,7 @@ export async function registerRoadmapRoutes(server: FastifyInstance) {
             ? new Date(`${parsed.data.targetDate}T12:00:00.000Z`)
             : null,
         },
+      });
       });
 
       const partner = await prisma.relationshipMember.findFirst({
@@ -87,7 +97,7 @@ export async function registerRoadmapRoutes(server: FastifyInstance) {
         return sendError(reply, 409, "This proposal is no longer waiting for acceptance.");
       }
 
-      await acceptRoadmapStep(step.id, step.sessionId);
+      await withNotifications(step.session.relationshipId, user.id, tx => acceptRoadmapStep(step.id, step.sessionId, tx));
 
       const proposer = await prisma.user.findUnique({ where: { id: step.proposedById } });
       if (proposer?.email) {
@@ -139,7 +149,7 @@ export async function registerRoadmapRoutes(server: FastifyInstance) {
       const parsed = reflectionSchema.safeParse(request.body);
       if (!parsed.success) return sendError(reply, 400, "Choose a reflection outcome.");
 
-      await saveRoadmapReflection(step.id, step.sessionId, user.id, parsed.data);
+      await withNotifications(step.session.relationshipId, user.id, tx => saveRoadmapReflection(step.id, step.sessionId, user.id, parsed.data, tx));
 
       return { saved: true };
     },

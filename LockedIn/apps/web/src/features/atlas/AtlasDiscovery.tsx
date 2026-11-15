@@ -3,8 +3,8 @@
 import { useState } from "react";
 import styles from "@/app/journey/journey.module.scss";
 import { journeyRequest } from "@/features/journey/journey.client";
-import { formatDate } from "@/features/journey/journey.utils";
 import AtlasDefinitionConvergence from "./AtlasDefinitionConvergence";
+import AtlasSharedChapter from "./AtlasSharedChapter";
 import type { AtlasChapter, AtlasWord } from "./atlas.types";
 
 export type AtlasDiscoveryProps = {
@@ -142,15 +142,7 @@ export default function AtlasDiscovery({
       </section>
 
       {chapter.status === "SHARED" ? (
-        <section className={styles.atlasSharedMoment}>
-          <div className={styles.atlasConfetti} aria-hidden><i>✦</i><i>●</i><i>◆</i><i>✦</i><i>●</i></div>
-          <span className={styles.atlasSharedSeal}>✓</span>
-          <span className={styles.atlasStageLabel}>A SHARED LANDMARK</span>
-          <h3>For us, “{word.title}” means…</h3>
-          <blockquote>“{chapter.sharedDefinition}”</blockquote>
-          <p>This is a living definition, not a permanent verdict. You can explore it again when life changes.</p>
-          <button onClick={onStartAgain} disabled={busy}>Explore a new chapter</button>
-        </section>
+        <AtlasSharedChapter word={word} chapter={chapter} busy={busy} onStartAgain={onStartAgain} />
       ) : bothConfirmed ? (
         <AtlasDefinitionConvergence
           word={word}
@@ -166,14 +158,6 @@ export default function AtlasDiscovery({
         </div>
       )}
 
-      {word.previousDefinitions?.length ? (
-        <details className={styles.atlasHistory}>
-          <summary>Earlier meanings of “{word.title}” ({word.previousDefinitions.length})</summary>
-          {word.previousDefinitions.map((item) => (
-            <div key={item.id}><span>{formatDate(item.sharedAt)}</span><p>{item.definition}</p></div>
-          ))}
-        </details>
-      ) : null}
     </div>
   );
 }

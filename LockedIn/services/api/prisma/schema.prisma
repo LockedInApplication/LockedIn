@@ -105,6 +105,7 @@ model User {
   meaningFinalApprovals      MeaningFinalApproval[]
   sessions                   Session[]
   accounts                   Account[]
+  notifications              Notification[]
 
   @@map("user")
 }
@@ -139,6 +140,27 @@ model Relationship {
   intentionSessions   IntentionSession[]
   conversationChoices ConversationChoice[]
   meaningChapters     MeaningChapter[]
+  notifications       Notification[]
+}
+
+model Notification {
+  id             BigInt       @id @default(autoincrement())
+  recipientId    String
+  relationshipId String
+  kind           String
+  entityId       String
+  wordKey        String?
+  eventKey       String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  readAt         DateTime?
+  resolvedAt     DateTime?
+  recipient      User         @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  relationship   Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientId, eventKey])
+  @@index([recipientId, id])
+  @@index([relationshipId])
 }
 
 model MeaningChapter {

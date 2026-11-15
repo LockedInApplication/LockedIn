@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma.js";
 import { getAuthenticatedUser } from "../../lib/session.js";
 import { isRelationshipMember } from "../relationships/relationship-access.service.js";
 import { atlasWords } from "./atlas.catalog.js";
+import { getCompletedAtlasChapter } from "./atlas-chapter.service.js";
 import {
   heardConfirmationSchema,
   heardSummarySchema,
@@ -35,6 +36,19 @@ async function requireUser(request: FastifyRequest, reply: FastifyReply) {
 }
 
 export async function registerAtlasRoutes(server: FastifyInstance): Promise<void> {
+  server.get<{ Params: { chapterId: string } }>(
+    "/api/journey/atlas/:chapterId",
+    async (request, reply) => {
+      reply.header("Cache-Control", "private, no-store");
+      const user = await requireUser(request, reply);
+      if (!user) return;
+
+      const chapter = await getCompletedAtlasChapter(request.params.chapterId, user.id);
+      if (!chapter) return sendError(reply, 404, "Completed chapter not found.");
+      return chapter;
+    },
+  );
+
   server.post<{ Params: { relationshipId: string; wordKey: string } }>(
     "/api/journey/relationships/:relationshipId/atlas/:wordKey",
     async (request, reply) => {

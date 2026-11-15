@@ -4,6 +4,7 @@ import { useState } from "react";
 import styles from "@/app/journey/journey.module.scss";
 import { initials } from "@/features/journey/journey.utils";
 import AtlasLandmarkStage from "./AtlasLandmarkStage";
+import AtlasHistory from "./AtlasHistory";
 import type { AtlasWord } from "./atlas.types";
 
 export type AtlasViewProps = {
@@ -60,8 +61,8 @@ export default function AtlasView({
         <div className={styles.atlasCloudTwo} aria-hidden>☁</div>
         {words.map((word, index) => {
           const active = word.key === selectedWord.key;
-          const complete = word.chapter?.status === "SHARED";
-          const inProgress = Boolean(word.chapter && !complete);
+          const complete = word.versionCount > 0 || word.chapter?.status === "SHARED";
+          const inProgress = Boolean(word.chapter && word.chapter.status !== "SHARED");
           return (
             <button
               key={word.key}
@@ -74,7 +75,7 @@ export default function AtlasView({
                 {inProgress ? <b className={styles.atlasPulse} aria-hidden /> : null}
               </span>
               <strong>{word.title}</strong>
-              <small>{complete ? "Shared" : inProgress ? "In progress" : "Unexplored"}</small>
+              <small>{complete && inProgress ? "Shared · new chapter in progress" : complete ? "Shared" : inProgress ? "In progress" : "Unexplored"}</small>
             </button>
           );
         })}
@@ -82,6 +83,8 @@ export default function AtlasView({
           <span>Y</span><span>{initials(partnerName)}</span>
         </div>
       </div>
+
+      <AtlasHistory word={selectedWord} />
 
       <AtlasLandmarkStage
         key={`${selectedWord.key}-${selectedWord.chapter?.id ?? "new"}-${selectedWord.chapter?.status ?? "empty"}-${selectedWord.chapter?.candidateVersion ?? 0}`}

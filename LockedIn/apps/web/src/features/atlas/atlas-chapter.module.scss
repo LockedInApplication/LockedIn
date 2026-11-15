@@ -1,0 +1,102 @@
+.viewButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 46px;
+  margin: 6px 0 20px;
+  padding: 10px 20px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--gold);
+  box-shadow: 0 4px 0 var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.viewButton:hover { transform: translateY(2px); box-shadow: 0 2px 0 var(--ink); }
+.viewButton:focus-visible, .closeButton:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+
+.dialog {
+  position: fixed;
+  inset: 0;
+  width: min(1000px, calc(100vw - 28px));
+  max-height: 90dvh;
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 2px solid var(--ink);
+  border-radius: 24px 8px 24px 8px;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 10px 12px 0 rgba(32, 24, 47, 0.35);
+  animation: chapterOpen 180ms ease-out;
+}
+
+.dialog::backdrop { background: rgba(32, 24, 47, 0.65); backdrop-filter: blur(5px); }
+.surface { min-width: 0; overflow-wrap: anywhere; }
+.header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: clamp(20px, 4vw, 32px);
+  border-bottom: 2px solid var(--ink);
+  background: linear-gradient(115deg, #fff7d7, #e4f0ff);
+}
+
+.eyebrow { color: var(--plum); font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.08em; }
+.header h2 { margin: 8px 0 0; font-family: var(--font-display); font-size: clamp(1.6rem, 4vw, 2.7rem); line-height: 1.1; }
+.closeButton {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  color: var(--ink);
+  background: white;
+  font: inherit;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.content { display: grid; gap: 30px; padding: clamp(20px, 4vw, 36px); }
+.savedDate { margin: 0; color: var(--stone-500); font-family: var(--font-mono); font-size: 0.65rem; line-height: 1.7; }
+.content h3 { margin: 0 0 16px; font-family: var(--font-display); font-size: clamp(1.4rem, 3vw, 2rem); }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.meaningCard, .checkCard { min-width: 0; padding: 22px; border: 2px solid var(--ink); border-radius: 16px 6px; background: white; }
+.meaningCard:nth-child(2), .checkCard:nth-child(2) { background: #f1f7ff; }
+.meaningCard h4, .checkCard h4 { margin: 0 0 18px; color: var(--plum); font-family: var(--font-display); font-size: 1.3rem; }
+.meaningCard dl { margin: 0; }
+.meaningCard dt { color: var(--stone-500); font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase; }
+.meaningCard dd { margin: 6px 0 20px; white-space: pre-wrap; line-height: 1.7; }
+.meaningCard dd:last-child { margin-bottom: 0; }
+.meaningCard p, .checkCard p { line-height: 1.7; }
+.checkCard blockquote { margin: 0 0 18px; white-space: pre-wrap; font-size: 1.1rem; line-height: 1.7; }
+.checkResult { display: inline-block; margin: 0; padding: 6px 12px; border-radius: 10px; background: #e2f4e7; font-size: 0.75rem; }
+.agreement { padding: clamp(22px, 4vw, 36px); border: 2px solid var(--ink); border-radius: 20px 6px; background: linear-gradient(115deg, #e5f5e9, #fff7d9); text-align: center; }
+.agreement > span { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 18px; border: 2px solid var(--ink); border-radius: 50%; color: white; background: #4c9a64; font-size: 1.5rem; }
+.agreement blockquote { margin: 20px 0; white-space: pre-wrap; color: var(--plum); font-family: var(--font-display); font-size: clamp(1.5rem, 3.5vw, 2.4rem); line-height: 1.4; }
+.agreement p { margin: 0; color: var(--stone-500); font-size: 0.8rem; line-height: 1.7; }
+.message { display: grid; justify-items: center; gap: 16px; padding: 48px 24px; text-align: center; }
+.message > span { color: var(--accent); font-size: 2rem; }
+
+@keyframes chapterOpen { from { opacity: 0; transform: translateY(12px); } }
+@media (max-width: 650px) {
+  .dialog { width: calc(100vw - 16px); max-height: 94dvh; border-radius: 16px; }
+  .header { gap: 12px; }
+  .pair { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog { animation: none; }
+  .viewButton { transition: none; }
+}

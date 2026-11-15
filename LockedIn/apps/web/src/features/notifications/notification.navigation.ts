@@ -1,5 +1,5 @@
 import type { NotificationItem } from "./notification.types";
-export function notificationDestination(item: Pick<NotificationItem, "view" | "entityId" | "wordKey">) {
+export function notificationDestination(item: Pick<NotificationItem, "view" | "entityId" | "wordKey"> & {id?:string}) {
     const query = new URLSearchParams();
     if(item.view==="invitations")return `/journey?invitation=${encodeURIComponent(item.entityId)}`;
     if (item.view === "atlas") {
@@ -10,8 +10,10 @@ export function notificationDestination(item: Pick<NotificationItem, "view" | "e
     }
     else if (item.view === "roadmap")
         return `/journey?view=roadmap#step-${encodeURIComponent(item.entityId)}`;
-    else if (item.view === "conversations")
+    else if (item.view === "conversations") {
         query.set("view", "conversations");
+        if(item.id)query.set("suggestion",item.id);
+    }
     else
         return "/journey";
     return `/journey?${query}`;

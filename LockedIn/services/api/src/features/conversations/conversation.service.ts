@@ -1,9 +1,18 @@
 import { getConversationPack } from "./conversation.catalog.js";
 import { inTransaction, type NotificationTx } from "../notifications/index.js";
+import { resolveConversationSuggestion } from "./conversation-suggestion.service.js";
 
-export async function chooseConversation(relationshipId: string, userId: string, packKey: string | null, transaction?: NotificationTx) {
+export async function chooseConversation(relationshipId: string, userId: string, packKey: string | null, transaction?: NotificationTx, notificationId?: bigint) {
   return inTransaction(transaction, async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "Relationship" WHERE "id" = ${relationshipId} FOR UPDATE`;
+
+        if (notificationId !== undefined) {
+          const suggestion = await resolveConversationSuggestion(tx,userId,notificationId);
+          if (!suggestion || suggestion.status !== "pending" || suggestion.relationshipId !== relationshipId ||
+              !suggestion.canStart || (suggestion.pack?.key ?? null) !== packKey) {
+            return {error:"This suggestion has changed. Review the latest conversation choices."};
+          }
+        }
 
         const activeSession = await tx.intentionSession.findFirst({
           where: { relationshipId, status: { not: "ARCHIVED" } },

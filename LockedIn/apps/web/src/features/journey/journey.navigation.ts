@@ -15,6 +15,7 @@ export function getWorkspaceView(search: string): WorkspaceView {
 
 export function workspaceViewUrl(currentUrl: string, view: WorkspaceView): string {
   const url = new URL(currentUrl, "http://localhost");
+  url.searchParams.delete("suggestion");
   if (view === "home") url.searchParams.delete("view");
   else url.searchParams.set("view", view);
   return `${url.pathname}${url.search}${url.hash}`;

@@ -10,3 +10,21 @@ export async function isRelationshipMember(
 
   return Boolean(membership);
 }
+
+export async function getActiveRelationship(userId: string) {
+  return prisma.relationship.findFirst({
+    where: {
+      status: "ACTIVE",
+      members: { some: { userId } },
+    },
+    include: {
+      members: {
+        include: {
+          user: {
+            select: { id: true, name: true, displayName: true, email: true },
+          },
+        },
+      },
+    },
+  });
+}

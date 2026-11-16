@@ -5,7 +5,7 @@ export function effectiveDiscoveryState(connection: DiscoveryConnection, now = n
 }
 export function discoveryConnectionView(
   connection: DiscoveryConnection & { drafts: DiscoveryDraft[]; sharedResponses: DiscoverySharedResponse[] },
-  actorId: string, partner: { publicName: string; avatarPreset: string }, eligible: boolean, linkedMembership: boolean,
+  actorId: string, partner: { publicName: string; avatarPreset: string }, eligible: boolean, linkedMembership: boolean, buildAvailable: boolean,
 ) {
   const state = effectiveDiscoveryState(connection);
   const mine = actorId === connection.userLowId ? connection.lowReadinessVersion : connection.highReadinessVersion;
@@ -22,6 +22,6 @@ export function discoveryConnectionView(
     canAccept: state === "PENDING" && connection.inviterId !== actorId && eligible,
     canShare: state === "ACCEPTED" && eligible,
     canClose: state === "PENDING" || state === "ACCEPTED",
-    canChooseBuild: state === "ACCEPTED" && eligible,
+    canChooseBuild: state === "ACCEPTED" && eligible && buildAvailable,
   };
 }

@@ -34,7 +34,8 @@ export async function connectionValue(tx: Prisma.TransactionClient, row: Discove
   const published = profile ? publicDiscoveryProfile(profile.id, profile.publishedSnapshot) : null;
   const partner = row.inviterId !== actorId ? { publicName: row.senderPublicName, avatarPreset: row.senderAvatarPreset } : { publicName: published?.publicName ?? "Your connection", avatarPreset: published?.avatarPreset ?? "leaf" };
   const linkedMembership = !!row.relationshipId && !!await tx.relationshipMember.findFirst({ where: { relationshipId: row.relationshipId, userId: actorId }, select: { id: true } });
-  return { ok: true as const, value: discoveryConnectionView(connection, actorId, partner, await discoveryPairEligible(tx, row), linkedMembership) };
+  const occupied = await tx.relationship.findFirst({ where: { status: "ACTIVE", members: { some: { userId: { in: [row.userLowId, row.userHighId] } } } }, select: { id: true } });
+  return { ok: true as const, value: discoveryConnectionView(connection, actorId, partner, await discoveryPairEligible(tx, row), linkedMembership, !occupied) };
 }
 type ConnectionResult = DiscoveryResult<ReturnType<typeof discoveryConnectionView>>;
 

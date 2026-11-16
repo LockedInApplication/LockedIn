@@ -22,3 +22,7 @@ export const discoveryCandidatesQuery = z.strictObject({ areaId: z.string().min(
 export const discoveryInvitationSchema = z.strictObject({ targetProfileId: z.string().uuid(), topicKey: z.enum(["support", "commitment", "communication"]), hello: z.string().trim().max(280), requestId: z.string().uuid() });
 export const discoveryConnectionParams = z.strictObject({ id: z.string().uuid() });
 export const discoveryConnectionQuery = z.strictObject({ before: z.string().uuid().optional() });
+export const starterDraftSchema = z.strictObject({ text: z.string().max(2000), revision: z.number().int().nonnegative() });
+export const starterShareSchema = z.strictObject({ draftRevision: z.number().int().nonnegative(), requestId: z.string().uuid() });
+export const buildReadinessSchema = z.strictObject({ ready: z.boolean(), consentVersion: z.number().int().nonnegative() });
+export const privateReflectionSchema = z.strictObject({ text: z.string().max(4000), revision: z.number().int().nonnegative() });

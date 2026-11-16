@@ -5,10 +5,12 @@ import { getDiscoveryCapabilities } from "./discovery.policy.js";
 import { registerDiscoveryProfileRoutes } from "./discovery-profile.routes.js";
 import { registerDiscoveryConnectionRoutes } from "./discovery-connection.routes.js";
 import { discoveryTopics } from "./discovery-topics.js";
+import { registerDiscoveryResponseRoutes } from "./discovery-response.routes.js";
 
 export async function registerDiscoveryRoutes(server: FastifyInstance): Promise<void> {
   await registerDiscoveryProfileRoutes(server);
   await registerDiscoveryConnectionRoutes(server);
+  await registerDiscoveryResponseRoutes(server);
   server.get("/api/discovery/me", async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply);

@@ -2,8 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { requireUser } from "../../lib/journey-http.js";
 import { getDiscoveryConfig } from "../../config/env.js";
 import { getDiscoveryCapabilities } from "./discovery.policy.js";
+import { registerDiscoveryProfileRoutes } from "./discovery-profile.routes.js";
 
 export async function registerDiscoveryRoutes(server: FastifyInstance): Promise<void> {
+  await registerDiscoveryProfileRoutes(server);
   server.get("/api/discovery/me", async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply);

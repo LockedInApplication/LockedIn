@@ -1,0 +1,21 @@
+import { z } from "zod";
+import { avatarPresetSchema } from "../profile/profile.schemas.js";
+import { getDiscoveryConfig } from "../../config/env.js";
+
+const text = (max: number) => z.string().transform(value => value.trim().replace(/\s+/gu, " ")).pipe(z.string().max(max));
+export const discoveryProfileSchema = z.strictObject({
+  publicName: text(60).pipe(z.string().min(1)),
+  avatarPreset: avatarPresetSchema,
+  bio: text(500),
+  intention: z.enum(["LONG_TERM", "OPEN_TO_LONG_TERM"]),
+  interests: z.array(text(30).pipe(z.string().min(1))).max(5).refine(values => new Set(values.map(value => value.toLocaleLowerCase("en-US"))).size === values.length),
+  pace: text(240).nullable(),
+  areaId: z.string().min(1).max(100),
+});
+export const configuredArea = (areaId: string) => getDiscoveryConfig().areas.some(area => area.id === areaId);
+export const discoveryDraftSchema = discoveryProfileSchema.extend({ revision: z.number().int().nonnegative() }).strict();
+export const discoveryPublishSchema = z.strictObject({ draftRevision: z.number().int().positive(), adultAttested: z.literal(true) });
+export const discoveryVisibilitySchema = z.strictObject({ paused: z.boolean() });
+export const emptyDiscoverySchema = z.strictObject({});
+export const discoveryProfileParams = z.strictObject({ profileId: z.string().uuid() });
+export const discoveryCandidatesQuery = z.strictObject({ areaId: z.string().min(1).max(100), before: z.string().min(1).max(512).optional() });

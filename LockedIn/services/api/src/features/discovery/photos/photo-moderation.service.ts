@@ -4,6 +4,7 @@ import { lockInvitationUsers } from "../../invitations/invitation-access.service
 import type { DiscoveryPhoto, Prisma } from "../../../../generated/prisma/client.js";
 import { isPhotoModerator } from "./photo-access.service.js";
 import { ownPhoto } from "./photo-lifecycle.service.js";
+import { explainPhotoScreening } from "./photo-policy.js";
 import { queuePhotoDestroy, removePhotoReferences } from "./photo-profile.service.js";
 import type { photoReviewSchema } from "./photo.schemas.js";
 import type { PhotoProvider } from "./photo.types.js";
@@ -46,6 +47,7 @@ export async function listPhotoReviews(actorId: string, before?: string) {
       audits: row.audits, failedJobs: row.jobs.map(job => job.kind), reported: !!row.reports.length, removed: !!(row.revokedAt || row.deletedAt),
       canApprove: reviewable(row) && row.scanCompleted && !!row.assetId,
       canPreview: !row.destroyedAt && !!row.assetId && (reviewable(row) || !!row.reports.length),
+      screening: row.scanCompleted && !row.destroyedAt ? explainPhotoScreening(row.screening, row.policyVersion) : null,
     })), nextCursor: rows.length > 20 ? rows[19]!.id : null } };
   });
 }

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { classifyPhoto } from "../photo-policy.js";
+import { classifyPhoto, explainPhotoScreening, PHOTO_POLICY_VERSION } from "../photo-policy.js";
 
 export const screening = (labels: { name: string; confidence: number; parent_name?: string }[] = [], status = "approved") => ({ moderation: [{ kind: "aws_rek", status, response: { moderation_labels: labels.map(label => ({ parent_name: "", ...label })) } }] });
 it("permits a completed clean result but never a status without the requested labels", () => {
@@ -31,4 +31,16 @@ it("holds unknown categories and never approves incomplete, mixed or malformed p
   }
   const mixed = screening(); mixed.moderation.push({ kind: "manual", status: "pending", response: { moderation_labels: [] } });
   expect(classifyPhoto(mixed).state).not.toBe("APPROVED");
+});
+it("explains the winning rule for existing label-only records without guessing the provider result", () => {
+  const label = { name: "Implied Nudity", parent: "", confidence: 50.25 };
+  expect(explainPhotoScreening([label], PHOTO_POLICY_VERSION)).toMatchObject({ providerStatus: null, triggers: [{ rule: "Sensitive category at or above the review threshold", label }] });
+  expect(explainPhotoScreening([], PHOTO_POLICY_VERSION)).toMatchObject({ providerStatus: null, triggers: [] });
+  expect(explainPhotoScreening([label], "unknown-policy")).toMatchObject({ labels: [label], triggers: [] });
+  expect(explainPhotoScreening([{ ...label, confidence: 101 }], PHOTO_POLICY_VERSION)).toBeNull();
+});
+it("explains a provider-only hold without inventing a confidence score", () => {
+  const result = classifyPhoto(screening([], "rejected"));
+  expect(result.state).toBe("NEEDS_REVIEW");
+  expect(explainPhotoScreening(result, result.policyVersion)).toMatchObject({ providerStatus: "rejected", triggers: [{ rule: "Provider rejected the photo without a matching app rejection rule", label: null }] });
 });

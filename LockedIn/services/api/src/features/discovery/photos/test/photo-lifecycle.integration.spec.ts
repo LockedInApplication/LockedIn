@@ -184,6 +184,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private photo lif
     expect((await request(owner, "GET", `/api/discovery/photos/${id}/media`)).statusCode).toBe(404);
     expect((await request(moderator, "GET", `${url}/media`)).statusCode).toBe(404);
     const item = (await request(owner, "GET", "/api/discovery/photos")).json().value.items[0];
+    expect(item).not.toHaveProperty("screening");
     const appeal = { requestId: randomUUID(), decisionRevision: item.decisionRevision };
     const appealUrl = `/api/discovery/photos/${id}/appeal`;
     expect((await request(owner, "POST", appealUrl, appeal)).statusCode).toBe(200);
@@ -191,9 +192,10 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private photo lif
     expect((await request(owner, "POST", appealUrl, { ...appeal, requestId: randomUUID() })).statusCode).toBe(409);
     expect((await request(moderator, "GET", `${url}/media`)).statusCode).toBe(200);
     expect((await request(unverified, "GET", "/api/discovery/moderation/photos")).statusCode).toBe(403);
+    expect((await request(owner, "GET", "/api/discovery/moderation/photos")).statusCode).toBe(403);
     const queue = (await request(moderator, "GET", "/api/discovery/moderation/photos")).json().value.items;
     const queued = queue.find((photo: { id: string }) => photo.id === id);
-    expect(queued).toMatchObject({ id, state: "REJECTED" });
+    expect(queued).toMatchObject({ id, state: "REJECTED", screening: { providerStatus: "rejected", triggers: [{ rule: "Prohibited category at or above the rejection threshold", label: { name: "Explicit Nudity", confidence: 99 } }] } });
     const review = { action: "APPROVE", reason: "Synthetic false positive", requestId: randomUUID(), decisionRevision: queued.decisionRevision };
     expect((await request(owner, "POST", `${url}/review`, review)).statusCode).toBe(403);
     expect((await request(moderator, "POST", `${url}/review`, review)).statusCode).toBe(200);

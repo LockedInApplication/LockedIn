@@ -6,8 +6,8 @@ import type { DiscoveryProfileInput, PublicDiscoveryProfile } from "./discovery.
 export function publicDiscoveryProfile(id: string, value: unknown): PublicDiscoveryProfile | null {
   const parsed = discoveryProfileSchema.safeParse(value);
   if (!parsed.success) return null;
-  const { publicName, avatarPreset, bio, intention, interests, pace, areaId } = parsed.data;
-  return { id, publicName, avatarPreset, bio, intention, interests, pace, areaId };
+  const { publicName, avatarPreset, bio, intention, interests, pace, areaId, photoIds } = parsed.data;
+  return { id, publicName, avatarPreset, bio, intention, interests, pace, areaId, ...(photoIds?.length ? { photoIds } : {}) };
 }
 export function discoveryDraft(profile: DiscoveryProfile | null): { profile: DiscoveryProfileInput | null; revision: number } {
   const wrapper = profile?.draft;

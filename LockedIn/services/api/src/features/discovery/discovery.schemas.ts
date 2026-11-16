@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { avatarPresetSchema } from "../profile/profile.schemas.js";
 import { getDiscoveryConfig } from "../../config/env.js";
+import { photoIdsSchema } from "./photos/photo.schemas.js";
 
 const text = (max: number) => z.string().transform(value => value.trim().replace(/\s+/gu, " ")).pipe(z.string().max(max));
 export const discoveryProfileSchema = z.strictObject({
@@ -11,6 +12,7 @@ export const discoveryProfileSchema = z.strictObject({
   interests: z.array(text(30).pipe(z.string().min(1))).max(5).refine(values => new Set(values.map(value => value.toLocaleLowerCase("en-US"))).size === values.length),
   pace: text(240).nullable(),
   areaId: z.string().min(1).max(100),
+  photoIds: photoIdsSchema.optional(),
 });
 export const configuredArea = (areaId: string) => getDiscoveryConfig().areas.some(area => area.id === areaId);
 export const discoveryDraftSchema = discoveryProfileSchema.extend({ revision: z.number().int().nonnegative() }).strict();

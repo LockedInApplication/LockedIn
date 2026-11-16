@@ -7,6 +7,7 @@ import { registerDiscoveryConnectionRoutes } from "./discovery-connection.routes
 import { discoveryTopics } from "./discovery-topics.js";
 import { registerDiscoveryResponseRoutes } from "./discovery-response.routes.js";
 import { registerDiscoverySafetyRoutes } from "./discovery-safety.routes.js";
+import { photoCapabilities } from "./photos/photo.config.js";
 
 export async function registerDiscoveryRoutes(server: FastifyInstance): Promise<void> {
   await registerDiscoveryProfileRoutes(server);
@@ -18,6 +19,6 @@ export async function registerDiscoveryRoutes(server: FastifyInstance): Promise<
     const user = await requireUser(request, reply);
     if (!user) return;
     const capabilities = await getDiscoveryCapabilities({ userId: user.id, emailVerified: user.emailVerified });
-    return { ownerId: user.id, value: { ...capabilities, areas: capabilities.canDiscover ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
+    return { ownerId: user.id, value: { ...capabilities, photos: photoCapabilities(), areas: capabilities.canDiscover ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
   });
 }

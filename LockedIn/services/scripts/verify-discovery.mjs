@@ -18,6 +18,7 @@ if (!/^lockedin_discovery_test_[a-f0-9]{24}$/.test(name)) throw new Error("Inval
 const url = new URL(adminUrl); url.pathname = `/${name}`;
 const childEnv = { ...process.env, DATABASE_URL: url.toString(), DISCOVERY_INTEGRATION: "true", NOTIFICATIONS_INTEGRATION: "true", BETTER_AUTH_SECRET: "discovery-integration-only-secret-at-least-32-characters", BETTER_AUTH_URL: "http://localhost:8000", APP_URL: "http://localhost:3001", REQUIRE_EMAIL_VERIFICATION: "false", RESEND_API_KEY: "", RESEND_FROM_EMAIL: "", DISCOVERY_ENABLED: "false", DISCOVERY_PILOT_USER_IDS: "", DISCOVERY_MODERATOR_USER_IDS: "", DISCOVERY_AREAS_JSON: "[]", NODE_ENV: "test" };
 delete childEnv.DISCOVERY_TEST_ADMIN_URL;
+Object.assign(childEnv, { DISCOVERY_PHOTOS_ENABLED: "false", CLOUDINARY_CLOUD_NAME: "", CLOUDINARY_API_KEY: "", CLOUDINARY_API_SECRET: "" });
 const temp = mkdtempSync(path.join(tmpdir(), "lockedin-discovery-harness-"));
 const admin = new Client({ connectionString: adminUrl.toString() });
 let created = false, database;

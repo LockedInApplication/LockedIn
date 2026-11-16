@@ -115,6 +115,8 @@ try{
     assert.equal(await queue.locator("img").count(),0);
     await queue.getByRole("button",{name:"Open preview",exact:true}).click();
     await queue.getByRole("img",{name:"Restricted photo evidence",exact:true}).waitFor();
+    await queue.getByText("Automated screening details",{exact:true}).click();
+    await queue.getByText(/Sensitive category.*Implied Nudity.*50% confidence/).waitFor();
     await queue.getByLabel("Decision reason").fill("Synthetic photo review");
     await checkDiscoveryLayout(pageMod,{screenshotDir:artifacts,name:"photo-review"});
     pageMod.once("dialog",dialog=>dialog.accept());await queue.getByRole("button",{name:"Approve",exact:true}).click();

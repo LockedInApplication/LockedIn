@@ -68,7 +68,8 @@ export async function finalizePhotoUpload(ownerId: string, id: string, result: A
     const validResult = result && result.asset.publicId === row.publicId && (!row.assetId || (row.assetId === result.asset.assetId && row.assetVersion === result.asset.version)) ? result : null;
     const decision = classifyPhoto(validResult?.screening);
     await tx.discoveryPhoto.update({ where: { id }, data: {
-      state: decision.state, reason: decision.reason, policyVersion: decision.policyVersion, scanCompleted: decision.complete, screening: decision.labels,
+      state: decision.state, reason: decision.reason, policyVersion: decision.policyVersion, scanCompleted: decision.complete,
+      screening: { labels: decision.labels, providerStatus: decision.providerStatus ?? null },
       decisionRevision: { increment: 1 },
       ...(validResult ? { assetId: validResult.asset.assetId, assetVersion: validResult.asset.version } : {}),
     } });

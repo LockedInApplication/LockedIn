@@ -4,7 +4,9 @@ export type PhotoState = "PROCESSING" | "APPROVED" | "NEEDS_REVIEW" | "REJECTED"
 export type PhotoAsset = { assetId: string; publicId: string; version: number; format: "jpg" };
 export type PhotoCard = { id: string; src: string; width: number; height: number };
 export type OwnPhoto = { id: string; state: PhotoState; reason: string; decisionRevision: number; canAppeal: boolean; src?: string; width: number | null; height: number | null };
-export type PhotoDecision = { state: PhotoState; reason: string; labels: { name: string; confidence: number; parent: string }[]; policyVersion: string; complete: boolean };
+export type PhotoScreeningLabel = { name: string; confidence: number; parent: string };
+export type PhotoProviderStatus = "approved" | "rejected";
+export type PhotoDecision = { state: PhotoState; reason: string; labels: PhotoScreeningLabel[]; providerStatus?: PhotoProviderStatus; policyVersion: string; complete: boolean };
 export type PhotoResult<T> = DiscoveryResult<T>;
 export interface PhotoProvider {
   upload(input: { photoId: string; jpeg: Buffer; requestId: string }): Promise<{ asset: PhotoAsset; screening: unknown }>;

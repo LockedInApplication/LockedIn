@@ -122,6 +122,8 @@ model User {
   discoveryReportsReceived   DiscoveryReport[]           @relation("DiscoveryReported")
   discoveryModerationActions DiscoveryModerationAudit[]  @relation("DiscoveryModerator")
   discoveryModerationTargets DiscoveryModerationAudit[]  @relation("DiscoveryModerated")
+  discoveryPhotos            DiscoveryPhoto[]
+  discoveryPhotoAudits       DiscoveryPhotoAudit[]
   discoveryThrottles         DiscoveryThrottle[]
 
   @@map("user")
@@ -232,8 +234,95 @@ model DiscoveryProfile {
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
   owner                     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  photos                    DiscoveryPhoto[]
 
   @@index([publishedAreaId, publishedIntention])
+  @@unique([id, ownerId])
+}
+
+enum DiscoveryPhotoState {
+  PROCESSING
+  APPROVED
+  NEEDS_REVIEW
+  REJECTED
+  CHECK_FAILED
+}
+
+enum DiscoveryPhotoJobKind {
+  RECONCILE
+  DESTROY
+}
+
+model DiscoveryPhoto {
+  id               String              @id @default(uuid())
+  ownerId          String
+  profileId        String
+  requestId        String
+  payloadHash      String
+  state            DiscoveryPhotoState @default(PROCESSING)
+  decisionRevision Int                 @default(1)
+  assetId          String?
+  publicId         String?             @unique
+  assetVersion     Int?
+  width            Int?
+  height           Int?
+  policyVersion    String?
+  screening        Json?
+  scanCompleted    Boolean             @default(false)
+  reason           String              @default("Checking photo")
+  expectedRevision Int                 @default(0)
+  replacePhotoId   String?
+  appealedRevision Int?
+  deletedAt        DateTime?
+  revokedAt        DateTime?
+  destroyedAt      DateTime?
+  retentionUntil   DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  owner            User                @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  profile          DiscoveryProfile    @relation(fields: [profileId, ownerId], references: [id, ownerId], onDelete: Restrict)
+  jobs             DiscoveryPhotoJob[]
+  audits           DiscoveryPhotoAudit[]
+  reports          DiscoveryReport[]
+
+  @@unique([ownerId, requestId])
+  @@index([ownerId, state])
+  @@index([state, createdAt])
+}
+
+model DiscoveryPhotoJob {
+  id          String                @id @default(uuid())
+  photoId     String
+  kind        DiscoveryPhotoJobKind
+  dedupeKey   String                @unique
+  dueAt       DateTime              @default(now())
+  leaseUntil  DateTime?
+  leaseToken  String?
+  attempts    Int                   @default(0)
+  lastError   String?
+  failedAt    DateTime?
+  completedAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  photo       DiscoveryPhoto        @relation(fields: [photoId], references: [id], onDelete: Restrict)
+
+  @@index([completedAt, failedAt, dueAt])
+}
+
+model DiscoveryPhotoAudit {
+  id               String         @id @default(uuid())
+  photoId          String
+  actorId          String
+  action           String
+  reason           String
+  requestId        String
+  decisionRevision Int
+  createdAt        DateTime       @default(now())
+  photo            DiscoveryPhoto @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  actor            User           @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([actorId, requestId])
+  @@index([photoId, createdAt])
 }
 
 model DiscoveryConnection {
@@ -325,12 +414,16 @@ model DiscoveryReport {
   evidence         Json?
   createdAt        DateTime                   @default(now())
   resolvedAt       DateTime?
+  photoId          String?
+  photoVersion     Int?
+  photo            DiscoveryPhoto?            @relation(fields: [photoId], references: [id], onDelete: Restrict)
   reporter         User                       @relation("DiscoveryReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   reportedUser     User                       @relation("DiscoveryReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
   connection       DiscoveryConnection?       @relation(fields: [connectionId], references: [id], onDelete: SetNull)
   moderationAudits DiscoveryModerationAudit[]
 
   @@index([resolvedAt, createdAt])
+  @@index([photoId, resolvedAt])
   @@index([reporterId])
   @@index([reportedUserId])
   @@unique([reporterId, requestId])

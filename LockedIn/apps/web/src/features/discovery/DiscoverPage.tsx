@@ -9,6 +9,7 @@ import DiscoveryCandidateList from "./DiscoveryCandidateList";
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import styles from "./discovery.module.scss";
 import DiscoverySafetyActions from "./DiscoverySafetyActions";
+import DiscoveryPhotoGallery from "./photos/DiscoveryPhotoGallery";
 export default function DiscoverPage(){return <DiscoveryShell><DiscoveryBrowse/></DiscoveryShell>;}
 function DiscoveryBrowse(){
   const {userId,emailVerified,me,leave}=useDiscovery(),[area,setArea]=useState(""),[cursors,setCursors]=useState<(string|null)[]>([null]),[selected,setSelected]=useState<string|null>(null);
@@ -37,5 +38,7 @@ function CandidateDetail({profileId}:{profileId:string}){
   if(profile.error)return <p role="status" className={styles.notice}>This profile is no longer available.</p>;
   if(!profile.value)return <p role="status">Opening profile…</p>;
   const person=profile.value;
-  return <section className={styles.card} aria-label="Selected person"><div className={styles.profile}><ProfileAvatar name={person.publicName} preset={person.avatarPreset}/><h2>{person.publicName}</h2></div><p className={styles.quote}>{person.bio}</p><button className={styles.primary} onClick={()=>void leave(`/connections?profile=${encodeURIComponent(person.id)}`)}>Start a conversation</button><details><summary>More about this person</summary><p>{person.interests.join(" · ")}</p>{person.pace?<p>{person.pace}</p>:null}<p>No compatibility score or exact location is shown.</p></details><DiscoverySafetyActions profileId={person.id} reportSource={{sourceType:"PROFILE",sourceId:person.id}} onBlocked={()=>void leave("/connections")}/></section>;
+  const profileSource={sourceType:"PROFILE" as const,sourceId:person.id};
+  const reports=[profileSource,...(person.photos??[]).map((photo,index)=>({sourceType:"PHOTO" as const,sourceId:photo.id,label:`Discovery photo ${index+1}`}))];
+  return <section className={styles.card} aria-label="Selected person"><div className={styles.profile}><ProfileAvatar name={person.publicName} preset={person.avatarPreset}/><h2>{person.publicName}</h2></div><DiscoveryPhotoGallery photos={person.photos} name={person.publicName}/><p className={styles.quote}>{person.bio}</p><button className={styles.primary} onClick={()=>void leave(`/connections?profile=${encodeURIComponent(person.id)}`)}>Start a conversation</button><details><summary>More about this person</summary><p>{person.interests.join(" · ")}</p>{person.pace?<p>{person.pace}</p>:null}<p>No compatibility score or exact location is shown.</p></details><DiscoverySafetyActions profileId={person.id} reportSource={profileSource} reportSources={reports} onBlocked={()=>void leave("/connections")}/></section>;
 }

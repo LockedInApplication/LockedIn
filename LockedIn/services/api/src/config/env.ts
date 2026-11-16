@@ -1,9 +1,12 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
+import { parseDiscoveryConfig } from "../features/discovery/discovery.config.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: path.resolve(currentDir, "../../.env") });
+
+export const getDiscoveryConfig = () => parseDiscoveryConfig(process.env);
 
 export const env = {
   PORT: Number(process.env.PORT ?? 8000),

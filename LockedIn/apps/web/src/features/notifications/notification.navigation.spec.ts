@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { notificationDestination } from "./notification.navigation";
 describe("safe notification destinations", () => {
+    it("opens the exact isolated discovery connection",()=>{
+        expect(notificationDestination({view:"discovery",entityId:"connection-id",wordKey:null})).toBe("/connections/connection-id");
+        expect(notificationDestination({view:"discovery",entityId:"a/b",wordKey:null})).toBe("/connections/a%2Fb");
+    });
     it("opens invitation review by ID rather than accepting a token",()=>{
         expect(notificationDestination({view:"invitations",entityId:"invitation-id",wordKey:null})).toBe("/journey?invitation=invitation-id");
     });

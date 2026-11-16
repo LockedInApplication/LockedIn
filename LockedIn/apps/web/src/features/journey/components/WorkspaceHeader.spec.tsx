@@ -3,6 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect } from "vitest";
 import WorkspaceHeader from "./WorkspaceHeader";
 describe("responsive workspace account header", () => {
+  it("adds one optional exploration entry without exposing it to unrelated accounts",()=>{
+    const props={onSignOut:async()=>{}};
+    const ordinary=renderToStaticMarkup(createElement(WorkspaceHeader,props));
+    expect(ordinary).not.toContain("Explore people");
+    const enabled=renderToStaticMarkup(createElement(WorkspaceHeader,{...props,onExplore:()=>{},exploreLabel:"Starter connections"}));
+    expect(enabled.match(/Starter connections/g)).toHaveLength(1);
+  });
   it("provides a labeled closed mobile disclosure without duplicating notifications", () => {
     const html = renderToStaticMarkup(
       createElement(WorkspaceHeader, {

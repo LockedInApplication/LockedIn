@@ -36,14 +36,15 @@ function decodeCursor(value: string, actor: string, area: string, intention: str
 
 // The database predicates exclude unsafe pairs before the page is selected.
 function visibleWhere(actorId: string, intention: string): Prisma.DiscoveryProfileWhereInput {
+  const live: Prisma.DiscoveryConnectionWhereInput = { OR: [{ state: "ACCEPTED" }, { state: "PENDING", expiresAt: { gt: new Date() } }] };
   return {
     ownerId: { not: actorId, in: getDiscoveryConfig().pilotUserIds }, pausedAt: null, suspendedAt: null,
     adultAttestedAt: { not: null }, publicationConsentedAt: { not: null }, publicationConsentVersion: 1,
     publishedAt: { not: null }, publicationVersion: { gt: 0 }, publishedIntention: intention,
     owner: { emailVerified: true,
       invitationBlocksCreated: { none: { blockedId: actorId } }, invitationBlocksReceived: { none: { blockerId: actorId } },
-      discoveryConnectionsLow: { none: { userHighId: actorId, state: { in: ["PENDING", "ACCEPTED"] } } },
-      discoveryConnectionsHigh: { none: { userLowId: actorId, state: { in: ["PENDING", "ACCEPTED"] } } },
+      discoveryConnectionsLow: { none: { userHighId: actorId, ...live } },
+      discoveryConnectionsHigh: { none: { userLowId: actorId, ...live } },
     },
   };
 }

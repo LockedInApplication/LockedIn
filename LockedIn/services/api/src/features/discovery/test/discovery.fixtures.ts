@@ -1,9 +1,9 @@
 import { createHmac, randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 
-export async function createPerson(emailVerified = true) {
+export async function createPerson(emailVerified = true, customId?: string) {
   const { prisma } = await import("../../../lib/prisma.js");
-  const id = `discovery-${randomUUID()}`;
+  const id = customId ?? `discovery-${randomUUID()}`;
   const token = `token-${id}`;
   const person = await prisma.user.create({ data: { id, email: `${id}@example.test`, name: "PRIVATE AUTH NAME", emailVerified } });
   await prisma.session.create({ data: { id: `session-${id}`, userId: id, token, expiresAt: new Date(Date.now() + 3_600_000) } });

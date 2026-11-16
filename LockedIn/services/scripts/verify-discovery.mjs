@@ -43,7 +43,9 @@ try {
     INSERT INTO "Notification" ("recipientId","relationshipId",kind,"entityId","eventKey","updatedAt") VALUES ('discovery-preserved-a','discovery-preserved-relationship','CHAPTER_STARTED','discovery-preserved-chapter','discovery-preserved-event',NOW());`);
   const snapshot = async () => (await database.query(`SELECT jsonb_build_object('users',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM "user" t),'relationships',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM "Relationship" t),'responses',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM "IntentionResponse" t),'chapters',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM "MeaningChapter" t),'notifications',(SELECT jsonb_agg(to_jsonb(t)-'discoveryConnectionId' ORDER BY id) FROM "Notification" t)) AS snapshot`)).rows[0].snapshot;
   const before = await snapshot();
-  if (readdirSync(migrations).includes("20261116010000_discovery_pilot")) cpSync(path.join(migrations, "20261116010000_discovery_pilot"), path.join(temp, "migrations/20261116010000_discovery_pilot"), { recursive: true });
+  for (const entry of readdirSync(migrations)) {
+    if (entry >= "20261116010000_discovery_pilot" && entry !== "migration_lock.toml") cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
+  }
   run(["migrate", "deploy", "--config", config]);
   if (JSON.stringify(before) !== JSON.stringify(await snapshot())) throw new Error("Migration changed historical content/IDs/consent");
   console.log("Historical fixture snapshot preserved exactly.");

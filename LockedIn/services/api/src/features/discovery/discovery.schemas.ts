@@ -19,3 +19,6 @@ export const discoveryVisibilitySchema = z.strictObject({ paused: z.boolean() })
 export const emptyDiscoverySchema = z.strictObject({});
 export const discoveryProfileParams = z.strictObject({ profileId: z.string().uuid() });
 export const discoveryCandidatesQuery = z.strictObject({ areaId: z.string().min(1).max(100), before: z.string().min(1).max(512).optional() });
+export const discoveryInvitationSchema = z.strictObject({ targetProfileId: z.string().uuid(), topicKey: z.enum(["support", "commitment", "communication"]), hello: z.string().trim().max(280), requestId: z.string().uuid() });
+export const discoveryConnectionParams = z.strictObject({ id: z.string().uuid() });
+export const discoveryConnectionQuery = z.strictObject({ before: z.string().uuid().optional() });

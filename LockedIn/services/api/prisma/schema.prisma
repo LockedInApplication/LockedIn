@@ -241,6 +241,7 @@ model DiscoveryConnection {
   userLowId            String
   userHighId           String
   inviterId            String
+  requestId            String?
   questionKey          String
   questionText         String
   hello                String
@@ -267,6 +268,7 @@ model DiscoveryConnection {
   notifications        Notification[]
 
   @@index([userLowId, state])
+  @@unique([inviterId, requestId])
   @@index([userHighId, state])
   @@index([inviterId, userLowId, userHighId, declinedAt], map: "DiscoveryConnection_directional_decline_idx")
 }

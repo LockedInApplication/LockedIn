@@ -32,6 +32,7 @@ export async function reviewDiscoveryReport(moderatorId: string, reportId: strin
       // Holding the target account lock excludes all concurrent pair decisions.
       // Do not acquire peer account locks in a second/reverse order.
       await tx.discoveryConnection.updateMany({ where: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }], state: { in: ["PENDING", "ACCEPTED"] } }, data: { state: "CLOSED", closedAt: new Date(), lowReadinessVersion: null, highReadinessVersion: null, consentVersion: { increment: 1 } } });
+      await tx.notification.updateMany({ where: { resolvedAt: null, discoveryConnection: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }], state: "CLOSED" } }, data: { resolvedAt: new Date() } });
     }
     await tx.discoveryModerationAudit.create({ data: { moderatorId, targetUserId: report.reportedUserId, reportId, action: parsed.data.action, requestId: parsed.data.requestId, reason: report.reason } });
     await tx.discoveryReport.update({ where: { id: reportId }, data: { resolvedAt: new Date() } });

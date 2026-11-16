@@ -10,6 +10,7 @@ import { discoveryTopics } from "./discovery-topics.js";
 import { lockDiscoveryConnection, lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryConnectionView, effectiveDiscoveryState } from "./discovery-connection.view.js";
 import type { DiscoveryResult } from "./discovery.types.js";
+import { persistDiscoveryTask, publishDiscoveryEffects, resolveDiscoveryTasks, type DiscoveryNotify } from "./discovery-notifications.service.js";
 
 const week = 7 * 86400000;
 const missing = { ok: false as const, status: 404, error: "This connection is not available." };
@@ -42,7 +43,8 @@ type ConnectionResult = DiscoveryResult<ReturnType<typeof discoveryConnectionVie
 export async function sendDiscoveryInvitation(actorId: string, input: z.infer<typeof discoveryInvitationSchema>): Promise<ConnectionResult> {
   const parsed = discoveryInvitationSchema.safeParse(input); if (!parsed.success) return invalid;
   const data = parsed.data;
-  return prisma.$transaction(async tx => {
+  const effects = new Map<string, boolean>();
+  const result = await prisma.$transaction(async tx => {
     const target = await tx.discoveryProfile.findUnique({ where: { id: data.targetProfileId }, select: { ownerId: true } });
     if (!target || target.ownerId === actorId) return missing;
     const ordered = await lockDiscoveryUsers(tx, [actorId, target.ownerId]);
@@ -71,24 +73,38 @@ export async function sendDiscoveryInvitation(actorId: string, input: z.infer<ty
     const sender = publicDiscoveryProfile(actor.id, actor.publishedSnapshot)!;
     const topic = discoveryTopics.find(topic => topic.key === data.topicKey)!;
     const row = await tx.discoveryConnection.create({ data: { userLowId, userHighId, inviterId: actorId, requestId: data.requestId, questionKey: topic.key, questionText: topic.text, hello: data.hello, senderPublicName: sender.publicName, senderAvatarPreset: sender.avatarPreset, expiresAt: new Date(now.getTime() + week) } });
+    effects.set(actorId, false);
+    effects.set(target.ownerId, await persistDiscoveryTask(tx, row.id, target.ownerId, "DISCOVERY_INVITED", "sent"));
     return connectionValue(tx, row, actorId);
   });
+  await publishDiscoveryEffects(effects);
+  return result;
 }
 
-export async function withDiscoveryConnection(actorId: string, id: string, action: (tx: Prisma.TransactionClient, row: DiscoveryConnection) => Promise<ConnectionResult>): Promise<ConnectionResult> {
+export async function withDiscoveryConnection(actorId: string, id: string, action: (tx: Prisma.TransactionClient, row: DiscoveryConnection, notify: DiscoveryNotify) => Promise<ConnectionResult>): Promise<ConnectionResult> {
   if (!z.string().uuid().safeParse(id).success) return invalid;
-  return prisma.$transaction(async tx => {
+  const effects = new Map<string, boolean>();
+  const notify: DiscoveryNotify = (recipient, activity) => effects.set(recipient, !!effects.get(recipient) || activity);
+  const result = await prisma.$transaction(async tx => {
     const found = await tx.discoveryConnection.findUnique({ where: { id } });
     if (!found || !member(found, actorId)) return missing;
     await lockDiscoveryUsers(tx, [found.userLowId, found.userHighId]);
     await lockDiscoveryConnection(tx, id);
     let row = await tx.discoveryConnection.findUniqueOrThrow({ where: { id } });
-    if (effectiveDiscoveryState(row) === "EXPIRED" && row.state === "PENDING") row = await tx.discoveryConnection.update({ where: { id }, data: { state: "EXPIRED", lowReadinessVersion: null, highReadinessVersion: null } });
-    return action(tx, row);
+    if (effectiveDiscoveryState(row) === "EXPIRED" && row.state === "PENDING") {
+      row = await tx.discoveryConnection.update({ where: { id }, data: { state: "EXPIRED", lowReadinessVersion: null, highReadinessVersion: null } });
+      await resolveDiscoveryTasks(tx, id);
+    }
+    const value = await action(tx, row, notify);
+    const after = await tx.discoveryConnection.findUniqueOrThrow({ where: { id } });
+    if (found.updatedAt.getTime() !== after.updatedAt.getTime() || found.state !== after.state) { notify(row.userLowId, false); notify(row.userHighId, false); }
+    return value;
   });
+  await publishDiscoveryEffects(effects);
+  return result;
 }
 async function transition(actorId: string, id: string, action: "accept" | "decline" | "withdraw" | "close"): Promise<ConnectionResult> {
-  return withDiscoveryConnection(actorId, id, async (tx, row) => {
+  return withDiscoveryConnection(actorId, id, async (tx, row, notify) => {
     // Terminal retries never reopen consent or extend decline dates.
     if (!["PENDING", "ACCEPTED"].includes(row.state)) return connectionValue(tx, row, actorId);
     if (action === "accept" || action === "decline") {
@@ -102,6 +118,8 @@ async function transition(actorId: string, id: string, action: "accept" | "decli
     const quota = await consumeDiscoveryQuota(tx, actorId, "mutation"); if (!quota.ok) return quota;
     const now = new Date();
     const updated = await tx.discoveryConnection.update({ where: { id }, data: action === "accept" ? { state: "ACCEPTED", acceptedAt: now } : { state: action === "decline" ? "DECLINED" : action === "withdraw" ? "WITHDRAWN" : "CLOSED", ...(action === "decline" ? { declinedAt: now } : { closedAt: now }), lowReadinessVersion: null, highReadinessVersion: null, consentVersion: { increment: 1 } } });
+    await resolveDiscoveryTasks(tx, id);
+    if (action === "accept") notify(row.inviterId, await persistDiscoveryTask(tx, id, row.inviterId, "DISCOVERY_ACCEPTED", "accepted"));
     return connectionValue(tx, updated, actorId);
   });
 }

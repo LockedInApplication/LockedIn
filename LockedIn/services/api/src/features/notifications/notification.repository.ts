@@ -1,6 +1,7 @@
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { notificationCopy } from "./notification.catalog.js";
+import { createHash } from "node:crypto";
 export type NotificationTx = Prisma.TransactionClient;
 // Intentionally select only metadata. Private content is not needed for event derivation.
 export function notificationSnapshot(tx: NotificationTx, id: string) {
@@ -13,23 +14,26 @@ export function notificationSnapshot(tx: NotificationTx, id: string) {
 export const eligibleNotifications = (userId: string):Prisma.NotificationWhereInput => ({recipientId:userId,suppressed:false,OR:[
     {relationship:{status:"ACTIVE",members:{some:{userId}}}},
     {kind:"INVITATION_RECEIVED",invitation:{inviteeId:userId}},
+    {discoveryConnection:{OR:[{userLowId:userId},{userHighId:userId}]}},
 ]});
 function unreadNotifications(userId:string):Prisma.NotificationWhereInput {
     return {...eligibleNotifications(userId),readAt:null,resolvedAt:null,AND:[{OR:[
         {invitationId:null},{invitation:{status:"PENDING",expiresAt:{gt:new Date()}}},
-    ]}]};
+    ]},{OR:[{discoveryConnectionId:null},{discoveryConnection:{OR:[{state:{in:["ACCEPTED","PROMOTED"]}},{state:"PENDING",expiresAt:{gt:new Date()}}]}}]}]};
 }
 export async function listNotifications(userId: string, before?: bigint) {
     const where = eligibleNotifications(userId);
     const [rows, unreadCount] = await prisma.$transaction([
-        prisma.notification.findMany({ where: { ...where, ...(before ? { id: { lt: before } } : {}) }, orderBy: { id: "desc" }, take: 31,include:{invitation:{select:{status:true,expiresAt:true,updatedAt:true,inviter:{select:{name:true,displayName:true}}}}} }),
+        prisma.notification.findMany({ where: { ...where, ...(before ? { id: { lt: before } } : {}) }, orderBy: { id: "desc" }, take: 31,include:{invitation:{select:{status:true,expiresAt:true,updatedAt:true,inviter:{select:{name:true,displayName:true}}}},discoveryConnection:{select:{state:true,expiresAt:true,updatedAt:true}}} }),
         prisma.notification.count({ where: unreadNotifications(userId) }),
     ]);
     const page = rows.slice(0, 30);
     return { items: page.map(row => {
         const invite=row.invitation;
         const invitationStatus=invite?.status==="PENDING" && (!invite.expiresAt || invite.expiresAt<=new Date())?"EXPIRED":invite?.status??null;
-        const resolvedAt=row.resolvedAt??(invite && invitationStatus!=="PENDING"?(invitationStatus==="EXPIRED"?invite.expiresAt??invite.updatedAt:invite.updatedAt):null);
+        const discovery=row.discoveryConnection;
+        const discoveryResolved=discovery && (!["PENDING","ACCEPTED","PROMOTED"].includes(discovery.state) || (discovery.state==="PENDING" && discovery.expiresAt<=new Date()));
+        const resolvedAt=row.resolvedAt??(discoveryResolved?discovery.updatedAt:null)??(invite && invitationStatus!=="PENDING"?(invitationStatus==="EXPIRED"?invite.expiresAt??invite.updatedAt:invite.updatedAt):null);
         const copy=notificationCopy(row.kind);
         return { id: String(row.id), kind: row.kind, entityId: row.entityId, wordKey: row.wordKey,
             ...copy,...(invite?{message:`${invite.inviter.displayName??invite.inviter.name??"Someone"} invited you. Connecting does not reveal any answers.`}:{}),
@@ -46,9 +50,12 @@ export async function markNotificationRead(userId: string, id: bigint) {
     return true;
 }
 export async function notificationFingerprint(userId: string) {
-    const [result,unread]=await prisma.$transaction([
+    const [result,unread,connections,profile]=await prisma.$transaction([
         prisma.notification.aggregate({ where: eligibleNotifications(userId), _count: true, _max: { id: true, updatedAt: true } }),
         prisma.notification.count({where:unreadNotifications(userId)}),
+        prisma.discoveryConnection.findMany({where:{OR:[{userLowId:userId},{userHighId:userId}]},orderBy:{id:"asc"},select:{id:true,state:true,expiresAt:true,updatedAt:true,consentVersion:true,lowReadinessVersion:true,highReadinessVersion:true}}),
+        prisma.discoveryProfile.findUnique({where:{ownerId:userId},select:{publicationVersion:true,pausedAt:true,suspendedAt:true}}),
     ]);
-    return `${result._count}:${result._max.id ?? 0}:${result._max.updatedAt?.toISOString() ?? ""}:${unread}`;
+    const metadata=createHash("sha256").update(JSON.stringify({connections,profile})).digest("hex");
+    return `${result._count}:${result._max.id ?? 0}:${result._max.updatedAt?.toISOString() ?? ""}:${unread}:${metadata}`;
 }

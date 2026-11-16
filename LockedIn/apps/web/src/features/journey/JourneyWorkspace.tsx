@@ -192,6 +192,10 @@ export default function JourneyWorkspace() {
   const progress = getProgress(overview);
   async function openNotification(item:NotificationItem) {
     if(busy || !confirmDiscard())return false;
+    if(item.view==="discovery") {
+      router.push(notificationDestination(item));
+      return true;
+    }
     const fresh=await loadOverview();
     if(!fresh)return false;
     setNewActivity(false);

@@ -3,6 +3,11 @@ export const notificationCatalog: Record<string, {
     message: string;
     view: string;
 }> = {
+    DISCOVERY_INVITED: { title: "A starter invitation is waiting", message: "Review the question and choose whether to connect.", view: "discovery" },
+    DISCOVERY_ACCEPTED: { title: "Your starter was accepted", message: "Your separate starter conversation is ready.", view: "discovery" },
+    DISCOVERY_RESPONSE_SHARED: { title: "A starter response was shared", message: "Open this connection to read what was chosen to share.", view: "discovery" },
+    DISCOVERY_BUILD_READY: { title: "A choice to build is waiting", message: "Review the deeper shared-space choice. It still needs your independent choice.", view: "discovery" },
+    DISCOVERY_PROMOTED: { title: "Your shared space is ready", message: "You both chose to build. Your starter history stays separate.", view: "discovery" },
     INVITATION_RECEIVED: {title:"You’ve been invited to a shared space",message:"Review the invitation. Connecting does not reveal any answers.",view:"invitations"},
     INVITATION_ACCEPTED: { title: "Your shared space is ready", message: "Your invitation was accepted. Begin when you are ready.", view: "home" },
     CONVERSATION_CHOICE: { title: "A conversation suggestion is waiting", message: "Review your choices and decide together.", view: "conversations" },

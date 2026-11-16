@@ -30,6 +30,7 @@ export default function DiscoveryPhotoEditor({ profile, install }: { profile: Ow
   }, [selection, visible, enabled]);
   if (!visible) return null;
   const order = profile.draft?.photoIds ?? [], rows = resource.value?.items ?? [];
+  const publishedIds = new Set(profile.published?.photoIds ?? []);
   const requestId = (key: string) => { const value = requests.current.get(key) ?? crypto.randomUUID(); requests.current.set(key, value); return value; };
   const run = async (work: () => Promise<void>, message: string) => {
     if (running.current || busy || dirty) return;
@@ -81,10 +82,15 @@ export default function DiscoveryPhotoEditor({ profile, install }: { profile: Ow
     </> : null}
     {rows.length ? <ul className={styles.photos}>{rows.map(photo => {
       const index = order.indexOf(photo.id);
+      const isPublished = photo.state === "APPROVED" && publishedIds.has(photo.id);
+      const status = !isPublished ? photo.reason
+        : profile.paused ? "Published · Discovery paused"
+          : !enabled ? "In published profile · Not currently visible in Discover"
+            : "Published on your Discovery profile";
       return <li key={photo.id}>
         <strong>{index === 0 ? "Main photo" : index > 0 ? `Photo ${index + 1}` : "Only in your published profile"}</strong>
         {photo.src && photo.state !== "REJECTED" ? <DiscoveryPhotoImage id={photo.id} className={styles.photo} alt="Your Discovery photo"/> : null}
-        <p>{photo.reason}</p>
+        <p>{status}</p>
         {index >= 0 && me.canDiscover ? <div className={styles.actions}>
           {enabled ? <><button type="button" disabled={busy || dirty || index === 0} onClick={() => move(index, index - 1)}>Move earlier</button>
           <button type="button" disabled={busy || dirty || index === order.length - 1} onClick={() => move(index, index + 1)}>Move later</button></> : null}

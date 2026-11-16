@@ -26,3 +26,7 @@ export const starterDraftSchema = z.strictObject({ text: z.string().max(2000), r
 export const starterShareSchema = z.strictObject({ draftRevision: z.number().int().nonnegative(), requestId: z.string().uuid() });
 export const buildReadinessSchema = z.strictObject({ ready: z.boolean(), consentVersion: z.number().int().nonnegative() });
 export const privateReflectionSchema = z.strictObject({ text: z.string().max(4000), revision: z.number().int().nonnegative() });
+export const discoveryBlockSchema = z.strictObject({ profileId: z.string().uuid().optional(), connectionId: z.string().uuid().optional() }).refine(value => Number(!!value.profileId) + Number(!!value.connectionId) === 1);
+export const discoveryReportSchema = z.strictObject({ sourceType: z.enum(["PROFILE", "INVITATION", "SHARED_RESPONSE"]), sourceId: z.string().uuid(), reason: z.enum(["HARASSMENT", "IMPERSONATION", "SPAM", "OTHER"]), detail: z.string().max(1000).optional(), requestId: z.string().uuid(), blockAlso: z.boolean().optional() });
+export const discoveryReviewSchema = z.strictObject({ action: z.enum(["DISMISS", "SUSPEND"]), requestId: z.string().uuid() });
+export const discoveryRestoreSchema = z.strictObject({ requestId: z.string().uuid() });

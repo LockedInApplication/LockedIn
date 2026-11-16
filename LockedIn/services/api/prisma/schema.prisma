@@ -319,6 +319,10 @@ model DiscoveryReport {
   connectionId     String?
   reason           String
   details          String?
+  requestId        String?
+  sourceType       String?
+  sourceId         String?
+  evidence         Json?
   createdAt        DateTime                   @default(now())
   resolvedAt       DateTime?
   reporter         User                       @relation("DiscoveryReporter", fields: [reporterId], references: [id], onDelete: Cascade)
@@ -329,6 +333,7 @@ model DiscoveryReport {
   @@index([resolvedAt, createdAt])
   @@index([reporterId])
   @@index([reportedUserId])
+  @@unique([reporterId, requestId])
 }
 
 model DiscoveryModerationAudit {
@@ -338,6 +343,7 @@ model DiscoveryModerationAudit {
   reportId     String?
   action       String
   reason       String
+  requestId    String?
   createdAt    DateTime         @default(now())
   moderator    User             @relation("DiscoveryModerator", fields: [moderatorId], references: [id], onDelete: Restrict)
   targetUser   User             @relation("DiscoveryModerated", fields: [targetUserId], references: [id], onDelete: Restrict)
@@ -345,6 +351,7 @@ model DiscoveryModerationAudit {
 
   @@index([targetUserId, createdAt])
   @@index([moderatorId])
+  @@unique([moderatorId, requestId])
 }
 
 model DiscoveryThrottle {

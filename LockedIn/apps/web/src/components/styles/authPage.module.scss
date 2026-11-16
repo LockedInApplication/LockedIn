@@ -23,6 +23,8 @@
   .authTestimonial { min-height: 560px; }
 }
 @media (max-width: 600px) {
+  .authTestimonial::before,
+  .authTestimonial::after { display: none; }
   .authFormContainer { padding: 28px 20px 70px; }
   .form { margin-top: 65px; }
   .authTestimonial { min-height: 640px; }

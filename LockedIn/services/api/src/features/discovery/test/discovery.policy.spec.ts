@@ -9,11 +9,23 @@ vi.mock("../../journey-notifications/journey-email.service.js", () => ({ sendJou
 
 const configured = { DISCOVERY_ENABLED: "true", DISCOVERY_PILOT_USER_IDS: "pilot-a,pilot-b", DISCOVERY_MODERATOR_USER_IDS: "moderator", DISCOVERY_AREAS_JSON: '[{"id":"test-area","label":"Synthetic area"}]' };
 describe("discovery configuration admission", () => {
-  it.each(["", "postgresql://unused:unused@remote.example/postgres", "https://localhost/postgres"])("rejects unsafe harness admin URL %s without application database fallback", adminUrl => {
-    const result = spawnSync(process.execPath, [fileURLToPath(new URL("../../../../../scripts/verify-discovery.mjs", import.meta.url))], { env: { ...process.env, DISCOVERY_TEST_ADMIN_URL: adminUrl, DATABASE_URL: "postgresql://forbidden-app-db.example/never-use" }, encoding: "utf8" });
+  it.each([
+    "", "postgresql://unused:unused@remote.example/postgres", "https://localhost/postgres",
+    "postgresql://unused:unused@127.0.0.1/postgres?host=remote.example",
+    "postgresql://unused:unused@localhost/postgres?hostaddr=203.0.113.1",
+    "postgresql://unused:unused@127.0.0.1/postgres?port=6543",
+    "postgresql://unused:unused@127.0.0.1/postgres?sslmode=require",
+    "postgresql://unused:unused@127.0.0.1/postgres#untrusted-options",
+  ])("rejects unsafe harness admin URL %s without application database fallback", adminUrl => {
+    // Patch only the connection boundary in this owned child: a missing guard must
+    // fail observably without DNS, a socket, or any remote/database side effect.
+    const pgModule = new URL("../../../../../node_modules/pg/lib/index.js", import.meta.url).href;
+    const noConnections = `import pg from ${JSON.stringify(pgModule)}; pg.Client.prototype.connect = async () => { throw new Error("TEST_BLOCKED_DATABASE_CONNECT"); };`;
+    const result = spawnSync(process.execPath, [`--import=data:text/javascript,${encodeURIComponent(noConnections)}`, fileURLToPath(new URL("../../../../../scripts/verify-discovery.mjs", import.meta.url))], { env: { ...process.env, DISCOVERY_TEST_ADMIN_URL: adminUrl, DATABASE_URL: "postgresql://forbidden-app-db.example/never-use" }, encoding: "utf8" });
     expect(result.status).toBe(1);
     expect(result.stderr).toMatch(/DISCOVERY_TEST_ADMIN_URL is required|explicit local PostgreSQL admin URL/);
     expect(result.stderr).not.toMatch(/ENOTFOUND|ECONNREFUSED|connect EPERM/);
+    expect(result.stderr).not.toContain("TEST_BLOCKED_DATABASE_CONNECT");
   });
   it("defaults to no admission without seeding live people or areas", () => {
     expect(parseDiscoveryConfig({})).toMatchObject({ enabled: false, pilotUserIds: [], moderatorUserIds: [], areas: [], admissionConfigured: false });

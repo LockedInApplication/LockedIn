@@ -10,7 +10,9 @@ import { fileURLToPath } from "node:url";
 const services = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 if (!process.env.DISCOVERY_TEST_ADMIN_URL) throw new Error("DISCOVERY_TEST_ADMIN_URL is required; application DATABASE_URL is never used");
 const adminUrl = new URL(process.env.DISCOVERY_TEST_ADMIN_URL);
-if (!["postgres:", "postgresql:"].includes(adminUrl.protocol) || !["127.0.0.1", "localhost", "[::1]"].includes(adminUrl.hostname)) throw new Error("Discovery tests require an explicit local PostgreSQL admin URL");
+// pg query options can override the URL's hostname; this local-only harness
+// accepts no options/fragments and validates before constructing any client.
+if (!["postgres:", "postgresql:"].includes(adminUrl.protocol) || !["127.0.0.1", "localhost", "[::1]"].includes(adminUrl.hostname) || adminUrl.search || adminUrl.hash) throw new Error("Discovery tests require an explicit local PostgreSQL admin URL without query options or fragments");
 const name = `lockedin_discovery_test_${randomBytes(12).toString("hex")}`;
 if (!/^lockedin_discovery_test_[a-f0-9]{24}$/.test(name)) throw new Error("Invalid generated test database name");
 const url = new URL(adminUrl); url.pathname = `/${name}`;

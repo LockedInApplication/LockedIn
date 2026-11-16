@@ -1,23 +1,38 @@
 import type { PhotoDecision, PhotoProviderStatus, PhotoScreeningLabel } from "./photo.types.js";
 
-export const PHOTO_POLICY_VERSION = "aws-rek-photo-v1";
+const LEGACY_PHOTO_POLICY_VERSION = "aws-rek-photo-v1";
+export const PHOTO_POLICY_VERSION = "aws-rek-photo-v2";
+const REVIEW_THRESHOLD = 50;
+const REJECTION_THRESHOLD = 90;
 const prohibited = new Set(["Explicit Nudity", "Nudity", "Graphic Male Nudity", "Graphic Female Nudity", "Exposed Male Genitalia", "Exposed Female Genitalia", "Exposed Buttocks Or Anus", "Exposed Female Nipple", "Explicit Sexual Activity", "Sexual Activity", "Sexual Intercourse", "Sex Toys", "Graphic Violence Or Gore", "Graphic Violence", "Gore", "Hate Symbols", "Nazi Party", "White Supremacy", "Extremist"]);
 const uncertain = new Set(["Implied Nudity", "Sexualized Nudity", "Non-Explicit Nudity", "Non-Explicit Nudity of Intimate parts and Kissing", "Female Breast", "Partial Nudity", "Sexual Situations", "Sexual Gestures", "Violence", "Visually Disturbing"]);
 // Group labels are not enough to reject benign child categories.
 const benign = new Set(["Suggestive", "Swimwear Or Underwear", "Female Swimwear Or Underwear", "Male Swimwear Or Underwear", "Barechested Male", "Revealing Clothes", "Alcohol", "Alcoholic Beverages", "Drinking", "Tobacco", "Smoking", "Tobacco Products"]);
 const record = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+const normalizeLabel = (name: string) => name.trim().toLowerCase();
+const normalizeSet = (names: Set<string>) => new Set([...names].map(normalizeLabel));
+const v2Categories = { prohibited: normalizeSet(prohibited), uncertain: normalizeSet(uncertain), benign: normalizeSet(benign) };
 
-function screeningTriggers(labels: PhotoScreeningLabel[], providerStatus?: PhotoProviderStatus) {
-  const suggestive = labels.some(child => child.parent === "Suggestive") ? [] : labels.filter(label => label.name === "Suggestive");
-  if (suggestive.length) return suggestive.map(label => ({ rule: "Broad suggestive label without a more specific category", label, rejects: false }));
-  const rejects = labels.filter(label => (prohibited.has(label.name) || prohibited.has(label.parent)) && label.confidence >= 90);
+function screeningTriggers(labels: PhotoScreeningLabel[], providerStatus: PhotoProviderStatus | null, version: typeof PHOTO_POLICY_VERSION | typeof LEGACY_PHOTO_POLICY_VERSION) {
+  // Reconstruct historical decisions with their original rules, not today's policy.
+  const legacy = version === LEGACY_PHOTO_POLICY_VERSION;
+  const categories = legacy ? { prohibited, uncertain, benign } : v2Categories;
+  const comparable = (name: string) => legacy ? name : normalizeLabel(name);
+  const suggestiveName = comparable("Suggestive");
+  const suggestive = labels.some(child => comparable(child.parent) === suggestiveName && (legacy || child.confidence >= REVIEW_THRESHOLD))
+    ? [] : labels.filter(label => comparable(label.name) === suggestiveName && (legacy || label.confidence >= REVIEW_THRESHOLD));
+  const broadTriggers = suggestive.map(label => ({ rule: "Broad suggestive label without a more specific category", label, rejects: false }));
+  if (legacy && broadTriggers.length) return broadTriggers;
+  const rejects = labels.filter(label => (categories.prohibited.has(comparable(label.name)) || categories.prohibited.has(comparable(label.parent))) && label.confidence >= REJECTION_THRESHOLD);
   if (rejects.length) return rejects.map(label => ({ rule: "Prohibited category at or above the rejection threshold", label, rejects: true }));
   const reviews = labels.flatMap(label => {
-    const unknown = !benign.has(label.name) && !prohibited.has(label.name) && !uncertain.has(label.name);
-    const elevated = label.confidence >= 50 && (prohibited.has(label.name) || prohibited.has(label.parent) || uncertain.has(label.name) || uncertain.has(label.parent));
-    return unknown || elevated ? [{ rule: unknown ? "Unrecognized screening label" : "Sensitive category at or above the review threshold", label, rejects: false }] : [];
+    const name = comparable(label.name), parent = comparable(label.parent);
+    const aboveThreshold = label.confidence >= REVIEW_THRESHOLD;
+    const unknown = !categories.benign.has(name) && !categories.prohibited.has(name) && !categories.uncertain.has(name);
+    const elevated = aboveThreshold && (categories.prohibited.has(name) || categories.prohibited.has(parent) || categories.uncertain.has(name) || categories.uncertain.has(parent));
+    return (unknown && (legacy || aboveThreshold)) || elevated ? [{ rule: unknown ? "Unrecognized screening label" : "Sensitive category at or above the review threshold", label, rejects: false }] : [];
   });
-  return [...reviews, ...(providerStatus === "rejected" ? [{ rule: "Provider rejected the photo without a matching app rejection rule", label: null, rejects: false }] : [])];
+  return [...broadTriggers, ...reviews, ...(providerStatus === "rejected" ? [{ rule: "Provider rejected the photo without a matching app rejection rule", label: null, rejects: false }] : [])];
 }
 
 export function explainPhotoScreening(screening: unknown, policyVersion: string | null) {
@@ -31,7 +46,8 @@ export function explainPhotoScreening(screening: unknown, policyVersion: string 
   }
   const status = stored?.providerStatus;
   const providerStatus = status === "approved" || status === "rejected" ? status : null;
-  const triggers = policyVersion === PHOTO_POLICY_VERSION ? screeningTriggers(labels, providerStatus ?? undefined).map(({ rule, label }) => ({ rule, label })) : [];
+  const triggers = policyVersion === PHOTO_POLICY_VERSION || policyVersion === LEGACY_PHOTO_POLICY_VERSION
+    ? screeningTriggers(labels, providerStatus, policyVersion).map(({ rule, label }) => ({ rule, label })) : [];
   return { policyVersion, providerStatus, labels, triggers };
 }
 
@@ -50,7 +66,7 @@ export function classifyPhoto(screening: unknown): PhotoDecision {
     labels.push({ name: item.name, parent: item.parent_name, confidence: item.confidence });
   }
   const providerStatus = result.status;
-  const triggers = screeningTriggers(labels, providerStatus);
+  const triggers = screeningTriggers(labels, providerStatus, PHOTO_POLICY_VERSION);
   const outcome = triggers.some(trigger => trigger.rejects) ? decision("REJECTED", "Photo does not meet the discovery photo policy", true, labels)
     : triggers.length ? decision("NEEDS_REVIEW", "Photo needs a moderator review", true, labels)
       : decision("APPROVED", "Ready to publish", true, labels);

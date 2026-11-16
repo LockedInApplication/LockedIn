@@ -52,7 +52,7 @@ try {
       return json({ status: true });
     }
     if (endpoint === "/api/profile") return json({ id: account, displayName: "Test Person", email: `${account}@example.test`, emailVerified: verified, avatarPreset: "initials", activityEmails: true, inAppActivity: true });
-    if (endpoint === "/api/invitations/blocks") return json({ items: [] });
+    if (endpoint === "/api/journey/invitation-blocks") return json({ items: [], nextCursor: null });
     if (endpoint === "/api/discovery/me") return json({ ownerId: account, value: { canDiscover: false, canModerate: false, hasHistory: false, canReflect: true, currentRelationshipId: null, areas: [], topics: [] } });
     if (endpoint === "/api/discovery/profile") return json({ ownerId: account, value: { draft: null, revision: 0, published: null, publicationVersion: 0, paused: false, adultAttested: false, suspended: false } });
     if (endpoint.endsWith("/stream")) return route.fulfill({ contentType: "text/event-stream", body: ": ready\n\n" });
@@ -113,7 +113,9 @@ try {
   await page.evaluate(() => window.dispatchEvent(new StorageEvent("storage", { key: "better-auth.message", newValue: JSON.stringify({ event: "session", data: { trigger: "updateUser" } }) })));
   await page.getByLabel("Email address", { exact: true }).filter({ visible: true }).waitFor();
   await page.waitForFunction(() => document.querySelector('input[type="email"]')?.value === "b@example.test");
-  release(); await page.unrouteAll({ behavior: "wait" });
+  const oldCompletion = page.waitForResponse(response => response.url().endsWith("/send-verification-email"));
+  release(); await oldCompletion;
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   assert.equal(await page.getByRole("status").filter({ hasText: "Verification email requested" }).count(), 0, "Old account completion must not update the new account");
   mode = "success";
   await resend().click(); await page.getByRole("status").filter({ hasText: "Verification email requested" }).waitFor();
@@ -121,6 +123,7 @@ try {
   if (process.env.EMAIL_VERIFY_STAGE !== "shared") {
     await page.goto(`${base}/profile`);
     await page.getByRole("button", { name: "Verify email", exact: true }).waitFor();
+    await page.screenshot({ path: path.join(artifacts, "profile-entry-393.png"), fullPage: true });
     await page.getByLabel("Current password", { exact: true }).fill("private-unsaved");
     await page.getByRole("button", { name: "Verify email", exact: true }).click();
     await page.getByRole("button", { name: "Keep editing", exact: true }).click();
@@ -129,6 +132,8 @@ try {
     await page.getByRole("button", { name: "Leave without saving", exact: true }).click();
     await page.waitForURL(`${base}/verify-email?pending=1`); await resend().waitFor();
     await page.goto(`${base}/discover`);
+    await page.getByRole("button", { name: "Verify email", exact: true }).waitFor();
+    await page.screenshot({ path: path.join(artifacts, "discovery-entry-393.png"), fullPage: true });
     await page.getByRole("button", { name: "Verify email", exact: true }).click();
     await page.waitForURL(`${base}/verify-email?pending=1`); await resend().waitFor();
     verified = true;

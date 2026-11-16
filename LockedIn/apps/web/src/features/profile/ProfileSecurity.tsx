@@ -27,6 +27,11 @@ export default function ProfileSecurity({
       <p className={styles.hint}>
         {profile.emailVerified ? "Email verified" : "Email not verified"}
       </p>
+      {!profile.emailVerified ? (
+        <button type="button" className={styles.primary} onClick={() => onLeave("/verify-email?pending=1")}>
+          Verify email
+        </button>
+      ) : null}
       <form
         onSubmit={async (e) => {
           e.preventDefault();

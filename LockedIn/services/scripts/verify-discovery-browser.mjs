@@ -126,6 +126,11 @@ try{
     await pageA.getByText("Ready to publish",{exact:true}).waitFor();
     await pageA.getByLabel(/I confirm I am 18 or older/).check();await pageA.getByRole("button",{name:"Publish profile",exact:true}).click();
     await pageA.getByText(/^Profile published/).waitFor();
+    const publishedPhoto = pageA.getByText("Published on your Discovery profile",{exact:true});
+    await publishedPhoto.waitFor();
+    await pageA.reload();
+    await publishedPhoto.waitFor();
+    assert.equal(await pageA.getByText("Ready to publish",{exact:true}).count(),0);
     await pageB.goto(`${base}/discover`);
     await pageB.getByRole("list",{name:"People in this area"}).getByRole("button").filter({hasText:a.publicName}).click();
     const selected=pageB.getByRole("region",{name:"Selected person",exact:true});

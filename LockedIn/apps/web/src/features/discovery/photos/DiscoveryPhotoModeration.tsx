@@ -10,6 +10,19 @@ import common from "../discovery.module.scss";
 import styles from "./discovery-photo.module.scss";
 
 type Action = "APPROVE" | "REJECT" | "REMOVE";
+function ScreeningDetails({ screening }: Pick<PhotoReview, "screening">) {
+  const formatLabel = ({name, parent, confidence}: NonNullable<PhotoReview["screening"]>["labels"][number]) =>
+    `${name}${parent ? ` (${parent})` : ""} · ${confidence.toLocaleString(undefined, { maximumFractionDigits: 2 })}% confidence`;
+  return <details><summary>Automated screening details</summary>
+    {screening ? <>
+      <p>Provider result: {screening.providerStatus ?? "not recorded"}{screening.policyVersion ? ` · Policy: ${screening.policyVersion}` : ""}.</p>
+      {screening.triggers.length ? <ul>{screening.triggers.map(({ rule, label }, index) => <li key={index}>{rule}{label ? `: ${formatLabel(label)}` : "."}</li>)}</ul>
+        : <p>No rule trigger can be identified from the saved screening details.</p>}
+      {screening.labels.length ? <details><summary>All provider labels</summary><ul>{screening.labels.map((label, index) => <li key={index}>{formatLabel(label)}</li>)}</ul></details> : null}
+    </> : <p>No completed screening details are available for this record.</p>}
+  </details>;
+}
+
 export default function DiscoveryPhotoModeration() {
   const { userId, me, setBusy, busy } = useDiscovery();
   const [before, setBefore] = useState<string | null>(null), [open, setOpen] = useState("");
@@ -42,6 +55,7 @@ export default function DiscoveryPhotoModeration() {
       {photo.failedJobs.length ? <p role="status">Worker needs attention: {photo.failedJobs.join(", ")}.</p> : null}
       {open === photo.id ? <>
         {photo.canPreview ? <DiscoveryPhotoImage key={`${photo.id}:${photo.decisionRevision}`} id={photo.id} kind="review" className={styles.preview} alt="Restricted photo evidence" fallback={<p>Preview is unavailable.</p>}/> : <p>No preview is available for this record.</p>}
+        <ScreeningDetails screening={photo.screening}/>
         {photo.canApprove || (!photo.removed && photo.reported) ? <label>Decision reason<textarea disabled={busy} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)}/></label> : null}
         <div className={styles.actions}>
           {photo.canApprove ? <><button disabled={busy || !reason.trim()} onClick={() => void act(photo, "APPROVE")}>Approve</button><button disabled={busy || !reason.trim()} onClick={() => void act(photo, "REJECT")}>Reject</button></> : null}

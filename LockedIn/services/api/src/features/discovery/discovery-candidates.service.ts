@@ -9,6 +9,9 @@ import { publicDiscoveryProfile } from "./discovery-profile.view.js";
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import type { DiscoveryResult, PublicDiscoveryProfile } from "./discovery.types.js";
 import type { Prisma } from "../../../generated/prisma/client.js";
+import { enrichPublishedPhotos } from "./photos/photo-cards.service.js";
+import type { PhotoCard } from "./photos/photo.types.js";
+type VisibleProfile = Omit<PublicDiscoveryProfile, "photoIds"> & { photos?: PhotoCard[] };
 
 const denied = { ok: false as const, status: 403, error: "Discovery is not available for this account." };
 const invalid = { ok: false as const, status: 400, error: "Please check your discovery search." };
@@ -35,7 +38,7 @@ function decodeCursor(value: string, actor: string, area: string, intention: str
 }
 
 // The database predicates exclude unsafe pairs before the page is selected.
-function visibleWhere(actorId: string, intention: string): Prisma.DiscoveryProfileWhereInput {
+export function visibleWhere(actorId: string, intention: string): Prisma.DiscoveryProfileWhereInput {
   const live: Prisma.DiscoveryConnectionWhereInput = { OR: [{ state: "ACCEPTED" }, { state: "PENDING", expiresAt: { gt: new Date() } }, { state: "PROMOTED", relationship: { status: "ACTIVE" } }] };
   return {
     ownerId: { not: actorId, in: getDiscoveryConfig().pilotUserIds }, pausedAt: null, suspendedAt: null,
@@ -50,7 +53,14 @@ function visibleWhere(actorId: string, intention: string): Prisma.DiscoveryProfi
 }
 const publicSelect = { id: true, publishedSnapshot: true, publishedAreaId: true, publishedIntention: true, adultAttestedAt: true, publicationConsentedAt: true, publicationConsentVersion: true, publishedAt: true, publicationVersion: true, pausedAt: true, suspendedAt: true } satisfies Prisma.DiscoveryProfileSelect;
 
-export async function listDiscoveryCandidates(actorId: string, areaId: string, cursor?: string): Promise<DiscoveryResult<{ items: PublicDiscoveryProfile[]; nextCursor: string | null }>> {
+export async function findVisibleDiscoveryProfile(tx: Prisma.TransactionClient, actorId: string, profileId: string) {
+  const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
+  if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor)) return null;
+  const profile = await tx.discoveryProfile.findFirst({ where: { ...visibleWhere(actorId, actor.publishedIntention!), id: profileId, publishedAreaId: { in: getDiscoveryConfig().areas.map(area => area.id) } } });
+  return hasDiscoveryPublication(profile) ? profile : null;
+}
+
+export async function listDiscoveryCandidates(actorId: string, areaId: string, cursor?: string): Promise<DiscoveryResult<{ items: VisibleProfile[]; nextCursor: string | null }>> {
   if (!configuredArea(areaId) || cursor === "") return invalid;
   return prisma.$transaction(async tx => {
     await lockInvitationUsers(tx, [actorId]);
@@ -76,10 +86,10 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string, c
     }
     const hasNext = items.length > 12;
     const page = items.slice(0, 12);
-    return { ok: true, value: { items: page, nextCursor: hasNext ? encodeCursor(actorId, areaId, intention, page.at(-1)!.id) : null } };
+    return { ok: true, value: { items: await enrichPublishedPhotos(tx, page), nextCursor: hasNext ? encodeCursor(actorId, areaId, intention, page.at(-1)!.id) : null } };
   });
 }
-export async function getVisibleDiscoveryProfile(actorId: string, profileId: string): Promise<DiscoveryResult<PublicDiscoveryProfile>> {
+export async function getVisibleDiscoveryProfile(actorId: string, profileId: string): Promise<DiscoveryResult<VisibleProfile>> {
   if (!discoveryProfileParams.safeParse({ profileId }).success) return invalid;
   return prisma.$transaction(async tx => {
     await lockInvitationUsers(tx, [actorId]);
@@ -89,6 +99,6 @@ export async function getVisibleDiscoveryProfile(actorId: string, profileId: str
     const profile = await tx.discoveryProfile.findFirst({ where: { ...visibleWhere(actorId, actor.publishedIntention!), id: profileId, publishedAreaId: { in: getDiscoveryConfig().areas.map(area => area.id) } }, select: publicSelect });
     if (!hasDiscoveryPublication(profile)) return missing;
     const safe = publicDiscoveryProfile(profile.id, profile.publishedSnapshot);
-    return safe ? { ok: true, value: safe } : missing;
+    return safe ? { ok: true, value: (await enrichPublishedPhotos(tx, [safe]))[0]! } : missing;
   });
 }

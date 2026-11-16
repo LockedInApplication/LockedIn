@@ -5,9 +5,15 @@ import {discoveryRequest} from "./discovery.client";
 import {useDiscoveryResource} from "./use-discovery-resource";
 import type {PageOf} from "./discovery.types";
 import styles from "./discovery.module.scss";
+import DiscoveryPhotoModeration from "./photos/DiscoveryPhotoModeration";
 type Report={id:string;reason:string;detail:string|null;evidence:unknown;profileId:string|null;suspended:boolean;resolvedAt:string|null;audits:{id:string;action:string;createdAt:string}[]};
 export default function DiscoveryModerationPage(){return <DiscoveryShell><Moderation/></DiscoveryShell>;}
 function Moderation(){
+  const {me,busy}=useDiscovery(),[tab,setTab]=useState<"reports"|"photos">("reports");
+  if(!me.canModerate)return <section className={styles.card}><h1>Moderator access required.</h1><p>Report evidence is restricted to assigned moderators.</p></section>;
+  return <><h1>Discovery moderation</h1><nav className={styles.actions} aria-label="Moderation tools"><button disabled={busy} aria-pressed={tab==="reports"} onClick={()=>setTab("reports")}>Reports</button><button disabled={busy} aria-pressed={tab==="photos"} onClick={()=>setTab("photos")}>Photo review</button></nav>{tab==="photos"?<DiscoveryPhotoModeration/>:<Reports/>}</>;
+}
+function Reports(){
   const {userId,me,busy,setBusy}=useDiscovery(),[before,setBefore]=useState<string|null>(null),[message,setMessage]=useState("");
   const requests=useRef(new Map<string,string>());
   const load=useCallback((signal:AbortSignal)=>discoveryRequest<PageOf<Report>>(userId,`/api/discovery/moderation/reports${before?`?before=${before}`:""}`,{signal}),[userId,before]);

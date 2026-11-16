@@ -6,8 +6,9 @@ import { usersRoutes } from "./routes/users.routes.js";
 import { journeyRoutes } from "./routes/journey.routes.js";
 import { registerProfileRoutes } from "./features/profile/profile.routes.js";
 import { registerDiscoveryRoutes } from "./features/discovery/discovery.routes.js";
+import type { PhotoProvider } from "./features/discovery/photos/photo.types.js";
 
-export async function buildServer() {
+export async function buildServer(options: { photoProvider?: PhotoProvider } = {}) {
   const server = Fastify({ logger: true });
 
   await server.register(fastifyCors, {
@@ -22,7 +23,7 @@ export async function buildServer() {
   server.register(usersRoutes);
   server.register(journeyRoutes);
   server.register(registerProfileRoutes);
-  server.register(registerDiscoveryRoutes);
+  server.register(registerDiscoveryRoutes, options);
 
   return server;
 }

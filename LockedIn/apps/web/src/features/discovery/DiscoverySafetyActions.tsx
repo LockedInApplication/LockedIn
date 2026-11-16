@@ -4,7 +4,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import {useDiscovery} from "./DiscoveryShell";
 import {discoveryRequest} from "./discovery.client";
 import styles from "./discovery.module.scss";
-export type DiscoveryReportSource={sourceType:"PROFILE"|"INVITATION"|"SHARED_RESPONSE";sourceId:string;label?:string;preview?:string};
+export type DiscoveryReportSource={sourceType:"PROFILE"|"INVITATION"|"SHARED_RESPONSE"|"PHOTO";sourceId:string;label?:string;preview?:string};
 export default function DiscoverySafetyActions({connectionId,profileId,reportSource,reportSources,onBlocked}:{connectionId?:string;profileId?:string;reportSource:DiscoveryReportSource|null;reportSources?:DiscoveryReportSource[];onBlocked:()=>void}){
   const {userId,confirmLeave,setDirty,busy,setBusy}=useDiscovery(),[reason,setReason]=useState("OTHER"),[detail,setDetail]=useState(""),[alsoBlock,setAlsoBlock]=useState(false),[notice,setNotice]=useState(""),[confirm,setConfirm]=useState(false);
   const sourceControl=useId(),[selection,setSelection]=useState(reportSource?`${reportSource.sourceType}:${reportSource.sourceId}`:"");

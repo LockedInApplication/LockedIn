@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { avatarPresetSchema } from "../profile/profile.schemas.js";
 import { getDiscoveryConfig } from "../../config/env.js";
+import { photoIdsSchema } from "./photos/photo.schemas.js";
 
 const text = (max: number) => z.string().transform(value => value.trim().replace(/\s+/gu, " ")).pipe(z.string().max(max));
 export const discoveryProfileSchema = z.strictObject({
@@ -11,6 +12,7 @@ export const discoveryProfileSchema = z.strictObject({
   interests: z.array(text(30).pipe(z.string().min(1))).max(5).refine(values => new Set(values.map(value => value.toLocaleLowerCase("en-US"))).size === values.length),
   pace: text(240).nullable(),
   areaId: z.string().min(1).max(100),
+  photoIds: photoIdsSchema.optional(),
 });
 export const configuredArea = (areaId: string) => getDiscoveryConfig().areas.some(area => area.id === areaId);
 export const discoveryDraftSchema = discoveryProfileSchema.extend({ revision: z.number().int().nonnegative() }).strict();
@@ -27,6 +29,6 @@ export const starterShareSchema = z.strictObject({ draftRevision: z.number().int
 export const buildReadinessSchema = z.strictObject({ ready: z.boolean(), consentVersion: z.number().int().nonnegative() });
 export const privateReflectionSchema = z.strictObject({ text: z.string().max(4000), revision: z.number().int().nonnegative() });
 export const discoveryBlockSchema = z.strictObject({ profileId: z.string().uuid().optional(), connectionId: z.string().uuid().optional() }).refine(value => Number(!!value.profileId) + Number(!!value.connectionId) === 1);
-export const discoveryReportSchema = z.strictObject({ sourceType: z.enum(["PROFILE", "INVITATION", "SHARED_RESPONSE"]), sourceId: z.string().uuid(), reason: z.enum(["HARASSMENT", "IMPERSONATION", "SPAM", "OTHER"]), detail: z.string().max(1000).optional(), requestId: z.string().uuid(), blockAlso: z.boolean().optional() });
+export const discoveryReportSchema = z.strictObject({ sourceType: z.enum(["PROFILE", "INVITATION", "SHARED_RESPONSE", "PHOTO"]), sourceId: z.string().uuid(), reason: z.enum(["HARASSMENT", "IMPERSONATION", "SPAM", "OTHER"]), detail: z.string().max(1000).optional(), requestId: z.string().uuid(), blockAlso: z.boolean().optional() });
 export const discoveryReviewSchema = z.strictObject({ action: z.enum(["DISMISS", "SUSPEND"]), requestId: z.string().uuid() });
 export const discoveryRestoreSchema = z.strictObject({ requestId: z.string().uuid() });

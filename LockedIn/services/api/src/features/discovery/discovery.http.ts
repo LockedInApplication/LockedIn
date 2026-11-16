@@ -8,7 +8,7 @@ declare module "fastify" {
   interface FastifyContextConfig { discoveryValidation?: { body: z.ZodObject; params: z.ZodObject } }
 }
 const empty = z.strictObject({});
-export async function requireDiscoveryMutation(request: FastifyRequest, reply: FastifyReply): Promise<DiscoveryContext | null> {
+export async function requireDiscoveryIdentity(request: FastifyRequest, reply: FastifyReply): Promise<DiscoveryContext | null> {
   reply.header("Cache-Control", "private, no-store");
   const user = await requireUser(request, reply);
   if (!user) return null;
@@ -21,8 +21,17 @@ export async function requireDiscoveryMutation(request: FastifyRequest, reply: F
     sendError(reply, 409, "Your account changed. Reload before saving."); return null;
   }
   const schemas = request.routeOptions.config.discoveryValidation;
-  if (!(schemas?.body ?? empty).strict().safeParse(request.body ?? {}).success || !(schemas?.params ?? empty).strict().safeParse(request.params ?? {}).success || !empty.safeParse(request.query ?? {}).success) {
+  if (!(schemas?.params ?? empty).strict().safeParse(request.params ?? {}).success || !empty.safeParse(request.query ?? {}).success) {
     sendError(reply, 400, "Please check your discovery request."); return null;
   }
   return { userId: user.id, emailVerified: user.emailVerified };
+}
+export async function requireDiscoveryMutation(request: FastifyRequest, reply: FastifyReply): Promise<DiscoveryContext | null> {
+  const context = await requireDiscoveryIdentity(request, reply);
+  if (!context) return null;
+  const schema = request.routeOptions.config.discoveryValidation?.body ?? empty;
+  if (!schema.strict().safeParse(request.body ?? {}).success) {
+    sendError(reply, 400, "Please check your discovery request."); return null;
+  }
+  return context;
 }

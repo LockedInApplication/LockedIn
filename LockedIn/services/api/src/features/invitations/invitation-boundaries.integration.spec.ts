@@ -123,4 +123,12 @@ describe.skipIf(process.env.NOTIFICATIONS_INTEGRATION !== "true")("invitation bo
         expect((await request(a,"GET",`/api/journey/invitation-blocks?before=${own.id}`)).statusCode).toBe(400);
         expect((await request(c,"GET",`/api/journey/invites/sent?before=${original.id}`)).statusCode).toBe(400);
     });
+    it("uses a discovery-safe block label without exposing the private account name",async()=>{
+        await prisma.user.update({where:{id:a.id},data:{name:"Private legal name",displayName:"Private settings name"}});
+        await prisma.invitationBlock.create({data:{blockerId:b.id,blockedId:a.id,safePublicLabel:"Chosen public alias"}});
+        const result=await blocks(b);expect(result.statusCode).toBe(200);
+        expect(result.json().items[0].name).toBe("Chosen public alias");
+        expect(JSON.stringify(result.json())).not.toMatch(/Private legal name|Private settings name/);
+        expect((await blocks(a)).json().items).toEqual([]);
+    });
 });

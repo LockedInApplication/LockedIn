@@ -50,7 +50,8 @@ export type NotificationSnapshot = {
 };
 export type NotificationTask = {
     recipientId: string;
-    relationshipId: string;
+    relationshipId: string | null;
+    discoveryConnectionId?: string;
     kind: string;
     entityId: string;
     wordKey: string | null;

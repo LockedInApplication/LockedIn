@@ -1,6 +1,7 @@
 import type { NotificationItem } from "./notification.types";
 export function notificationDestination(item: Pick<NotificationItem, "view" | "entityId" | "wordKey"> & {id?:string}) {
     const query = new URLSearchParams();
+    if(item.view==="discovery")return `/connections/${encodeURIComponent(item.entityId)}`;
     if(item.view==="invitations")return `/journey?invitation=${encodeURIComponent(item.entityId)}`;
     if (item.view === "atlas") {
         query.set("view", "atlas");

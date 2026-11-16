@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma.js";
 import { notificationBroker } from "../notifications/notification.broker.js";
 import { isInvitationRecipient, lockInvitationUsers, lockInvitationRows, invitationPairWhere, type InvitationUser } from "./invitation-access.service.js";
 import { invitationFailure } from "./invitation.policy.js";
+import { closeDiscoveryContactUnderLock } from "./invitation-restrictions.service.js";
 export async function blockInvitationSender(token: string, user: InvitationUser) {
     const result = await prisma.$transaction(async (tx) => {
         const source = await tx.relationshipInvite.findUnique({ where: { token } });
@@ -18,6 +19,7 @@ export async function blockInvitationSender(token: string, user: InvitationUser)
             await tx.relationshipInvite.updateMany({ where: { id: { in: ids }, status: "PENDING" }, data: { status: "DECLINED" } });
             await tx.notification.updateMany({ where: { invitationId: { in: ids }, resolvedAt: null }, data: { resolvedAt: new Date() } });
         }
+        await closeDiscoveryContactUnderLock(tx, user.id, inviter.id);
         return { ok: true as const, id: block.id, otherId: inviter.id };
     });
     if (result.ok) {
@@ -29,9 +31,9 @@ export async function blockInvitationSender(token: string, user: InvitationUser)
 export async function listInvitationBlocks(userId: string, before?: string) {
     if (before && !await prisma.invitationBlock.findFirst({ where: { id: before, blockerId: userId }, select: { id: true } }))
         return invitationFailure(400, "Invalid invitation cursor.");
-    const rows = await prisma.invitationBlock.findMany({ where: { blockerId: userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 31, ...(before ? { cursor: { id: before }, skip: 1 } : {}), select: { id: true, createdAt: true, blocked: { select: { name: true, displayName: true } } } });
+    const rows = await prisma.invitationBlock.findMany({ where: { blockerId: userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 31, ...(before ? { cursor: { id: before }, skip: 1 } : {}), select: { id: true, createdAt: true, safePublicLabel: true, blocked: { select: { name: true, displayName: true } } } });
     const page = rows.slice(0, 30);
-    return { ok: true as const, items: page.map(block => ({ id: block.id, name: block.blocked.displayName ?? block.blocked.name ?? "Account", createdAt: block.createdAt.toISOString() })), nextCursor: rows.length > 30 ? page.at(-1)!.id : null };
+    return { ok: true as const, items: page.map(block => ({ id: block.id, name: block.safePublicLabel ?? block.blocked.displayName ?? block.blocked.name ?? "Account", createdAt: block.createdAt.toISOString() })), nextCursor: rows.length > 30 ? page.at(-1)!.id : null };
 }
 export async function unblockInvitations(id: string, userId: string) {
     const result = await prisma.$transaction(async (tx) => {

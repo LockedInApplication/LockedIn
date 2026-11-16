@@ -5,6 +5,7 @@ import { healthRoutes } from "./routes/health.routes.js";
 import { usersRoutes } from "./routes/users.routes.js";
 import { journeyRoutes } from "./routes/journey.routes.js";
 import { registerProfileRoutes } from "./features/profile/profile.routes.js";
+import { registerDiscoveryRoutes } from "./features/discovery/discovery.routes.js";
 
 export async function buildServer() {
   const server = Fastify({ logger: true });
@@ -12,7 +13,7 @@ export async function buildServer() {
   await server.register(fastifyCors, {
     origin: ["http://localhost:3000", "http://localhost:3001"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Discovery-Owner"],
     credentials: true,
   });
 
@@ -21,6 +22,7 @@ export async function buildServer() {
   server.register(usersRoutes);
   server.register(journeyRoutes);
   server.register(registerProfileRoutes);
+  server.register(registerDiscoveryRoutes);
 
   return server;
 }

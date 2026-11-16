@@ -6,11 +6,13 @@ import styles from "../workspace-header.module.scss";
 export default function MobileAccountMenu({
   user,
   onProfile,
+  onExplore,
+  exploreLabel,
   onInvitations,
   onSignOut,
 }: Pick<
   WorkspaceHeaderProps,
-  "user" | "onProfile" | "onInvitations" | "onSignOut"
+  "user" | "onProfile" | "onInvitations" | "onSignOut" | "onExplore" | "exploreLabel"
 >) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null),
@@ -87,6 +89,7 @@ export default function MobileAccountMenu({
           aria-label="Account options"
         >
           <p>{user?.name ?? "Your account"}</p>
+          {onExplore?<button type="button" onClick={()=>select(onExplore)}>{exploreLabel??"Explore people"}</button>:null}
           {onProfile ? (
             <button type="button" onClick={() => select(onProfile)}>
               Profile &amp; settings

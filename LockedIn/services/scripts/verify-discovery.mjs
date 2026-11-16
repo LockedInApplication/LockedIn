@@ -41,7 +41,22 @@ try {
     INSERT INTO "IntentionResponse" (id,"sessionId","userId",answers,"shareKeys","revealConsentedAt","updatedAt") VALUES ('discovery-preserved-response','discovery-preserved-session','discovery-preserved-a','{"private":"legacy answer"}',ARRAY['private'],'2026-01-01',NOW());
     INSERT INTO "MeaningChapter" (id,"relationshipId","wordKey","createdById","sharedDefinition","updatedAt") VALUES ('discovery-preserved-chapter','discovery-preserved-relationship','support','discovery-preserved-a','legacy shared definition',NOW());
     INSERT INTO "Notification" ("recipientId","relationshipId",kind,"entityId","eventKey","updatedAt") VALUES ('discovery-preserved-a','discovery-preserved-relationship','CHAPTER_STARTED','discovery-preserved-chapter','discovery-preserved-event',NOW());`);
-  const snapshot = async () => (await database.query(`SELECT jsonb_build_object('users',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM "user" t),'relationships',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM "Relationship" t),'responses',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM "IntentionResponse" t),'chapters',(SELECT jsonb_agg(to_jsonb(t) ORDER BY id) FROM "MeaningChapter" t),'notifications',(SELECT jsonb_agg(to_jsonb(t)-'discoveryConnectionId' ORDER BY id) FROM "Notification" t)) AS snapshot`)).rows[0].snapshot;
+  await database.query(`UPDATE "user" SET "inAppActivity"=false,"activityEmails"=false WHERE id='discovery-preserved-a';
+    UPDATE "IntentionSession" SET status='REVEALED' WHERE id='discovery-preserved-session';
+    INSERT INTO "IntentionSession" (id,"relationshipId","createdById",status,"updatedAt") VALUES ('discovery-preserved-archive','discovery-preserved-relationship','discovery-preserved-b','ARCHIVED',NOW());
+    INSERT INTO "IntentionResponse" (id,"sessionId","userId",answers,"shareKeys","revealConsentedAt","updatedAt") VALUES ('discovery-preserved-archived-response','discovery-preserved-archive','discovery-preserved-b','{"private":"archived legacy answer"}',ARRAY['private'],'2026-01-02',NOW());
+    INSERT INTO "SharedNextStep" (id,"sessionId","proposedById",title,details,status,"acceptedAt","updatedAt") VALUES ('discovery-preserved-step','discovery-preserved-session','discovery-preserved-a','An old agreement','Keep this history','ACCEPTED','2026-01-03',NOW());
+    INSERT INTO "Reflection" (id,"nextStepId","userId",outcome,note,"updatedAt") VALUES ('discovery-preserved-step-reflection','discovery-preserved-step','discovery-preserved-b','COMPLETED','Private legacy step reflection',NOW());
+    UPDATE "MeaningChapter" SET status='SHARED',"candidateVersion"=1 WHERE id='discovery-preserved-chapter';
+    INSERT INTO "MeaningDefinitionProposal" (id,"chapterId","userId",kind,definition,"updatedAt") VALUES ('discovery-preserved-proposal','discovery-preserved-chapter','discovery-preserved-a','PERSONAL','An approved meaning',NOW());
+    INSERT INTO "MeaningSelection" (id,"chapterId","userId",mode,"proposalId","updatedAt") VALUES ('discovery-preserved-selection','discovery-preserved-chapter','discovery-preserved-b','PROPOSAL','discovery-preserved-proposal',NOW());
+    INSERT INTO "MeaningFinalApproval" (id,"chapterId","userId","candidateVersion") VALUES ('discovery-preserved-approval-a','discovery-preserved-chapter','discovery-preserved-a',1),('discovery-preserved-approval-b','discovery-preserved-chapter','discovery-preserved-b',1);`);
+  const preservedTables=["user","Relationship","RelationshipMember","RelationshipInvite","IntentionSession","IntentionResponse","SharedNextStep","Reflection","MeaningChapter","MeaningResponse","MeaningDefinitionProposal","MeaningSelection","MeaningFinalApproval","ConversationChoice","Notification","InvitationBlock"];
+  const snapshot = async () => {
+    const result={};
+    for(const table of preservedTables) result[table]=(await database.query(`SELECT jsonb_agg(to_jsonb(t)-'discoveryConnectionId'-'safePublicLabel' ORDER BY id) AS rows FROM "${table}" t`)).rows[0].rows;
+    return result;
+  };
   const before = await snapshot();
   for (const entry of readdirSync(migrations)) {
     if (entry >= "20261116010000_discovery_pilot" && entry !== "migration_lock.toml") cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
@@ -49,8 +64,9 @@ try {
   run(["migrate", "deploy", "--config", config]);
   if (JSON.stringify(before) !== JSON.stringify(await snapshot())) throw new Error("Migration changed historical content/IDs/consent");
   console.log("Historical fixture snapshot preserved exactly.");
-  const files = process.env.DISCOVERY_TEST_FILES?.split(",").filter(Boolean) ?? ["api/src/features/discovery/test/discovery.policy.spec.ts", "api/src/features/discovery/test/discovery.http.spec.ts", "api/src/features/discovery/test/discovery.migration.integration.spec.ts"];
+  const files = process.env.DISCOVERY_TEST_FILES?.split(",").filter(Boolean) ?? ["api/src"];
   execFileSync("npm", ["test", "--", ...files], { cwd: services, env: childEnv, stdio: "inherit" });
+  if(process.argv.includes("--browser")) execFileSync(process.execPath,["--import","tsx",path.join(services,"scripts/verify-discovery-browser.mjs")],{cwd:services,env:childEnv,stdio:"inherit"});
 } finally {
   await database?.end();
   if (created) await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);

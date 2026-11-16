@@ -16,6 +16,7 @@ try{({chromium}=await import(process.env.LOCKEDIN_PLAYWRIGHT_MODULE||"playwright
 const freePort=()=>new Promise((resolve,reject)=>{const socket=createServer();socket.once("error",reject);socket.listen(0,"127.0.0.1",()=>{const port=socket.address().port;socket.close(error=>error?reject(error):resolve(port));});});
 const webPort=await freePort(),apiPort=await freePort(),base=`http://127.0.0.1:${webPort}`;
 Object.assign(process.env,{APP_URL:base,BETTER_AUTH_URL:`http://127.0.0.1:${apiPort}`,DISCOVERY_ENABLED:"true",DISCOVERY_MODERATOR_USER_IDS:"browser-moderator",DISCOVERY_AREAS_JSON:'[{"id":"pilot-city","label":"Pilot city"}]',RESEND_API_KEY:"",RESEND_FROM_EMAIL:""});
+Object.assign(process.env,{DISCOVERY_PHOTOS_ENABLED:"true",CLOUDINARY_CLOUD_NAME:"synthetic",CLOUDINARY_API_KEY:"synthetic",CLOUDINARY_API_SECRET:"synthetic"});
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../../.."),web=path.join(root,"LockedIn/apps/web");
 const artifacts=process.env.DISCOVERY_TEST_ARTIFACT_DIR||mkdtempSync(path.join(tmpdir(),"lockedin-discovery-browser-"));
 console.log(`Browser artifacts: ${artifacts}`);
@@ -39,7 +40,14 @@ try{
   const [a,b,c,d,existingPartner,moderator]=people;
   const oldRelationship=await prisma.relationship.create({data:{members:{create:[{userId:d.id},{userId:existingPartner.id}]}}});
   const oldSnapshot=JSON.stringify(await prisma.relationship.findUnique({where:{id:oldRelationship.id},include:{members:true}}));
-  api=await(await import("../api/src/app.ts")).buildServer();await api.listen({port:apiPort,host:"127.0.0.1"});
+  const jpeg=await (await import("sharp")).default({create:{width:120,height:80,channels:3,background:"#74a989"}}).jpeg().toBuffer();
+  const assets=new Map();
+  const photoProvider={upload:async({photoId,jpeg})=>{
+    const asset={assetId:`synthetic-${photoId}`,publicId:`lockedin-discovery/${photoId}`,version:1,format:"jpg"};
+    const screening={moderation:[{kind:"aws_rek",status:"approved",response:{moderation_labels:[{name:"Implied Nudity",parent_name:"",confidence:50}]}}]};
+    assets.set(asset.publicId,{asset,screening,jpeg});return{asset,screening};
+  },inspect:async({publicId})=>assets.get(publicId)??null,read:async({publicId})=>assets.get(publicId).jpeg,destroy:async({publicId})=>{assets.delete(publicId);},override:async()=>{}};
+  api=await(await import("../api/src/app.ts")).buildServer({photoProvider});await api.listen({port:apiPort,host:"127.0.0.1"});
   const previewEnv={...process.env,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",API_PROXY_URL:`http://127.0.0.1:${apiPort}`,NEXT_PUBLIC_API_URL:""};
   // Production output avoids development HMR reloading a form while a newly
   // visited route compiles. The build uses this run's exact owned API port.
@@ -79,6 +87,54 @@ try{
   await pageA.getByLabel(/I confirm I am 18 or older/).check();await pendingProfileOperation("/api/discovery/profile/publish",pageA.getByRole("button",{name:"Publish profile",exact:true}));await pageA.getByText(/^Profile published/).waitFor();
   a.profileId=(await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:a.id}})).id;
   for(const person of [b,c,d])await publish(person);
+  if(reviewRuns("photos")){
+    await pageA.getByLabel("Choose photo").setInputFiles({name:"synthetic.jpg",mimeType:"image/jpeg",buffer:jpeg});
+    await pageA.getByLabel("Short introduction").fill("Unsaved draft text");
+    assert.equal(await pageA.getByRole("button",{name:"Upload photo",exact:true}).isDisabled(),true);
+    await pageA.getByRole("button",{name:"Save private draft",exact:true}).click();
+    await pageA.getByRole("button",{name:"Upload photo",exact:true}).click();
+    await pageA.getByText("Photo needs a moderator review", {exact:true}).waitFor();
+    await pageA.getByRole("button",{name:"Manage photos",exact:true}).click();
+    assert(await pageA.getByRole("heading",{name:"Discovery photos",exact:true}).evaluate(element=>element===document.activeElement));
+    const [photo]=await prisma.discoveryPhoto.findMany({where:{ownerId:a.id}});
+    assert(photo);const media=`/api/discovery/photos/${photo.id}/media`;
+    assert.equal((await contexts.get(b.id).context.request.get(base+media)).status(),404);
+    await checkDiscoveryLayout(pageA,{screenshotDir:artifacts,name:"photo-editor"});
+    const panel=pageA.getByRole("region",{name:"Discovery photos",exact:true});
+    for(const width of [320,393,430,1280]){
+      await pageA.setViewportSize({width,height:852});
+      assert(await panel.evaluate(element=>{
+        const outer=element.getBoundingClientRect();
+        return [...element.querySelectorAll("p, li, input, button")].every(child=>child.getBoundingClientRect().right<outer.right);
+      }),`Photo editor controls should stay inside the card at ${width}px`);
+    }
+    await pageA.setViewportSize({width:393,height:852});
+    await pageMod.goto(`${base}/discovery/moderation`);await pageMod.getByRole("button",{name:"Photo review",exact:true}).click();
+    const queue=pageMod.getByRole("region",{name:"Photo review queue",exact:true});
+    await queue.getByRole("button",{name:"Open preview",exact:true}).waitFor();
+    assert.equal(await queue.locator("img").count(),0);
+    await queue.getByRole("button",{name:"Open preview",exact:true}).click();
+    await queue.getByRole("img",{name:"Restricted photo evidence",exact:true}).waitFor();
+    await queue.getByLabel("Decision reason").fill("Synthetic photo review");
+    await checkDiscoveryLayout(pageMod,{screenshotDir:artifacts,name:"photo-review"});
+    pageMod.once("dialog",dialog=>dialog.accept());await queue.getByRole("button",{name:"Approve",exact:true}).click();
+    await queue.getByText("Decision saved. Approval does not publish the photo.").waitFor();
+    assert.equal((await contexts.get(b.id).context.request.get(base+media)).status(),404);
+    await pageA.getByRole("button",{name:"Refresh photo status",exact:true}).click();
+    await pageA.getByText("Ready to publish",{exact:true}).waitFor();
+    await pageA.getByLabel(/I confirm I am 18 or older/).check();await pageA.getByRole("button",{name:"Publish profile",exact:true}).click();
+    await pageA.getByText(/^Profile published/).waitFor();
+    await pageB.goto(`${base}/discover`);
+    await pageB.getByRole("list",{name:"People in this area"}).getByRole("button").filter({hasText:a.publicName}).click();
+    const selected=pageB.getByRole("region",{name:"Selected person",exact:true});
+    await selected.getByRole("img",{name:`Photo 1 of ${a.publicName}`}).waitFor();
+    const delivered=await contexts.get(b.id).context.request.get(base+media);assert.equal(delivered.status(),200);assert.equal(delivered.headers()["cache-control"],"private, no-store");
+    pageA.removeAllListeners("dialog");pageA.once("dialog",dialog=>dialog.accept());
+    await pageA.getByRole("button",{name:"Delete now",exact:true}).click();
+    await pageA.getByText("Photo removed from Discover and your draft.").waitFor();
+    assert.equal((await contexts.get(b.id).context.request.get(base+media)).status(),404);
+    console.log("PASS private photo editor, moderator approval, explicit publishing, peer bytes, and immediate deletion");
+  }
   if(reviewRuns("query")){
     const failures=[];
     for(const fallback of [false,true]){

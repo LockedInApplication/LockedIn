@@ -6,6 +6,8 @@ import { configuredArea, discoveryProfileSchema } from "./discovery.schemas.js";
 import { discoveryDraft, ownDiscoveryProfile, publicDiscoveryProfile } from "./discovery-profile.view.js";
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import type { DiscoveryProfileInput, DiscoveryResult } from "./discovery.types.js";
+import { draftPhotoIds, publishedPhotoIds, revokeRemovedPhotos, validPhotoSelection } from "./photos/photo-profile.service.js";
+import { getPhotoConfig } from "./photos/photo.config.js";
 
 export async function isDiscoveryAdmitted(tx: Prisma.TransactionClient, actorId: string, profile: DiscoveryProfile | null) {
   const config = getDiscoveryConfig();
@@ -35,8 +37,12 @@ export async function saveDiscoveryProfileDraft(actorId: string, input: Discover
     if (!await isDiscoveryAdmitted(tx, actorId, existing)) return denied;
     if (discoveryDraft(existing).revision !== revision) return stale;
     const quota = await consumeDiscoveryQuota(tx, actorId, "profile"); if (!quota.ok) return quota;
-    const draft = { revision: revision + 1, profile: parsed.data };
+    const selected = parsed.data.photoIds ?? (existing ? discoveryDraft(existing).profile?.photoIds : undefined);
+    const previouslyAttached = new Set(existing ? [...draftPhotoIds(existing), ...publishedPhotoIds(existing)] : []);
+    if (selected?.some(id => !previouslyAttached.has(id)) || !await validPhotoSelection(tx, existing, selected ?? [])) return invalid;
+    const draft = { revision: revision + 1, profile: { ...parsed.data, ...(selected === undefined ? {} : { photoIds: selected }) } };
     const profile = await tx.discoveryProfile.upsert({ where: { ownerId: actorId }, create: { ownerId: actorId, draft }, update: { draft } });
+    if (existing) await revokeRemovedPhotos(tx, profile, draftPhotoIds(existing));
     return { ok: true, value: ownDiscoveryProfile(profile) };
   });
 }
@@ -49,9 +55,14 @@ export async function publishDiscoveryProfile(actorId: string, draftRevision: nu
     const draft = discoveryDraft(existing);
     if (!existing || draft.revision !== draftRevision) return stale;
     if (!draft.profile || !configuredArea(draft.profile.areaId)) return invalid;
+    const photoIds = draft.profile.photoIds ?? [];
+    const { enabled, configured } = getPhotoConfig();
+    if (photoIds.length && (!enabled || !configured) && JSON.stringify(photoIds) !== JSON.stringify(publishedPhotoIds(existing))) return { ok: false, status: 409, error: "New photo publication is paused. Remove the photos from your draft to publish without them." };
+    if (!await validPhotoSelection(tx, existing, photoIds, true)) return { ok: false, status: 409, error: "Remove any photos that are not approved before publishing." };
     const quota = await consumeDiscoveryQuota(tx, actorId, "profile"); if (!quota.ok) return quota;
     const now = new Date();
     const profile = await tx.discoveryProfile.update({ where: { id: existing.id }, data: { publishedSnapshot: draft.profile, publishedAreaId: draft.profile.areaId, publishedIntention: draft.profile.intention, publicationVersion: { increment: 1 }, publicationConsentVersion: 1, publicationConsentedAt: now, adultAttestedAt: existing.adultAttestedAt ?? now, publishedAt: now } });
+    await revokeRemovedPhotos(tx, profile, publishedPhotoIds(existing));
     return { ok: true, value: ownDiscoveryProfile(profile) };
   });
 }

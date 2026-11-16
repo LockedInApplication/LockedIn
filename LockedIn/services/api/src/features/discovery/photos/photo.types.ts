@@ -10,6 +10,6 @@ export interface PhotoProvider {
   upload(input: { photoId: string; jpeg: Buffer; requestId: string }): Promise<{ asset: PhotoAsset; screening: unknown }>;
   inspect(asset: Pick<PhotoAsset, "publicId">): Promise<{ asset: PhotoAsset; screening: unknown } | null>;
   read(asset: PhotoAsset): Promise<Buffer>;
-  destroy(asset: Pick<PhotoAsset, "publicId">): Promise<void>;
+  destroy(asset: Pick<PhotoAsset, "publicId">): Promise<"destroyed" | "missing" | void>;
   override(asset: PhotoAsset, approved: boolean, requestId: string): Promise<void>;
 }

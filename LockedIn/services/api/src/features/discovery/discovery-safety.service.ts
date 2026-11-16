@@ -9,6 +9,8 @@ import { publicDiscoveryProfile } from "./discovery-profile.view.js";
 import { lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryBlockSchema, discoveryReportSchema } from "./discovery.schemas.js";
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
+import { findVisibleDiscoveryProfile } from "./discovery-candidates.service.js";
+import { getPhotoConfig } from "./photos/photo.config.js";
 const missing = { ok: false as const, status: 404, error: "This content is not available." };
 const invalid = { ok: false as const, status: 400, error: "Please check your safety request." };
 
@@ -60,6 +62,16 @@ export async function unblockDiscoveryContact(actorId: string, blockId: string) 
   return result.ok ? { ok: true as const, value: { unblocked: true } } : result;
 }
 async function reportSource(tx: Prisma.TransactionClient, actorId: string, sourceType: string, sourceId: string) {
+  if (sourceType === "PHOTO") {
+    const config = getPhotoConfig();
+    if (!config.enabled || !config.configured) return null;
+    const photo = await tx.discoveryPhoto.findFirst({ where: { id: sourceId, deletedAt: null, revokedAt: null, destroyedAt: null, state: "APPROVED", scanCompleted: true, assetId: { not: null } } });
+    if (!photo || !photo.assetVersion) return null;
+    const profile = await findVisibleDiscoveryProfile(tx, actorId, photo.profileId);
+    const publicFields = profile && publicDiscoveryProfile(profile.id, profile.publishedSnapshot);
+    if (!profile || !publicFields?.photoIds?.includes(photo.id)) return null;
+    return { targetId: profile.ownerId, label: publicFields.publicName, connectionId: null, photoId: photo.id, photoVersion: photo.assetVersion, evidence: { publicName: publicFields.publicName, publicationVersion: profile.publicationVersion } };
+  }
   if (sourceType === "PROFILE") {
     const profile = await visibleProfile(tx, actorId, sourceId);
     return profile ? { ...profile, connectionId: null } : null;
@@ -88,7 +100,7 @@ export async function reportDiscoveryContent(actorId: string, input: z.infer<typ
     if (replay) return replay.sourceType === data.sourceType && replay.sourceId === data.sourceId ? { ok: true as const, value: { id: replay.id, received: true } } : invalid;
     const source = await reportSource(tx, actorId, data.sourceType, data.sourceId); if (!source) return missing;
     const quota = await consumeDiscoveryQuota(tx, actorId, "report"); if (!quota.ok) return quota;
-    const report = await tx.discoveryReport.create({ data: { reporterId: actorId, reportedUserId: source.targetId, connectionId: source.connectionId, reason: data.reason, details: data.detail ?? null, requestId: data.requestId, sourceType: data.sourceType, sourceId: data.sourceId, evidence: source.evidence } });
+    const report = await tx.discoveryReport.create({ data: { reporterId: actorId, reportedUserId: source.targetId, connectionId: source.connectionId, reason: data.reason, details: data.detail ?? null, requestId: data.requestId, sourceType: data.sourceType, sourceId: data.sourceId, evidence: source.evidence, ...("photoId" in source && source.photoId ? { photoId: source.photoId, photoVersion: source.photoVersion! } : {}) } });
     if (data.blockAlso) await blockUnderLock(tx, actorId, source.targetId, source.label);
     return { ok: true as const, value: { id: report.id, received: true } };
   });

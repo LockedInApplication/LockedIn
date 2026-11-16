@@ -72,6 +72,7 @@ export function createCloudinaryPhotoProvider(config: ReturnType<typeof parsePho
       validatePublicId(input.publicId);
       const result: unknown = await cloudinary.uploader.destroy(input.publicId, { ...options(), invalidate: true });
       if (!object(result) || (result.result !== "ok" && result.result !== "not found")) throw new Error();
+      return result.result === "ok" ? "destroyed" : "missing";
     }),
     override: (input, approved, requestId) => bounded(async () => {
       validatePublicId(input.publicId); if (!uuid.test(requestId)) throw new Error();

@@ -423,6 +423,7 @@ model DiscoveryReport {
   moderationAudits DiscoveryModerationAudit[]
 
   @@index([resolvedAt, createdAt])
+  @@index([photoId, resolvedAt])
   @@index([reporterId])
   @@index([reportedUserId])
   @@unique([reporterId, requestId])

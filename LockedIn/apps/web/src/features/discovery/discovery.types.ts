@@ -1,7 +1,8 @@
 import type { AvatarPreset } from "@/features/profile/profile.types";
-export type DiscoveryProfileInput = { publicName: string; avatarPreset: AvatarPreset; bio: string; intention: "LONG_TERM" | "OPEN_TO_LONG_TERM"; interests: string[]; pace: string | null; areaId: string };
-export type PublicDiscoveryProfile = DiscoveryProfileInput & { id: string };
-export type DiscoveryMe = { canDiscover: boolean; canModerate: boolean; hasHistory: boolean; canReflect: boolean; currentRelationshipId: string | null; areas: {id:string;label:string}[]; topics: {key:string;text:string}[] };
+import type { PhotoCard } from "./photos/discovery-photo.types";
+export type DiscoveryProfileInput = { publicName: string; avatarPreset: AvatarPreset; bio: string; intention: "LONG_TERM" | "OPEN_TO_LONG_TERM"; interests: string[]; pace: string | null; areaId: string; photoIds?: string[] };
+export type PublicDiscoveryProfile = DiscoveryProfileInput & { id: string; photos?: PhotoCard[] };
+export type DiscoveryMe = { canDiscover: boolean; canModerate: boolean; hasHistory: boolean; canReflect: boolean; currentRelationshipId: string | null; areas: {id:string;label:string}[]; topics: {key:string;text:string}[]; photos?: { enabled: boolean; configured: boolean } };
 export type OwnDiscoveryProfile = { draft: DiscoveryProfileInput | null; revision: number; published: PublicDiscoveryProfile | null; publicationVersion: number; paused: boolean; adultAttested: boolean; suspended: boolean };
 export type PageOf<T> = {items:T[];nextCursor:string|null};
 export type DiscoveryConnectionView={id:string;state:"PENDING"|"ACCEPTED"|"DECLINED"|"WITHDRAWN"|"EXPIRED"|"CLOSED"|"PROMOTED";topic:{key:string;text:string};hello:string;inviter:"self"|"partner";senderSnapshot:{publicName:string;avatarPreset:string};partner:{publicName:string;avatarPreset:string};ownDraft:{text:string;revision:number}|null;sharedResponses:{id:string;author:"self"|"partner";text:string;version:number;sharedAt:string}[];readiness:{mine:boolean;theirs:boolean;consentVersion:number};promotedRelationshipId:string|null;canAccept:boolean;canShare:boolean;canClose:boolean;canChooseBuild:boolean};

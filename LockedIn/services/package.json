@@ -20,7 +20,9 @@
 
           "test": "vitest run",
 
-          "test:watch": "vitest"
+          "test:watch": "vitest",
+
+          "discovery:photo-worker": "tsx api/src/features/discovery/photos/photo-worker.ts"
 
      },
 

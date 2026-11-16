@@ -8,8 +8,17 @@ import { discoveryTopics } from "./discovery-topics.js";
 import { registerDiscoveryResponseRoutes } from "./discovery-response.routes.js";
 import { registerDiscoverySafetyRoutes } from "./discovery-safety.routes.js";
 import { photoCapabilities } from "./photos/photo.config.js";
+import { getPhotoProvider } from "./photos/photo-provider.js";
+import { registerPhotoUploadRoutes } from "./photos/photo-upload.routes.js";
+import type { PhotoProvider } from "./photos/photo.types.js";
+import { registerPhotoMediaRoutes } from "./photos/photo-media.routes.js";
+import { registerPhotoModerationRoutes } from "./photos/photo-moderation.routes.js";
 
-export async function registerDiscoveryRoutes(server: FastifyInstance): Promise<void> {
+export async function registerDiscoveryRoutes(server: FastifyInstance, options: { photoProvider?: PhotoProvider } = {}): Promise<void> {
+  const provider = options.photoProvider ?? getPhotoProvider();
+  await server.register(scope => registerPhotoUploadRoutes(scope, provider));
+  registerPhotoMediaRoutes(server, provider, "ordinary");
+  registerPhotoModerationRoutes(server, provider);
   await registerDiscoveryProfileRoutes(server);
   await registerDiscoveryConnectionRoutes(server);
   await registerDiscoveryResponseRoutes(server);

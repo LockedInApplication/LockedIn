@@ -22,6 +22,8 @@ console.log(`Browser artifacts: ${artifacts}`);
 const log=openSync(path.join(artifacts,"preview.log"),"a");
 let browser,preview,build,api,prisma;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const reviewCase=process.env.DISCOVERY_REVIEW_CASE||"all";
+const reviewRuns=name=>reviewCase==="all"||reviewCase===name;
 async function ready(){for(let tries=0;tries<150;tries++){if(preview.exitCode!==null)throw new Error(`Preview exited ${preview.exitCode}; see ${artifacts}/preview.log`);try{if((await fetch(`${base}/login`)).ok)return;}catch{}await pause(200);}throw new Error(`Preview did not become ready; see ${artifacts}/preview.log`);}
 try{
   ({prisma}=await import("../api/src/lib/prisma.ts"));
@@ -46,8 +48,8 @@ try{
   preview=spawn(process.execPath,[path.join(web,"node_modules/next/dist/bin/next"),"start","--hostname","127.0.0.1","--port",String(webPort)],{cwd:web,env:previewEnv,stdio:["ignore",log,log]});
   await ready();
   browser=await chromium.launch({channel:process.env.LOCKEDIN_BROWSER_CHANNEL||"chrome",headless:true});
-  const contexts=new Map();
-  async function pageFor(person,fallback=false){const context=await browser.newContext({viewport:{width:393,height:852},reducedMotion:"reduce"});if(fallback)await context.addInitScript(()=>Object.defineProperty(window,"navigation",{value:undefined,configurable:true}));await context.addCookies([person.cookie]);const page=await context.newPage();contexts.set(person.id,{context,page});return page;}
+  const contexts=new Map(),errors=[];
+  async function pageFor(person,fallback=false,track=true){const context=await browser.newContext({viewport:{width:393,height:852},reducedMotion:"reduce"});if(fallback)await context.addInitScript(()=>Object.defineProperty(window,"navigation",{value:undefined,configurable:true}));await context.addCookies([person.cookie]);const page=await context.newPage();page.on("pageerror",error=>{errors.push(error.message);console.log(`Browser error: ${error.message}`);});if(track)contexts.set(person.id,{context,page});return page;}
   const pageA=await pageFor(a),pageB=await pageFor(b),pageC=await pageFor(c),pageD=await pageFor(d),pageMod=await pageFor(moderator);
   pageA.on("console",message=>{if(message.text().startsWith("[discovery-navigation]"))console.log(message.text());});
   await pageA.addInitScript(()=>{
@@ -56,7 +58,6 @@ try{
   });
   pageA.on("framenavigated",frame=>{if(frame===pageA.mainFrame())console.log(`A navigation: ${frame.url()}`);});
   pageA.on("dialog",async dialog=>{console.log(`A dialog: ${dialog.type()} ${dialog.message()}`);await dialog.dismiss();});
-  const errors=[];for(const{page}of contexts.values())page.on("pageerror",error=>{errors.push(error.message);console.log(`Browser error: ${error.message}`);});
   async function request(person,method,endpoint,body){const response=await contexts.get(person.id).context.request.fetch(`${base}${endpoint}`,{method,headers:{Origin:base,"X-Discovery-Owner":person.id},...(body!==undefined?{data:body}:{})});return{status:response.status(),body:await response.json()};}
   async function publish(person){
     const saved=await request(person,"PUT","/api/discovery/profile",{publicName:person.publicName,avatarPreset:"leaf",bio:`A public introduction from ${person.publicName}`,intention:"LONG_TERM",interests:["Reading"],pace:null,areaId:"pilot-city",revision:0});assert.equal(saved.status,200);
@@ -64,10 +65,36 @@ try{
   }
   await pageA.goto(`${base}/discover/profile`);await pageA.getByLabel("Public name",{exact:true}).fill(a.publicName);await pageA.getByLabel("Short introduction").fill("A public introduction from A");
   assert.equal(await pageA.getByRole("button",{name:"Refresh when ready",exact:true}).count(),0,"Initial quiet notification connection must not fill the page with a false activity banner");
-  await pageA.getByRole("button",{name:"Save private draft",exact:true}).click();await pageA.getByText("Private draft saved. It has not been published.").waitFor();
-  await pageA.getByLabel(/I confirm I am 18 or older/).check();await pageA.getByRole("button",{name:"Publish profile",exact:true}).click();await pageA.getByText(/^Profile published/).waitFor();
+  async function pendingProfileOperation(endpoint,button){
+    if(!reviewRuns("profile")){await button.click();return;}
+    let release,started;const pending=new Promise(resolve=>{started=resolve;}),gate=new Promise(resolve=>{release=resolve;});
+    await pageA.route(`**${endpoint}`,async route=>{if(route.request().method()==="GET")return route.continue();const response=await route.fetch();started();await gate;await route.fulfill({response});});
+    try{await button.click();await pending;
+      const controls=await pageA.locator("main form input, main form textarea, main form select").all();assert(controls.length>=7,"Expected all public profile editing controls");
+      for(const control of controls)assert(await control.isDisabled(),`Profile fields must not accept edits while ${endpoint} replaces their revision`);
+      assert(await pageA.getByLabel(/I confirm I am 18 or older/).isDisabled(),"Publication consent cannot be changed while the editor is being replaced");
+    }finally{release();await pageA.unrouteAll({behavior:"wait"});}
+  }
+  await pendingProfileOperation("/api/discovery/profile",pageA.getByRole("button",{name:"Save private draft",exact:true}));await pageA.getByText("Private draft saved. It has not been published.").waitFor();
+  await pageA.getByLabel(/I confirm I am 18 or older/).check();await pendingProfileOperation("/api/discovery/profile/publish",pageA.getByRole("button",{name:"Publish profile",exact:true}));await pageA.getByText(/^Profile published/).waitFor();
   a.profileId=(await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:a.id}})).id;
   for(const person of [b,c,d])await publish(person);
+  if(reviewRuns("query")){
+    const failures=[];
+    for(const fallback of [false,true]){
+      const queryPage=await pageFor(a,fallback,false);
+      try{
+        await queryPage.goto(`${base}/connections?profile=${b.profileId}`);await queryPage.getByRole("textbox",{name:"A short hello (optional)",exact:true}).waitFor();await queryPage.getByRole("button",{name:"← My connections",exact:true}).click();await queryPage.waitForURL(`${base}/connections`);
+        await queryPage.goBack({waitUntil:"commit"});await queryPage.getByRole("textbox",{name:"A short hello (optional)",exact:true}).fill(`QUERY PRIVATE ${fallback}`);
+        const forward=queryPage.goForward({waitUntil:"commit",timeout:4000}).catch(()=>null);await queryPage.getByRole("button",{name:"Keep editing",exact:true}).waitFor({timeout:3000});await queryPage.getByRole("button",{name:"Keep editing",exact:true}).click();await forward;
+        assert.equal(await queryPage.getByRole("textbox",{name:"A short hello (optional)",exact:true}).inputValue(),`QUERY PRIVATE ${fallback}`);
+        const leave=queryPage.goForward({waitUntil:"commit",timeout:4000}).catch(()=>null);await queryPage.getByRole("button",{name:"Leave draft",exact:true}).click();await leave;await queryPage.waitForURL(`${base}/connections`);
+        await queryPage.goBack({waitUntil:"commit"});await queryPage.getByRole("textbox",{name:"A short hello (optional)",exact:true}).fill(`SECOND PRIVATE ${fallback}`);
+        const again=queryPage.goForward({waitUntil:"commit",timeout:4000}).catch(()=>null);await queryPage.getByRole("button",{name:"Keep editing",exact:true}).waitFor({timeout:3000});await queryPage.getByRole("button",{name:"Keep editing",exact:true}).click();await again;assert.equal(await queryPage.getByRole("textbox",{name:"A short hello (optional)",exact:true}).inputValue(),`SECOND PRIVATE ${fallback}`);
+      }catch(error){failures.push(`${fallback?"fallback":"modern"}: ${error.message}`);}finally{await queryPage.context().close();}
+    }
+    assert.deepEqual(failures,[],"Both history mechanisms must guard query-only invitation editor changes and reset approval for the next draft");
+  }
   await checkDiscoveryLayout(pageA,{screenshotDir:artifacts,name:"profile"});
   await pageB.goto(`${base}/discover`);await pageB.getByRole("heading",{name:"Find someone to build with."}).waitFor();await pageB.getByRole("region",{name:"Selected person"}).waitFor();
   assert(!await pageB.locator("main").innerText().then(text=>text.includes("PRIVATE")));
@@ -89,14 +116,26 @@ try{
   await pageA.getByRole("textbox",{name:"Your private response",exact:true}).fill("UNFINISHED RESPONSE");await pageA.getByRole("button",{name:"Close this starter",exact:true}).click();await pageA.getByRole("button",{name:"Leave draft",exact:true}).click();await pageA.getByRole("button",{name:"Keep starter",exact:true}).click();
   const back=pageA.goBack({waitUntil:"commit",timeout:4000}).catch(()=>null);await pageA.getByRole("button",{name:"Keep editing",exact:true}).waitFor({timeout:3000});await pageA.getByRole("button",{name:"Keep editing",exact:true}).click();await back;assert.equal(await pageA.getByRole("textbox",{name:"Your private response",exact:true}).inputValue(),"UNFINISHED RESPONSE");
   await pageA.getByRole("button",{name:"Save privately",exact:true}).click();await pageA.getByText("Saved privately. Nothing was shared.").waitFor();
+  if(reviewRuns("reports"))assert.equal((await request(a,"POST",`/api/discovery/connections/${connectionId}/share`,{draftRevision:2,requestId:randomUUID()})).status,200);
   await pageA.getByRole("button",{name:"Your space",exact:true}).click();await pageA.getByRole("textbox",{name:"Your private reflection",exact:true}).fill("SOLO REFLECTION A");await pageA.getByRole("button",{name:"Save only for me",exact:true}).click();await pageA.getByText("Your saved reflection is private.").waitFor();assert(!JSON.stringify((await request(b,"GET",`/api/discovery/connections/${connectionId}`)).body).includes("SOLO REFLECTION A"));
   await checkDiscoveryLayout(pageA,{screenshotDir:artifacts,name:"private-reflection"});
   const dInvite=await request(d,"POST","/api/discovery/connections",{targetProfileId:a.profileId,topicKey:"support",hello:"Existing space remains",requestId:randomUUID()});assert.equal(dInvite.status,200);const dId=dInvite.body.value.id;
   assert.equal((await request(a,"POST",`/api/discovery/connections/${dId}/accept`,{})).status,200);assert.equal((await request(d,"POST",`/api/discovery/connections/${dId}/readiness`,{ready:true,consentVersion:1})).status,409);assert.equal(JSON.stringify(await prisma.relationship.findUnique({where:{id:oldRelationship.id},include:{members:true}})),oldSnapshot);
   await pageA.goto(`${base}${connectionUrl}`);await pageA.getByText("Build together · a separate mutual choice",{exact:true}).click();await pageA.getByRole("button",{name:"I choose to build together",exact:true}).click();await pageA.getByRole("button",{name:"Withdraw my choice",exact:true}).waitFor();
-  await pageB.reload();await pageB.getByRole("button",{name:"I choose to build together",exact:true}).click();await pageB.getByRole("button",{name:"Open our shared space",exact:true}).waitFor({timeout:3000});
+  await pageB.reload();
+  if(reviewRuns("promotion")){
+    await pageB.getByRole("textbox",{name:"Your private response",exact:true}).fill("B PRIVATE MUST NOT DISAPPEAR");await pageB.getByRole("button",{name:"I choose to build together",exact:true}).click();await pageB.getByRole("button",{name:"Keep editing",exact:true}).waitFor({timeout:3000});await pageB.getByRole("button",{name:"Keep editing",exact:true}).click();
+    assert.equal(await pageB.getByRole("textbox",{name:"Your private response",exact:true}).inputValue(),"B PRIVATE MUST NOT DISAPPEAR");assert.equal(await prisma.relationshipMember.count({where:{userId:b.id}}),0);
+    await pageB.getByRole("button",{name:"Save privately",exact:true}).click();await pageB.getByText("Saved privately. Nothing was shared.").waitFor();assert.equal(await prisma.discoverySharedResponse.count({where:{connectionId,ownerId:b.id}}),0,"Build guard must never auto-share private text");
+  }
+  await pageB.getByRole("button",{name:"I choose to build together",exact:true}).click();await pageB.getByRole("button",{name:"Open our shared space",exact:true}).waitFor({timeout:3000});
   const promoted=await prisma.discoveryConnection.findUniqueOrThrow({where:{id:connectionId}});assert.equal(promoted.state,"PROMOTED");assert.equal(await prisma.relationshipMember.count({where:{relationshipId:promoted.relationshipId}}),2);assert.equal((await prisma.discoveryConnection.findUniqueOrThrow({where:{id:secondId}})).state,"DECLINED");
-  await pageB.getByText("Safety & contact controls",{exact:true}).click();await pageB.getByLabel("Optional context",{exact:true}).fill("Browser safety review");await pageB.getByRole("button",{name:"Send report",exact:true}).click();await pageB.getByText("Report received for moderator review. We cannot promise a response time.",{exact:true}).waitFor();
+  await pageB.getByText("Safety & contact controls",{exact:true}).click();
+  if(reviewRuns("reports")){
+    const source=pageB.getByLabel("Content to report",{exact:true});await source.waitFor({timeout:3000});assert(await source.getByRole("option",{name:"Received invitation",exact:true}).count());await source.selectOption({label:"Shared response · version 1"});
+  }
+  await pageB.getByLabel("Optional context",{exact:true}).fill("Browser safety review");await pageB.getByRole("button",{name:"Send report",exact:true}).click();await pageB.getByText("Report received for moderator review. We cannot promise a response time.",{exact:true}).waitFor();
+  if(reviewRuns("reports")){const evidence=await prisma.discoveryReport.findFirstOrThrow({where:{reporterId:b.id,details:"Browser safety review"}});assert.equal(evidence.evidence.text,"PRIVATE UNSENT A","Reporting the old selected version must capture that snapshot, not the latest harmless replacement");}
   assert.equal((await request(c,"GET","/api/discovery/moderation/reports")).status,403);await pageMod.goto(`${base}/discovery/moderation`);await pageMod.getByRole("heading",{name:"Discovery report review."}).waitFor();
   await checkDiscoveryLayout(pageMod,{screenshotDir:artifacts,name:"moderation"});
   const reviewCard=pageMod.locator("section").filter({has:pageMod.getByText("Browser safety review",{exact:true})});

@@ -7,7 +7,7 @@ import {useDiscoveryResource} from "./use-discovery-resource";
 import type {PageOf,DiscoveryConnectionView,PublicDiscoveryProfile} from "./discovery.types";
 import StarterInvitation from "./StarterInvitation";
 import styles from "./discovery.module.scss";
-export default function ConnectionsPage(){return <DiscoveryShell><Connections/></DiscoveryShell>;}
+export default function ConnectionsPage(){const query=useSearchParams();return <DiscoveryShell key={query.toString()}><Connections/></DiscoveryShell>;}
 function Connections(){
   const {userId,me,leave,setDirty,setBusy}=useDiscovery(),router=useRouter(),query=useSearchParams(),profileId=query.get("profile"),[cursors,setCursors]=useState<(string|null)[]>([null]);
   const before=cursors.at(-1),load=useCallback((signal:AbortSignal)=>discoveryRequest<PageOf<DiscoveryConnectionView>>(userId,`/api/discovery/connections${before?`?before=${before}`:""}`,{signal}),[userId,before]);

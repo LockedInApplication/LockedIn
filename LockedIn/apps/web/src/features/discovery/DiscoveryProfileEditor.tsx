@@ -10,7 +10,7 @@ export default function DiscoveryProfileEditor({initial,areas,onDirty,onSave,onP
   const edit=(change:Partial<DiscoveryProfileInput>)=>{setDraft(value=>({...value,...change}));onDirty(true);};
   const run=async(work:()=>Promise<void>)=>{setBusy(true);setError("");try{await work();onDirty(false);}catch(error){setError(error instanceof Error?error.message:"Please try again.");}finally{setBusy(false);}};
   return <div className={styles.grid}><form className={`${styles.card} ${styles.form}`} onSubmit={event=>{event.preventDefault();void run(()=>onSave({...draft,interests:interests.split(",").map(value=>value.trim()).filter(Boolean)}));}}>
-    <h2>Your discovery profile</h2><p className={styles.muted}>Starts private. Saving is not publishing.</p>
+    <fieldset disabled={busy} className={styles.editorFields}><h2>Your discovery profile</h2><p className={styles.muted}>Starts private. Saving is not publishing.</p>
     <label>Public name<input value={draft.publicName} maxLength={60} required onChange={event=>edit({publicName:event.target.value})}/></label>
     <label>Avatar<select value={draft.avatarPreset} onChange={event=>edit({avatarPreset:event.target.value as DiscoveryProfileInput["avatarPreset"]})}>{avatarChoices.map(avatar=><option key={avatar.id} value={avatar.id}>{avatar.label}</option>)}</select></label>
     <label>Short introduction<textarea value={draft.bio} maxLength={500} onChange={event=>edit({bio:event.target.value})}/></label>
@@ -19,9 +19,9 @@ export default function DiscoveryProfileEditor({initial,areas,onDirty,onSave,onP
     <label>Communication pace (optional)<input value={draft.pace??""} maxLength={240} onChange={event=>edit({pace:event.target.value||null})}/></label>
     <label>Broad area<select required value={draft.areaId} onChange={event=>edit({areaId:event.target.value})}>{areas.map(area=><option key={area.id} value={area.id}>{area.label}</option>)}</select></label>
     {error?<p role="alert" className={`${styles.notice} ${styles.error}`}>{error}</p>:null}
-    <button disabled={busy || !draft.publicName.trim() || !draft.areaId} type="submit">Save private draft</button>
+    <button disabled={busy || !draft.publicName.trim() || !draft.areaId} type="submit">Save private draft</button></fieldset>
   </form><section className={`${styles.card} ${styles.form}`} aria-label="Public preview"><h2>Public preview</h2><div className={styles.profile}><ProfileAvatar name={draft.publicName} preset={draft.avatarPreset}/><strong>{draft.publicName||"Your chosen public name"}</strong></div><p className={styles.quote}>{draft.bio||"Your introduction appears here."}</p><p>{areas.find(area=>area.id===draft.areaId)?.label}</p><p>{draft.intention==="LONG_TERM"?"Looking for a long-term relationship":"Open to a long-term relationship"}</p><p>{interests}</p>{draft.pace?<p>{draft.pace}</p>:null}
-    <label className={styles.check}><input type="checkbox" checked={adult} onChange={event=>setAdult(event.target.checked)}/><span>I confirm I am 18 or older and choose to publish these fields to eligible discovery participants.</span></label>
+    <label className={styles.check}><input type="checkbox" checked={adult} disabled={busy} onChange={event=>setAdult(event.target.checked)}/><span>I confirm I am 18 or older and choose to publish these fields to eligible discovery participants.</span></label>
     <p className={styles.muted}>Self-attestation is not identity or age verification. Recipients keep invitation information you choose to send.</p>
     <button className={styles.primary} type="button" disabled={busy||dirty||initial.revision===0||!adult} onClick={()=>void run(onPublish)}>Publish profile</button>
     {dirty||initial.revision===0?<p className={styles.muted}>Save this draft first, then review and publish.</p>:null}

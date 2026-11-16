@@ -69,7 +69,8 @@ export function useProfileLeaveGuard(dirty: boolean, currentPath = "/profile") {
       )
         return;
       const url = new URL(destination.url, window.location.href);
-      if (url.origin !== window.location.origin || url.pathname === new URL(currentPath,window.location.origin).pathname)
+      const source = new URL(currentUrl);
+      if (url.origin !== window.location.origin || (url.pathname === source.pathname && url.search === source.search))
         return;
       event.preventDefault();
       void confirmLeave().then((leave) => {
@@ -81,7 +82,7 @@ export function useProfileLeaveGuard(dirty: boolean, currentPath = "/profile") {
         } else router.push(`${url.pathname}${url.search}${url.hash}`);
       });
     };
-    const currentUrl = new URL(currentPath, window.location.origin).href,
+    const currentUrl = window.location.href,
       currentState = window.history.state;
     const pop = (event: PopStateEvent) => {
       const position = currentState?.__lockedInHistoryPosition;
@@ -98,7 +99,7 @@ export function useProfileLeaveGuard(dirty: boolean, currentPath = "/profile") {
       if (
         !dirty ||
         approved.current ||
-        new URL(window.location.href).pathname === new URL(currentPath,window.location.origin).pathname
+        (new URL(window.location.href).pathname === new URL(currentUrl).pathname && new URL(window.location.href).search === new URL(currentUrl).search)
       )
         return;
       event.stopImmediatePropagation();

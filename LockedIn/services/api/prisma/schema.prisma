@@ -111,6 +111,18 @@ model User {
   notifications              Notification[]
   invitationBlocksCreated    InvitationBlock[] @relation("InvitationBlockOwner")
   invitationBlocksReceived   InvitationBlock[] @relation("InvitationBlockTarget")
+  discoveryProfile           DiscoveryProfile?
+  discoveryConnectionsLow    DiscoveryConnection[]       @relation("DiscoveryLowUser")
+  discoveryConnectionsHigh   DiscoveryConnection[]       @relation("DiscoveryHighUser")
+  discoveryInvitationsSent   DiscoveryConnection[]       @relation("DiscoveryInviter")
+  discoveryDrafts            DiscoveryDraft[]
+  discoverySharedResponses   DiscoverySharedResponse[]
+  privateReflection          PrivateReflection?
+  discoveryReportsCreated    DiscoveryReport[]           @relation("DiscoveryReporter")
+  discoveryReportsReceived   DiscoveryReport[]           @relation("DiscoveryReported")
+  discoveryModerationActions DiscoveryModerationAudit[]  @relation("DiscoveryModerator")
+  discoveryModerationTargets DiscoveryModerationAudit[]  @relation("DiscoveryModerated")
+  discoveryThrottles         DiscoveryThrottle[]
 
   @@map("user")
 }
@@ -144,8 +156,10 @@ model InvitationBlock {
   blockerId String
   blockedId String
   createdAt DateTime @default(now())
+  safePublicLabel String?
   blocker User @relation("InvitationBlockOwner",fields:[blockerId],references:[id],onDelete:Cascade)
   blocked User @relation("InvitationBlockTarget",fields:[blockedId],references:[id],onDelete:Cascade)
+
   @@unique([blockerId,blockedId])
   @@index([blockedId])
 }
@@ -161,6 +175,7 @@ model Relationship {
   conversationChoices ConversationChoice[]
   meaningChapters     MeaningChapter[]
   notifications       Notification[]
+  discoveryConnection DiscoveryConnection?
 }
 
 model Notification {
@@ -169,6 +184,7 @@ model Notification {
   recipientId    String
   relationshipId String?
   invitationId   String?
+  discoveryConnectionId String?
   kind           String
   entityId       String
   wordKey        String?
@@ -180,11 +196,164 @@ model Notification {
   recipient      User         @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   relationship   Relationship? @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
   invitation     RelationshipInvite? @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  discoveryConnection   DiscoveryConnection? @relation(fields: [discoveryConnectionId], references: [id], onDelete: Cascade)
 
   @@unique([recipientId, eventKey])
   @@index([recipientId, id])
   @@index([relationshipId])
   @@index([invitationId])
+  @@index([discoveryConnectionId])
+}
+
+enum DiscoveryConnectionState {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+  EXPIRED
+  CLOSED
+  PROMOTED
+}
+
+model DiscoveryProfile {
+  id                        String    @id @default(uuid())
+  ownerId                   String    @unique
+  draft                     Json
+  publishedSnapshot         Json?
+  publishedAreaId           String?
+  publishedIntention        String?
+  publicationVersion        Int       @default(0)
+  publicationConsentVersion Int?
+  publicationConsentedAt    DateTime?
+  adultAttestedAt           DateTime?
+  publishedAt               DateTime?
+  pausedAt                  DateTime?
+  suspendedAt               DateTime?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  owner                     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([publishedAreaId, publishedIntention])
+}
+
+model DiscoveryConnection {
+  id                   String                    @id @default(uuid())
+  userLowId            String
+  userHighId           String
+  inviterId            String
+  questionKey          String
+  questionText         String
+  hello                String
+  senderPublicName     String
+  senderAvatarPreset   String
+  state                DiscoveryConnectionState  @default(PENDING)
+  expiresAt            DateTime
+  declinedAt           DateTime?
+  acceptedAt           DateTime?
+  closedAt             DateTime?
+  lowReadinessVersion  Int?
+  highReadinessVersion Int?
+  consentVersion       Int                       @default(1)
+  relationshipId       String?                   @unique
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  userLow              User                      @relation("DiscoveryLowUser", fields: [userLowId], references: [id], onDelete: Cascade)
+  userHigh             User                      @relation("DiscoveryHighUser", fields: [userHighId], references: [id], onDelete: Cascade)
+  inviter              User                      @relation("DiscoveryInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  relationship         Relationship?             @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+  drafts               DiscoveryDraft[]
+  sharedResponses      DiscoverySharedResponse[]
+  reports              DiscoveryReport[]
+  notifications        Notification[]
+
+  @@index([userLowId, state])
+  @@index([userHighId, state])
+  @@index([inviterId, userLowId, userHighId, declinedAt], map: "DiscoveryConnection_directional_decline_idx")
+}
+
+model DiscoveryDraft {
+  id           String              @id @default(uuid())
+  connectionId String
+  ownerId      String
+  text         String
+  revision     Int                 @default(1)
+  updatedAt    DateTime            @updatedAt
+  connection   DiscoveryConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  owner        User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, ownerId])
+  @@index([ownerId])
+}
+
+model DiscoverySharedResponse {
+  id           String              @id @default(uuid())
+  connectionId String
+  ownerId      String
+  requestId    String
+  text         String
+  version      Int
+  sharedAt     DateTime            @default(now())
+  connection   DiscoveryConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  owner        User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, ownerId, requestId])
+  @@unique([connectionId, ownerId, version])
+  @@index([ownerId])
+}
+
+model PrivateReflection {
+  id        String   @id @default(uuid())
+  ownerId   String   @unique
+  text      String
+  revision  Int      @default(1)
+  updatedAt DateTime @updatedAt
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+model DiscoveryReport {
+  id               String                     @id @default(uuid())
+  reporterId       String
+  reportedUserId   String
+  connectionId     String?
+  reason           String
+  details          String?
+  createdAt        DateTime                   @default(now())
+  resolvedAt       DateTime?
+  reporter         User                       @relation("DiscoveryReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser     User                       @relation("DiscoveryReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  connection       DiscoveryConnection?       @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  moderationAudits DiscoveryModerationAudit[]
+
+  @@index([resolvedAt, createdAt])
+  @@index([reporterId])
+  @@index([reportedUserId])
+}
+
+model DiscoveryModerationAudit {
+  id           String           @id @default(uuid())
+  moderatorId  String
+  targetUserId String
+  reportId     String?
+  action       String
+  reason       String
+  createdAt    DateTime         @default(now())
+  moderator    User             @relation("DiscoveryModerator", fields: [moderatorId], references: [id], onDelete: Restrict)
+  targetUser   User             @relation("DiscoveryModerated", fields: [targetUserId], references: [id], onDelete: Restrict)
+  report       DiscoveryReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([targetUserId, createdAt])
+  @@index([moderatorId])
+}
+
+model DiscoveryThrottle {
+  id          String   @id @default(uuid())
+  userId      String
+  action      String
+  windowStart DateTime
+  count       Int      @default(0)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, action, windowStart])
 }
 
 model MeaningChapter {

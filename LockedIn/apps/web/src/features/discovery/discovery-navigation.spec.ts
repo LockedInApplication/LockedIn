@@ -5,6 +5,7 @@ it("allows known local destinations but never external or arbitrary return URLs"
   expect(safeDiscoveryDestination("/connections/known-id")).toBe("/connections/known-id");
   expect(safeDiscoveryDestination("/discover/profile")).toBe("/discover/profile");
   expect(safeDiscoveryDestination("/journey?view=atlas")).toBe("/journey?view=atlas");
+  expect(safeDiscoveryDestination("/verify-email?pending=1")).toBe("/verify-email?pending=1");
 });
 it("keeps the new-entry UI absent when disabled but retains a history destination",()=>{
   expect(discoveryEntry({canDiscover:false,hasHistory:false})).toBeNull();

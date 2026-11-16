@@ -1,12 +1,12 @@
 # Optional discovery photos with private storage and hybrid moderation
 
-Status: proposed design, awaiting user approval. No implementation or live provider operations authorized by this document.
+Status: approved by the user on 2026-11-16; implementation plan next. Approval does not authorize live provider operations, subscriptions, production migration or deployment.
 
 ## Intent and agreed choices
 
 Make discovery profiles more personal without replacing LockedIn's mutual-choice workflow. The user chose optional photos, Cloudinary storage rather than private S3, and automatic content screening with human review for uncertain/appealed results. Up to three photos and an avatar fallback were proposed and accepted as the first version. Photos do not verify identity, ownership, adulthood or compatibility.
 
-The numerical limits, retention defaults and implementation choices below are builder proposals, not previously agreed user requirements. They become the implementation contract only after design approval.
+The numerical limits, retention defaults and implementation choices below originated as builder proposals and were included in the approved design.
 
 ## Goals, non-goals and anti-goals
 
@@ -108,4 +108,4 @@ Primary references checked during design:
 
 ## Builder check
 
-A fresh read-only builder check identified one ambiguity: whether owners could view rejected images. Resolved as a builder proposal: rejected images are status-only for owners; no owner thumbnail or byte access, with review-purpose moderator access only while retention/provider rules permit it. This avoids maintaining a user-viewable rejected-content gallery. No further product questions were raised by that check. The complete design still requires user approval before implementation.
+A fresh read-only builder check identified one ambiguity: whether owners could view rejected images. Resolved in the approved design: rejected images are status-only for owners; no owner thumbnail or byte access, with review-purpose moderator access only while retention/provider rules permit it. This avoids maintaining a user-viewable rejected-content gallery. No further product questions were raised by that check.

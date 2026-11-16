@@ -17,7 +17,7 @@ type TraverseEvent = Event & {
   destination?: { key?: string; url: string };
 };
 
-export function useProfileLeaveGuard(dirty: boolean) {
+export function useProfileLeaveGuard(dirty: boolean, currentPath = "/profile") {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const pending = useRef<((leave: boolean) => void) | null>(null),
@@ -69,7 +69,7 @@ export function useProfileLeaveGuard(dirty: boolean) {
       )
         return;
       const url = new URL(destination.url, window.location.href);
-      if (url.origin !== window.location.origin || url.pathname === "/profile")
+      if (url.origin !== window.location.origin || url.pathname === new URL(currentPath,window.location.origin).pathname)
         return;
       event.preventDefault();
       void confirmLeave().then((leave) => {
@@ -81,7 +81,7 @@ export function useProfileLeaveGuard(dirty: boolean) {
         } else router.push(`${url.pathname}${url.search}${url.hash}`);
       });
     };
-    const currentUrl = new URL("/profile", window.location.origin).href,
+    const currentUrl = new URL(currentPath, window.location.origin).href,
       currentState = window.history.state;
     const pop = (event: PopStateEvent) => {
       const position = currentState?.__lockedInHistoryPosition;
@@ -98,7 +98,7 @@ export function useProfileLeaveGuard(dirty: boolean) {
       if (
         !dirty ||
         approved.current ||
-        new URL(window.location.href).pathname === "/profile"
+        new URL(window.location.href).pathname === new URL(currentPath,window.location.origin).pathname
       )
         return;
       event.stopImmediatePropagation();
@@ -128,7 +128,7 @@ export function useProfileLeaveGuard(dirty: boolean) {
       else if (window.__lockedInProfileHistoryGuard === pop)
         delete window.__lockedInProfileHistoryGuard;
     };
-  }, [dirty, confirmLeave, resetApproval, router]);
+  }, [dirty, confirmLeave, resetApproval, router, currentPath]);
   return {
     confirmLeave,
     resetApproval,

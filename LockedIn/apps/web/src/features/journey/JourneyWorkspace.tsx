@@ -33,6 +33,10 @@ import ConversationSuggestionView from "../conversations/ConversationSuggestionV
 import conversationStyles from "../conversations/conversation-library.module.scss";
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
 import {useCompactWorkspace,useResponsiveActionRef} from './use-compact-workspace';
+import {discoveryRequest} from "@/features/discovery/discovery.client";
+import {discoveryEntry} from "@/features/discovery/discovery-navigation";
+import {useDiscoveryResource} from "@/features/discovery/use-discovery-resource";
+import type {DiscoveryMe} from "@/features/discovery/discovery.types";
 
 type Notice = { tone: "success" | "error"; message: string } | null;
 
@@ -49,6 +53,10 @@ export default function JourneyWorkspace() {
   const [invitationRevision,setInvitationRevision]=useState(0);
   const dirty=useRef(false);
   const compactWorkspace=useCompactWorkspace();
+  const discoveryOwner=overview?.user.id??"";
+  const loadDiscovery=useCallback((signal:AbortSignal)=>discoveryRequest<DiscoveryMe>(discoveryOwner,"/api/discovery/me",{signal}),[discoveryOwner]);
+  const discoveryAccess=useDiscoveryResource(discoveryOwner,"me",loadDiscovery);
+  const explore=discoveryEntry(discoveryAccess.value);
   const actionRef=useResponsiveActionRef();
   useJourneyHistoryGuard(dirty);
   const targetQuery=new URL(workspaceLocation,"http://localhost").searchParams;
@@ -246,6 +254,7 @@ export default function JourneyWorkspace() {
   };
 
   const header=<WorkspaceHeader onSignOut={signOut}
+    onExplore={explore?()=>{if(!busy&&confirmDiscard())router.push(explore.path);}:undefined} exploreLabel={explore?.label}
     user={overview.user} onProfile={()=>{if(confirmDiscard())router.push("/profile");}}
     onInvitations={invitationManagerOpen?undefined:()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey?invitations=manage");}}
     notifications={<NotificationBell key={overview.user.id} userId={overview.user.id} onOpen={openNotification} onActivity={onActivity} onExpired={onExpired} onStatusChange={onInvitationUpdate}/>}/>;

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL, JourneyApiError } from "@/features/journey/journey.client";
 import { fetchNotifications, readNotification } from "./notification.client";
 import type { ConnectionState, NotificationInbox } from "./notification.types";
-export function useNotifications(userId: string, onActivity: () => void, onExpired: () => void,onStatusChange?:(activity?:boolean)=>void) {
+export function useNotifications(userId: string, onActivity: () => void, onExpired: () => void,onStatusChange?:(activity?:boolean)=>void,onChatSync?:()=>void) {
     const [inbox, setInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, nextCursor: null });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -45,12 +45,15 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
         void load();
         const stream = new EventSource(`${API_URL}/api/journey/notifications/stream`, { withCredentials: true });
         source.current = stream;
-        stream.onopen = () => { if (!abort.signal.aborted)
-            setConnection("live"); };
+        stream.onopen = () => { if (!abort.signal.aborted) {
+            setConnection("live"); onChatSync?.();
+        } };
+        stream.addEventListener("discovery-chat-changed", () => { if (!abort.signal.aborted) onChatSync?.(); });
         stream.addEventListener("notifications-changed", event => {
             if (abort.signal.aborted)
                 return;
             void load();
+            onChatSync?.();
             try {
                 const activity=JSON.parse((event as MessageEvent).data).activity===true;
                 onStatusChange?.(activity);
@@ -69,7 +72,7 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
         const focus = () => { void load(); };
         window.addEventListener("focus", focus);
         return () => { abort.abort(); stream.close(); clearInterval(timer); window.removeEventListener("focus", focus); controller.current = null; source.current = null; };
-    }, [userId, load, onActivity, onExpired,onStatusChange]);
+    }, [userId, load, onActivity, onExpired,onStatusChange,onChatSync]);
     const markRead = async (id: string) => {
         const signal = controller.current?.signal;
         if (!signal)

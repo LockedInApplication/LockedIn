@@ -63,6 +63,14 @@ export async function unblockDiscoveryContact(actorId: string, blockId: string) 
   return result.ok ? { ok: true as const, value: { unblocked: true } } : result;
 }
 async function reportSource(tx: Prisma.TransactionClient, actorId: string, sourceType: string, sourceId: string) {
+  if (sourceType === "MESSAGE") {
+    const message = await tx.discoveryMessage.findUnique({ where: { id: sourceId } });
+    if (!message || message.senderId === actorId) return null;
+    // Previously received text remains reportable after closure or blocking.
+    const connection = await visibleConnection(tx, actorId, message.connectionId);
+    if (!connection || connection.targetId !== message.senderId) return null;
+    return { targetId: connection.targetId, label: connection.label, connectionId: connection.row.id, evidence: { text: message.text, sentAt: message.createdAt.toISOString(), publicName: connection.label } };
+  }
   if (sourceType === "PHOTO") {
     const config = getPhotoConfig();
     if (!config.enabled || !config.configured) return null;

@@ -1,0 +1,16 @@
+.messages {
+  display: grid;
+  gap: .65rem;
+  list-style: none;
+  padding: 0;
+  li {
+    justify-self: start;
+    max-width: min(100%, 36rem);
+    border: 1px solid #c7b8c8;
+    background: #fffaf3;
+    border-radius: .85rem;
+    padding: .65rem .8rem;
+  }
+  p { margin: .3rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .mine { justify-self: end; background: #f2e8f5; }
+}

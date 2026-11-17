@@ -19,7 +19,10 @@ export function registerStream(server: FastifyInstance) {
             if (!stream.push(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
                 stream.destroy();
         };
-        const unsubscribe = notificationBroker.subscribe(userId, activity => emit("notifications-changed", { activity }));
+        const unsubscribe = notificationBroker.subscribe(userId, (activity, kind) => {
+            if (kind === "chat") emit("discovery-chat-changed", {});
+            else emit("notifications-changed", { activity });
+        });
         if (!unsubscribe)
             return reply.code(429).header("Retry-After", "15").send({ error: "Too many notification connections." });
         streams.add(stream);

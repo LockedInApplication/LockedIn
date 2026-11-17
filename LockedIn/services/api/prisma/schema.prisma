@@ -117,6 +117,7 @@ model User {
   discoveryInvitationsSent   DiscoveryConnection[]       @relation("DiscoveryInviter")
   discoveryDrafts            DiscoveryDraft[]
   discoverySharedResponses   DiscoverySharedResponse[]
+  discoveryMessages          DiscoveryMessage[]
   privateReflection          PrivateReflection?
   discoveryReportsCreated    DiscoveryReport[]           @relation("DiscoveryReporter")
   discoveryReportsReceived   DiscoveryReport[]           @relation("DiscoveryReported")
@@ -367,6 +368,7 @@ model DiscoveryConnection {
   relationship         Relationship?             @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
   drafts               DiscoveryDraft[]
   sharedResponses      DiscoverySharedResponse[]
+  messages             DiscoveryMessage[]
   reports              DiscoveryReport[]
   notifications        Notification[]
 
@@ -374,6 +376,22 @@ model DiscoveryConnection {
   @@unique([inviterId, requestId])
   @@index([userHighId, state])
   @@index([inviterId, userLowId, userHighId, declinedAt], map: "DiscoveryConnection_directional_decline_idx")
+}
+
+model DiscoveryMessage {
+  id           String              @id @default(uuid())
+  sequence     BigInt              @unique @default(autoincrement())
+  connectionId String
+  senderId     String
+  requestId    String
+  text         String
+  createdAt    DateTime            @default(now())
+  connection   DiscoveryConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  sender       User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, senderId, requestId])
+  @@index([connectionId, sequence])
+  @@index([senderId])
 }
 
 model DiscoveryDraft {

@@ -4,6 +4,7 @@ import { getDiscoveryConfig } from "../../config/env.js";
 import { getDiscoveryCapabilities } from "./discovery.policy.js";
 import { registerDiscoveryProfileRoutes } from "./discovery-profile.routes.js";
 import { registerDiscoveryConnectionRoutes } from "./discovery-connection.routes.js";
+import { discoveryChatEnabled, registerDiscoveryChatRoutes } from "./discovery-chat.routes.js";
 import { discoveryTopics } from "./discovery-topics.js";
 import { registerDiscoveryResponseRoutes } from "./discovery-response.routes.js";
 import { registerDiscoverySafetyRoutes } from "./discovery-safety.routes.js";
@@ -23,6 +24,7 @@ export async function registerDiscoveryRoutes(server: FastifyInstance, options: 
   registerPhotoModerationRoutes(server, provider);
   await registerDiscoveryProfileRoutes(server);
   await registerDiscoveryConnectionRoutes(server);
+  registerDiscoveryChatRoutes(server);
   await registerDiscoveryResponseRoutes(server);
   await registerDiscoverySafetyRoutes(server);
   registerDiscoveryDistanceRoutes(server, options.discoveryGeocoder ?? getDiscoveryGeocoder());
@@ -31,6 +33,6 @@ export async function registerDiscoveryRoutes(server: FastifyInstance, options: 
     const user = await requireUser(request, reply);
     if (!user) return;
     const capabilities = await getDiscoveryCapabilities({ userId: user.id, emailVerified: user.emailVerified });
-    return { ownerId: user.id, value: { ...capabilities, photos: photoCapabilities(), areas: capabilities.canDiscover ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
+    return { ownerId: user.id, value: { ...capabilities, chatEnabled: discoveryChatEnabled(), photos: photoCapabilities(), areas: capabilities.canDiscover ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
   });
 }

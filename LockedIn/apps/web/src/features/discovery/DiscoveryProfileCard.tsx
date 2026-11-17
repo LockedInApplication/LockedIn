@@ -1,44 +1,54 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import type { DiscoveryProfileInput } from "./discovery.types";
 import { DiscoveryPhotoImage } from "./photos/DiscoveryPhotoGallery";
 import common from "./discovery.module.scss";
 import styles from "./discovery-profile-card.module.scss";
-import { discoveryProfilePrompt } from "./discovery-prompt";
+import { familyOptions, heightLabel, petOptions, photoPrompts, profileAnswers, writtenPrompts, type ProfileReply } from "./discovery-prompt";
 
 export default function DiscoveryProfileCard({ profile, area, photoIds = [], onReply, children }: {
-  profile: DiscoveryProfileInput; area?: string; photoIds?: string[]; onReply?: () => void; children?: ReactNode;
+  profile: DiscoveryProfileInput; area?: string; photoIds?: string[]; onReply?: (target: ProfileReply) => void; children?: ReactNode;
 }) {
-  const [index, setIndex] = useState(0);
   const photos = photoIds.slice(0, 3);
-  const active = Math.min(index, Math.max(0, photos.length - 1));
-  const id = photos[active];
+  const answers = profileAnswers(profile);
+  const { heightCm, languages, pets, familyPlans } = profile.about ?? {};
   const avatar = <div className={styles.fallback}><ProfileAvatar name={profile.publicName} preset={profile.avatarPreset}/></div>;
-
-  return <div className={styles.layout}>
-    <div className={styles.visual}>
+  const photo = (id: string | undefined, index: number) => {
+    const prompt = profile.photoPrompts?.find(item => item.photoId === id);
+    return <div className={styles.visual}>
       <div className={id ? styles.frame : `${styles.frame} ${styles.avatarFrame}`}>
-        {id ? <DiscoveryPhotoImage key={id} id={id} className={styles.photo} alt={`Photo ${active + 1} of ${profile.publicName}`} fallback={avatar}/> : avatar}
+        {id ? <DiscoveryPhotoImage key={id} id={id} className={styles.photo} alt={`Photo ${index + 1} of ${profile.publicName}`} fallback={avatar}/> : avatar}
       </div>
-      {photos.length > 1 ? <div className={styles.controls} role="group" aria-label="Profile photos">
-        <button type="button" aria-label="Previous photo" disabled={active === 0} onClick={() => setIndex(active - 1)}>←</button>
-        <span role="status">{active + 1} / {photos.length}</span>
-        <button type="button" aria-label="Next photo" disabled={active === photos.length - 1} onClick={() => setIndex(active + 1)}>→</button>
-      </div> : null}
-    </div>
-    <div className={styles.details}>
+      {prompt ? <p className={styles.caption}>{photoPrompts[prompt.key]}</p> : null}
+      {id && onReply ? <button type="button" onClick={() => onReply({ photo: id })}>Reply to photo {index + 1}</button> : null}
+    </div>;
+  };
+  const answerCard = (item: typeof answers[number]) => <section key={item.key} className={styles.prompt}>
+    <h3>{writtenPrompts[item.key]}</h3><p className={common.quote}>{item.answer}</p>
+    {onReply ? <button type="button" onClick={() => onReply({ prompt: item.key })}>Reply to this answer</button> : null}
+  </section>;
+  return <div className={styles.story}>
+      {photo(photos[0], 0)}
       <div><h2>{profile.publicName}</h2>{area ? <p className={common.muted}>{area}</p> : null}</div>
       <p className={styles.intention}>{profile.intention === "LONG_TERM" ? "Looking for a long-term relationship" : "Open to a long-term relationship"}</p>
-      {profile.promptAnswer ? <section className={styles.prompt}>
-        <h3>{discoveryProfilePrompt}</h3><p className={common.quote}>{profile.promptAnswer}</p>
-        {onReply ? <button type="button" onClick={onReply}>Reply to this answer</button> : null}
+      {answers[0] ? answerCard(answers[0]) : null}
+      {profile.bio || heightCm || languages?.length || pets || familyPlans ? <section><h3>About me</h3>
+        {profile.bio ? <p className={common.quote}>{profile.bio}</p> : null}
+        <ul className={styles.interests}>
+          {heightCm ? <li>{heightCm} cm · {heightLabel(Math.round(heightCm / 2.54))}</li> : null}
+          {languages?.length ? <li>Speaks {languages.join(", ")}</li> : null}
+          {pets ? <li>{petOptions[pets]}</li> : null}
+          {familyPlans ? <li>{familyOptions[familyPlans]}</li> : null}
+        </ul>
       </section> : null}
-      {profile.bio ? <div><h3>About me</h3><p className={common.quote}>{profile.bio}</p></div> : null}
       {profile.interests.length ? <div><h3>Interests</h3><ul className={styles.interests}>{profile.interests.map((interest, i) => <li key={i}>{interest}</li>)}</ul></div> : null}
       {profile.pace ? <div><h3>Communication pace</h3><p className={common.quote}>{profile.pace}</p></div> : null}
+      {[1, 2].map(index => <div className={styles.storyPart} key={index}>
+        {photos[index] ? photo(photos[index], index) : null}
+        {answers[index] ? answerCard(answers[index]) : null}
+      </div>)}
       {children}
-    </div>
   </div>;
 }

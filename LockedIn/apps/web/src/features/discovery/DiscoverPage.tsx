@@ -65,7 +65,7 @@ function CandidateDetail({profileId}:{profileId:string}){
   const profileSource={sourceType:"PROFILE" as const,sourceId:person.id};
   const reports=[profileSource,...(person.photos??[]).map((photo,index)=>({sourceType:"PHOTO" as const,sourceId:photo.id,label:`Discovery photo ${index+1}`}))];
   return <section className={styles.card} aria-label="Selected person">
-    <DiscoveryProfileCard profile={person} area={me.areas.find(area=>area.id===person.areaId)?.label} photoIds={person.photos?.map(photo=>photo.id)} onReply={()=>void leave(`/connections?profile=${encodeURIComponent(person.id)}&reply=prompt`)}>
+    <DiscoveryProfileCard profile={person} area={me.areas.find(area=>area.id===person.areaId)?.label} photoIds={person.photos?.map(photo=>photo.id)} onReply={target=>void leave(`/connections?${new URLSearchParams({profile:person.id,...("photo" in target?{photo:target.photo}:{reply:target.prompt})})}`)}>
       {why.length?<p className={styles.muted}><strong>Why you’re seeing this profile:</strong> {why.join(" · ")}</p>:null}
       <button className={styles.primary} onClick={()=>void leave(`/connections?profile=${encodeURIComponent(person.id)}`)}>Start a conversation</button>
       <DiscoverySafetyActions profileId={person.id} reportSource={profileSource} reportSources={reports} onBlocked={()=>void leave("/connections")}/>

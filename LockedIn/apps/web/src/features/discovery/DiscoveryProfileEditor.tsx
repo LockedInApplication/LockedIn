@@ -1,9 +1,10 @@
 "use client";
 import {useState} from "react";
 import type {DiscoveryProfileInput, OwnDiscoveryProfile } from "./discovery.types";
-import ProfileAvatar,{avatarChoices} from "@/features/profile/ProfileAvatar";
+import {avatarChoices} from "@/features/profile/ProfileAvatar";
 import styles from "./discovery.module.scss";
-import {discoveryProfilePrompt} from "./discovery-prompt";
+import DiscoveryProfileExtras from "./DiscoveryProfileExtras";
+import DiscoveryProfileCard from "./DiscoveryProfileCard";
 export default function DiscoveryProfileEditor({initial,areas,onDirty,onSave,onPublish,externallyBusy=false}:{initial:OwnDiscoveryProfile;areas:{id:string;label:string}[];onDirty:(dirty:boolean)=>void;onSave:(draft:DiscoveryProfileInput)=>Promise<void>;onPublish:()=>Promise<void>;externallyBusy?:boolean}) {
   const [draft,setDraft]=useState<DiscoveryProfileInput>(initial.draft??{publicName:"",avatarPreset:"leaf",bio:"",intention:"LONG_TERM",interests:[],pace:null,areaId:areas[0]?.id??""});
   const [interests,setInterests]=useState(draft.interests.join(", ")),[adult,setAdult]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
@@ -18,12 +19,12 @@ export default function DiscoveryProfileEditor({initial,areas,onDirty,onSave,onP
     <label>What are you looking for?<select value={draft.intention} onChange={event=>edit({intention:event.target.value as DiscoveryProfileInput["intention"]})}><option value="LONG_TERM">A long-term relationship</option><option value="OPEN_TO_LONG_TERM">Open to a long-term relationship</option></select></label>
     <label>Interests, separated by commas<input value={interests} maxLength={158} onChange={event=>{setInterests(event.target.value);onDirty(true);}}/><small>Up to five; 30 characters each.</small></label>
     <label>Communication pace (optional)<input value={draft.pace??""} maxLength={240} onChange={event=>edit({pace:event.target.value||null})}/></label>
-    <label>{discoveryProfilePrompt} (optional)<textarea value={draft.promptAnswer??""} maxLength={240} onChange={event=>edit({promptAnswer:event.target.value})}/><small>Your answer stays private until you publish. People can reply with a starter invitation.</small></label>
+    <DiscoveryProfileExtras draft={draft} edit={edit}/>
     <label>Discovery city<select required value={draft.areaId} onChange={event=>edit({areaId:event.target.value})}>{areas.map(area=><option key={area.id} value={area.id}>{area.label}</option>)}</select><small>People see only this selected city, not your precise location.</small></label>
     {error?<p role="alert" className={`${styles.notice} ${styles.error}`}>{error}</p>:null}
     <button disabled={busy || !draft.publicName.trim() || !draft.areaId} type="submit">Save private draft</button></fieldset>
-  </form><section className={`${styles.card} ${styles.form}`} aria-label="Review and publish"><h2>Review and publish</h2><p className={styles.muted}>Preview of your draft details. Manage photos below.</p><div className={styles.profile}><ProfileAvatar name={draft.publicName} preset={draft.avatarPreset}/><strong>{draft.publicName||"Your chosen public name"}</strong></div><p className={styles.quote}>{draft.bio||"Your introduction appears here."}</p><p>{areas.find(area=>area.id===draft.areaId)?.label}</p><p>{draft.intention==="LONG_TERM"?"Looking for a long-term relationship":"Open to a long-term relationship"}</p><p>{interests}</p>{draft.pace?<p>{draft.pace}</p>:null}
-    {draft.promptAnswer?.trim()?<div><h3>{discoveryProfilePrompt}</h3><p className={styles.quote}>{draft.promptAnswer}</p></div>:null}
+  </form><section className={`${styles.card} ${styles.form}`} aria-label="Review and publish"><h2>Review and publish</h2><p className={styles.muted}>Draft preview. Only approved photos can be published.</p>
+    <DiscoveryProfileCard profile={{...draft,publicName:draft.publicName||"Your chosen public name",interests:interests.split(",").map(value=>value.trim()).filter(Boolean),...(draft.prompts?{prompts:draft.prompts.filter(item=>item.answer.trim())}:{})}} area={areas.find(area=>area.id===draft.areaId)?.label} photoIds={draft.photoIds}/>
     <label className={styles.check}><input type="checkbox" checked={adult} disabled={busy} onChange={event=>setAdult(event.target.checked)}/><span>I confirm I am 18 or older and choose to publish these fields to eligible discovery participants.</span></label>
     <p className={styles.muted}>Self-attestation is not identity or age verification. Recipients keep invitation information you choose to send.</p>
     <button className={styles.primary} type="button" disabled={busy||externallyBusy||dirty||initial.revision===0||!adult} onClick={()=>void run(onPublish)}>Publish profile</button>

@@ -4,6 +4,18 @@ import type { PublicDiscoveryProfile } from "./discovery.types.js";
 export const discoveryIntentions = ["LONG_TERM", "OPEN_TO_LONG_TERM"] as const;
 export const profilePromptKey = "profile_prompt";
 export const profilePrompt = "What does showing up for someone look like to you?";
+export const writtenPrompts = {
+  showing_up: profilePrompt,
+  sunday: "A Sunday I’d happily repeat…",
+  cared_for: "What makes you feel cared for?",
+  together: "Something I’d love to try together…",
+  tradition: "A tradition I’d like to start…",
+} as const;
+export const photoPrompts = {
+  story: "The story behind this photo…",
+  happy_place: "My happy place",
+  favorite_memory: "A memory I’d relive",
+} as const;
 export const dayMs = 86_400_000;
 export const compatibleIntentions = (intention: string | null) => discoveryIntentions.some(value => value === intention) ? [...discoveryIntentions] : [];
 export const intentionsMatch = (left: string | null, right: string | null) => compatibleIntentions(left).some(value => value === right);

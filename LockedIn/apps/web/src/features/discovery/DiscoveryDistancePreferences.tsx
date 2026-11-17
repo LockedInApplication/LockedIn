@@ -66,12 +66,13 @@ export default function DiscoveryDistancePreferences({ userId, initial, onSaved,
       </fieldset> : null}
     </> : <p>New location lookups are unavailable right now.</p>}
     {initial.configured || initial.preference ? <p className={styles.muted}>Powered by <a href="https://www.geoapify.com/">Geoapify</a> · <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a> · <a href="https://www.geoapify.com/products-and-services/">Other data sources</a></p> : null}
-    <div className={styles.form}>
-      <label htmlFor={rangeId}>Maximum distance</label>
-      <select id={rangeId} aria-describedby={rangeHint} value={miles} disabled={busy} onChange={event => setMiles(Number(event.target.value))}>
-        {ranges.map(range => <option key={range} value={range}>{range} mi</option>)}
-      </select>
-    </div>
+    <fieldset className={styles.rangeField} aria-describedby={rangeHint} disabled={busy}>
+      <legend>Maximum distance</legend>
+      <div className={styles.rangeOptions}>{ranges.map(range => <label key={range}>
+        <input type="radio" name={rangeId} value={range} checked={miles === range} onChange={() => setMiles(range)}/>
+        <span>{range} mi</span>
+      </label>)}</div>
+    </fieldset>
     <p id={rangeHint} className={styles.muted}>You’ll only see each other if you’re within both people’s ranges. Distance is measured in a straight line, not by travel time.</p>
     {message ? <p role="status">{message}</p> : null}
     {error ? <p role="alert">{error}</p> : null}

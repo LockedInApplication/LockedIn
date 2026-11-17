@@ -62,8 +62,9 @@ export async function authRoutes(server: FastifyInstance) {
         }
 
         return reply.send(bodyText || null);
-      } catch (error) {
-        request.log.error(error, "Authentication error");
+      } catch {
+        // Auth errors can include the original credential-bearing URL.
+        request.log.error("Authentication error");
 
         return reply.code(500).send({
           error: "Internal authentication error",

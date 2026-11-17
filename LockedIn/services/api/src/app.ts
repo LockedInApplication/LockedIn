@@ -1,4 +1,5 @@
-import Fastify from "fastify";
+import type { Writable } from "node:stream";
+import Fastify, { type FastifyRequest } from "fastify";
 import fastifyCors from "@fastify/cors";
 import { authRoutes } from "./routes/auth.routes.js";
 import { healthRoutes } from "./routes/health.routes.js";
@@ -9,8 +10,38 @@ import { registerDiscoveryRoutes } from "./features/discovery/discovery.routes.j
 import type { PhotoProvider } from "./features/discovery/photos/photo.types.js";
 import type { DiscoveryGeocoder } from "./features/discovery/discovery-geocoding.js";
 
-export async function buildServer(options: { photoProvider?: PhotoProvider; discoveryGeocoder?: DiscoveryGeocoder } = {}) {
-  const server = Fastify({ logger: true });
+function serializeRequestForLog(request: FastifyRequest) {
+  const path = request.url.split("?", 1)[0];
+  const authPath = path === "/api/auth" || path.startsWith("/api/auth/");
+  const version = request.headers["accept-version"];
+
+  return {
+    method: request.method,
+    // Verification tokens are in the query; password reset tokens are in the path.
+    url: authPath
+      ? path.replace(/^\/api\/auth\/reset-password\/.*/, "/api/auth/reset-password/:token")
+      : request.url,
+    version: Array.isArray(version) ? version[0] : version,
+    host: request.host,
+    remoteAddress: request.ip,
+    remotePort: request.socket?.remotePort,
+  };
+}
+
+export async function buildServer({
+  logStream,
+  ...discoveryOptions
+}: {
+  logStream?: Writable;
+  photoProvider?: PhotoProvider;
+  discoveryGeocoder?: DiscoveryGeocoder;
+} = {}) {
+  const server = Fastify({
+    logger: {
+      ...(logStream ? { stream: logStream } : {}),
+      serializers: { req: serializeRequestForLog },
+    },
+  });
 
   await server.register(fastifyCors, {
     origin: ["http://localhost:3000", "http://localhost:3001"],
@@ -24,7 +55,7 @@ export async function buildServer(options: { photoProvider?: PhotoProvider; disc
   server.register(usersRoutes);
   server.register(journeyRoutes);
   server.register(registerProfileRoutes);
-  server.register(registerDiscoveryRoutes, options);
+  server.register(registerDiscoveryRoutes, discoveryOptions);
 
   return server;
 }

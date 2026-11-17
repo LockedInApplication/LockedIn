@@ -36,10 +36,6 @@ export const auth = betterAuth({
     expiresIn: 60 * 60, // 1 hour
 
     sendVerificationEmail: async ({ user, url }) => {
-      if (process.env.NODE_ENV !== "production") {
-        console.log("Verification URL:", url);
-      }
-
       await sendEmail({ user, url });
     },
   },

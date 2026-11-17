@@ -7,6 +7,17 @@
 .actions {
   position: relative;
 }
+.profileButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (min-width: 701px) {
+  .header {
+    // Match the centered main content: min(1280px, 91vw).
+    padding-inline: calc((100% - min(1280px, 91vw)) / 2);
+  }
+}
 @media (max-width: 700px) {
   .header {
     min-height: 72px;

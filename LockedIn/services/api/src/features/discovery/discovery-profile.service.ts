@@ -40,6 +40,7 @@ export async function saveDiscoveryProfileDraft(actorId: string, input: Discover
     const selected = parsed.data.photoIds ?? (existing ? discoveryDraft(existing).profile?.photoIds : undefined);
     const previouslyAttached = new Set(existing ? [...draftPhotoIds(existing), ...publishedPhotoIds(existing)] : []);
     if (selected?.some(id => !previouslyAttached.has(id)) || !await validPhotoSelection(tx, existing, selected ?? [])) return invalid;
+    if (parsed.data.photoPrompts?.some(prompt => !selected?.includes(prompt.photoId))) return invalid;
     const draft = { revision: revision + 1, profile: { ...parsed.data, ...(selected === undefined ? {} : { photoIds: selected }) } };
     const profile = await tx.discoveryProfile.upsert({ where: { ownerId: actorId }, create: { ownerId: actorId, draft }, update: { draft } });
     if (existing) await revokeRemovedPhotos(tx, profile, draftPhotoIds(existing));

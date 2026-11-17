@@ -75,7 +75,11 @@ try{
     const result=await request(person,"POST","/api/discovery/profile/publish",{draftRevision:1,adultAttested:true});assert.equal(result.status,200);person.profileId=result.body.value.published.id;
   }
   await pageA.goto(`${base}/discover/profile`);await pageA.getByLabel("Public name",{exact:true}).fill(a.publicName);await pageA.getByLabel("Short introduction").fill("A public introduction from A");
-  if(reviewRuns("matching"))await pageA.getByLabel(/What does showing up for someone look like to you/).fill("Listen and follow up.");
+  if(reviewRuns("matching")){
+    await pageA.getByRole("button",{name:"Add written prompt",exact:true}).click();
+    await pageA.getByLabel("Your answer",{exact:true}).fill("Listen and follow up.");
+    await pageA.getByLabel("Height",{exact:true}).selectOption("175");
+  }
   assert.equal(await pageA.getByRole("button",{name:"Refresh when ready",exact:true}).count(),0,"Initial quiet notification connection must not fill the page with a false activity banner");
   async function pendingProfileOperation(endpoint,button){
     if(!reviewRuns("profile")){await button.click();return;}
@@ -89,7 +93,11 @@ try{
   }
   await pendingProfileOperation("/api/discovery/profile",pageA.getByRole("button",{name:"Save private draft",exact:true}));await pageA.getByText("Private draft saved. It has not been published.").waitFor();
   await pageA.getByLabel(/I confirm I am 18 or older/).check();await pendingProfileOperation("/api/discovery/profile/publish",pageA.getByRole("button",{name:"Publish profile",exact:true}));await pageA.getByText(/^Profile published/).waitFor();
-  if(reviewRuns("matching"))await pageA.getByRole("region",{name:"Published Discovery profile",exact:true}).getByText("Listen and follow up.",{exact:true}).waitFor();
+  if(reviewRuns("matching")){
+    const published=pageA.getByRole("region",{name:"Published Discovery profile",exact:true});
+    await published.getByText("Listen and follow up.",{exact:true}).waitFor();
+    await published.getByText(/175 cm/).waitFor();
+  }
   a.profileId=(await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:a.id}})).id;
   for(const person of [b,c,d])await publish(person);
   if(reviewRuns("photos")){
@@ -130,6 +138,9 @@ try{
     assert.equal((await contexts.get(b.id).context.request.get(base+media)).status(),404);
     await pageA.getByRole("button",{name:"Refresh photo status",exact:true}).click();
     await pageA.getByText("Ready to publish",{exact:true}).waitFor();
+    await pageA.getByLabel("Photo 1 prompt",{exact:true}).selectOption("story");
+    await pageA.getByRole("button",{name:"Save private draft",exact:true}).click();
+    await pageA.getByText("Private draft saved. It has not been published.",{exact:true}).waitFor();
     await pageA.getByLabel(/I confirm I am 18 or older/).check();await pageA.getByRole("button",{name:"Publish profile",exact:true}).click();
     await pageA.getByText(/^Profile published/).waitFor();
     const ownerCard=pageA.getByRole("region",{name:"Published Discovery profile",exact:true});
@@ -148,6 +159,10 @@ try{
     await pageB.getByRole("list",{name:"People in this area"}).getByRole("button").filter({hasText:a.publicName}).click();
     const selected=pageB.getByRole("region",{name:"Selected person",exact:true});
     await selected.getByRole("img",{name:`Photo 1 of ${a.publicName}`}).waitFor();
+    await selected.getByText("The story behind this photo…",{exact:true}).waitFor();
+    await selected.getByRole("button",{name:"Reply to photo 1",exact:true}).click();
+    await pageB.getByRole("heading",{name:"The story behind this photo…",exact:true}).waitFor();
+    await pageB.getByLabel("Your reply",{exact:true}).waitFor();
     const delivered=await contexts.get(b.id).context.request.get(base+media);assert.equal(delivered.status(),200);assert.equal(delivered.headers()["cache-control"],"private, no-store");
     pageA.removeAllListeners("dialog");pageA.once("dialog",dialog=>dialog.accept());
     await pageA.getByRole("button",{name:"Delete now",exact:true}).click();
@@ -257,7 +272,7 @@ try{
       await preferences.getByLabel("Search location",{exact:true}).fill(query);
       await preferences.getByRole("button",{name:"Find location",exact:true}).click();
       await preferences.getByRole("radio",{name:label,exact:true}).check();
-      await preferences.getByLabel("Maximum distance",{exact:true}).selectOption(String(miles));
+      await preferences.getByRole("radio",{name:`${miles} mi`,exact:true}).check();
       await preferences.getByRole("button",{name:"Save preferences",exact:true}).click();
       await page.getByText("Distance preferences saved.",{exact:true}).waitFor();
     }
@@ -270,7 +285,7 @@ try{
     await pageF.getByRole("button",{name:"Change distance",exact:true}).click();
     const settings=pageF.getByRole("region",{name:"Distance preferences",exact:true});
     await checkDiscoveryLayout(pageF,{screenshotDir:artifacts,name:"distance-preferences"});
-    await settings.getByLabel("Maximum distance",{exact:true}).selectOption("10");
+    await settings.getByRole("radio",{name:"10 mi",exact:true}).check();
     await settings.getByRole("button",{name:"Save preferences",exact:true}).click();
     await settings.waitFor({state:"hidden"});
     await pageE.reload();

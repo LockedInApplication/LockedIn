@@ -5,6 +5,10 @@
 .main h2 {font-size:1.45rem;line-height:1.2;margin:0 0 12px;}
 .main p {line-height:1.6;}
 .nav,.actions {display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.browseActions {align-items:flex-end;}
+.areaPicker {display:grid;gap:4px;min-inline-size:min(100%, 14rem);max-inline-size:100%;}
+.browseActions > button,.areaPicker select {min-height:48px;}
+@media(max-width:700px){.browseActions {align-items:stretch;}.areaPicker {flex:0 0 100%;}}
 .nav {border-bottom:1px solid #d2c8ce;padding-bottom:18px;margin-bottom:24px;}
 .main button,.main a,.explore {min-height:44px;}
 .main button,.explore {font:inherit;cursor:pointer;border:1px solid #7d697f;border-radius:10px;padding:10px 16px;background:#fffcf7;color:#4e345e;font-weight:650;}

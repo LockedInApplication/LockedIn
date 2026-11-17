@@ -8,10 +8,11 @@ import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import type { DiscoveryProfileInput, DiscoveryResult } from "./discovery.types.js";
 import { draftPhotoIds, publishedPhotoIds, revokeRemovedPhotos, validPhotoSelection } from "./photos/photo-profile.service.js";
 import { getPhotoConfig } from "./photos/photo.config.js";
+import { isDiscoveryAccountAllowed } from "./discovery.config.js";
 
 export async function isDiscoveryAdmitted(tx: Prisma.TransactionClient, actorId: string, profile: DiscoveryProfile | null) {
   const config = getDiscoveryConfig();
-  if (!config.enabled || !config.admissionConfigured || !config.pilotUserIds.includes(actorId) || profile?.suspendedAt) return false;
+  if (!isDiscoveryAccountAllowed(config, actorId) || profile?.suspendedAt) return false;
   return !!(await tx.user.findUnique({ where: { id: actorId }, select: { emailVerified: true } }))?.emailVerified;
 }
 export type DiscoveryPublication = Pick<DiscoveryProfile, "id" | "pausedAt" | "suspendedAt" | "adultAttestedAt" | "publicationConsentedAt" | "publicationConsentVersion" | "publishedAt" | "publicationVersion" | "publishedSnapshot" | "publishedAreaId" | "publishedIntention">;

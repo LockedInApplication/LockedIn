@@ -29,6 +29,7 @@ import {
 } from "@/features/journey/journey.utils";
 import styles from "@/app/journey/journey.module.scss";
 import guidanceStyles from "./next-action.module.scss";
+import welcomeStyles from "./journey-welcome.module.scss";
 import ConversationSuggestionView from "../conversations/ConversationSuggestionView";
 import conversationStyles from "../conversations/conversation-library.module.scss";
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
@@ -295,7 +296,7 @@ export default function JourneyWorkspace() {
           }}>Refresh when ready</button>
         </aside>:null}
         {mobileHome?<><h1 className={guidanceStyles.greeting}>Hi, {overview.user.name?.trim().split(/\s+/)[0]||'there'}.</h1>{nextAction}</>:null}
-        {activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
+        {activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""} ${showWelcome ? welcomeStyles.intro : ""}`}>
           {!mobileHome?<div>
             <span className={styles.eyebrow}>{showWelcome ? "GETTING STARTED" : "YOUR SHARED ROADMAP"}</span>
             <h1>{showWelcome ? "Welcome to LockedIn." : isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>

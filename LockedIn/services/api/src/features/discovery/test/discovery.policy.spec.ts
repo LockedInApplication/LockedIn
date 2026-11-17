@@ -9,6 +9,14 @@ vi.mock("../../journey-notifications/journey-email.service.js", () => ({ sendJou
 
 const configured = { DISCOVERY_ENABLED: "true", DISCOVERY_PILOT_USER_IDS: "pilot-a,pilot-b", DISCOVERY_MODERATOR_USER_IDS: "moderator", DISCOVERY_AREAS_JSON: '[{"id":"test-area","label":"Synthetic area"}]' };
 describe("discovery configuration admission", () => {
+  it("defaults to pilot and accepts only explicit open mode", () => {
+    expect(parseDiscoveryConfig(configured)).toMatchObject({ accessMode: "pilot", admissionConfigured: true });
+    expect(parseDiscoveryConfig({ ...configured, DISCOVERY_ACCESS_MODE: "open" })).toMatchObject({ accessMode: "open", admissionConfigured: true });
+    for (const mode of ["", "OPEN", "public", "typo"]) {
+      expect(parseDiscoveryConfig({ ...configured, DISCOVERY_ACCESS_MODE: mode }).admissionConfigured).toBe(false);
+    }
+    expect(parseDiscoveryConfig({ ...configured, DISCOVERY_ACCESS_MODE: "open", DISCOVERY_MODERATOR_USER_IDS: "" }).admissionConfigured).toBe(false);
+  });
   it.each([
     "", "postgresql://unused:unused@remote.example/postgres", "https://localhost/postgres",
     "postgresql://unused:unused@127.0.0.1/postgres?host=remote.example",

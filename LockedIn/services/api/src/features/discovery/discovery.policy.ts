@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { getDiscoveryConfig } from "../../config/env.js";
 import type { DiscoveryCapabilities, DiscoveryContext } from "./discovery.types.js";
+import { isDiscoveryAccountAllowed } from "./discovery.config.js";
 
 export async function getDiscoveryCapabilities(context: DiscoveryContext): Promise<DiscoveryCapabilities> {
   const config = getDiscoveryConfig();
@@ -10,7 +11,7 @@ export async function getDiscoveryCapabilities(context: DiscoveryContext): Promi
     prisma.relationshipMember.findFirst({ where: { userId: context.userId, relationship: { status: "ACTIVE" } }, select: { relationshipId: true }, orderBy: { id: "asc" } }),
   ]);
   return {
-    canDiscover: config.enabled && config.admissionConfigured && config.pilotUserIds.includes(context.userId) && context.emailVerified && !profile?.suspendedAt,
+    canDiscover: isDiscoveryAccountAllowed(config, context.userId) && context.emailVerified && !profile?.suspendedAt,
     canModerate: context.emailVerified && config.moderatorUserIds.includes(context.userId),
     hasHistory: connection !== null,
     canReflect: true,

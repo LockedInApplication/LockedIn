@@ -1,20 +1,22 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useDiscovery } from "../DiscoveryShell";
 import { discoveryRequest } from "../discovery.client";
 import { useDiscoveryResource } from "../use-discovery-resource";
 import type { OwnDiscoveryProfile } from "../discovery.types";
 import { DiscoveryPhotoImage } from "./DiscoveryPhotoGallery";
+import { discoveryPhotoAccept, readDiscoveryPhotoSelection } from "./discovery-photo-selection";
 import type { OwnPhoto, OwnPhotos } from "./discovery-photo.types";
 import common from "../discovery.module.scss";
 import styles from "./discovery-photo.module.scss";
 
 type Selection = { file: File; requestId: string; replacePhotoId?: string };
-const accepted = ["image/jpeg", "image/png", "image/webp"];
 export default function DiscoveryPhotoEditor({ profile, install }: { profile: OwnDiscoveryProfile; install: (value: OwnDiscoveryProfile) => void }) {
   const { userId, me, dirty, busy, setBusy } = useDiscovery();
   const [selection, select] = useState<Selection | null>(null), [replacement, setReplacement] = useState("");
   const [note, setNote] = useState(""), [error, setError] = useState("");
+  const [pickerError, setPickerError] = useState("");
+  const pickerErrorId = useId();
   const input = useRef<HTMLInputElement>(null), preview = useRef<HTMLImageElement>(null), running = useRef(false);
   const requests = useRef(new Map<string, string>());
   const enabled = me.canDiscover && !!me.photos?.enabled && !!me.photos.configured;
@@ -61,13 +63,16 @@ export default function DiscoveryPhotoEditor({ profile, install }: { profile: Ow
     {dirty ? <p role="status">Save your text edits before changing photos.</p> : null}
     {!profile.draft && enabled ? <p>Save a private draft first to add photos.</p> : null}
     {enabled && profile.draft ? <>
-      {order.length ? <label>Photo slot <select value={replacement} disabled={busy || dirty} onChange={event => { setReplacement(event.target.value); select(null); if (input.current) input.current.value = ""; }}><option value="">Add a new photo</option>{order.map((id, index) => <option key={id} value={id}>Replace photo {index + 1}</option>)}</select></label> : null}
-      <label>Choose photo <input ref={input} type="file" accept={accepted.join(",")} disabled={busy || dirty || (order.length >= 3 && !replacement)} onChange={event => {
-        const file = event.target.files?.[0]; setError("");
+      {order.length ? <label>Photo slot <select value={replacement} disabled={busy || dirty} onChange={event => { setReplacement(event.target.value); select(null); setPickerError(""); if (input.current) input.current.value = ""; }}><option value="">Add a new photo</option>{order.map((id, index) => <option key={id} value={id}>Replace photo {index + 1}</option>)}</select></label> : null}
+      <label>Choose photo <input ref={input} type="file" accept={discoveryPhotoAccept}
+        aria-invalid={pickerError ? true : undefined} aria-describedby={pickerError ? pickerErrorId : undefined}
+        disabled={busy || dirty || (order.length >= 3 && !replacement)} onChange={event => {
+        const { file, error: selectionError } = readDiscoveryPhotoSelection(event.currentTarget);
+        setPickerError(selectionError); setError(""); setNote("");
         if (!file) { select(null); return; }
-        if (!accepted.includes(file.type) || file.size > 5 * 1024 * 1024) { setError("Choose a still JPEG, PNG or WebP up to 5 MiB."); select(null); return; }
         select({ file, requestId: crypto.randomUUID(), ...(replacement ? { replacePhotoId: replacement } : {}) });
       }}/></label>
+      {pickerError ? <p id={pickerErrorId} role="alert" className={`${common.notice} ${common.error}`}>{pickerError}</p> : null}
       {selection ? <div className={styles.actions}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img ref={preview} alt="Selected photo, not uploaded" className={styles.thumbnail}/>

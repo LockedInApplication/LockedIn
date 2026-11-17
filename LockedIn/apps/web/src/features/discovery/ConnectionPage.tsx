@@ -6,6 +6,7 @@ import {useDiscoveryResource} from "./use-discovery-resource";
 import type {DiscoveryConnectionView} from "./discovery.types";
 import DiscoveryChat from "./DiscoveryChat";
 import BuildTogetherPanel from "./BuildTogetherPanel";
+import ConnectionStatus from "./ConnectionStatus";
 import DiscoverySafetyActions,{type DiscoveryReportSource} from "./DiscoverySafetyActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import styles from "./discovery.module.scss";
@@ -36,6 +37,7 @@ function Starter({initial,onRefresh}:{initial:DiscoveryConnectionView;onRefresh:
   return <><button disabled={busy} onClick={()=>void leave("/connections")}>← Connections</button>{notice?<p role="status" className={styles.notice}>{notice}</p>:null}
     {connection.state==="PENDING"?<section className={styles.card}><p className={styles.eyebrow}>{connection.inviter==="partner"?"Wants to connect":"Waiting for acceptance"}</p><h1>{connection.topic.text}</h1><p>From {connection.senderSnapshot.publicName}</p><p className={styles.quote}>{connection.hello}</p>{connection.canAccept?<div className={styles.actions}><button className={styles.primary} disabled={busy} onClick={()=>void run(`${url}/accept`,{})}>Accept and chat</button><button disabled={busy} onClick={()=>void run(`${url}/decline`,{})}>Decline quietly</button></div>:<p>Your invitation has been sent. Once accepted, your reply opens the conversation. Invitations expire after seven days.</p>}{connection.inviter==="self"?<button disabled={busy} onClick={()=>void run(`${url}/withdraw`,{})}>Withdraw invitation</button>:null}<details><summary>What acceptance means</summary><p>Acceptance lets you message each other. It does not create a full shared workspace.</p></details></section>:<><p className={styles.eyebrow}>Your connection</p><h1>Conversation with {connection.partner.publicName}</h1></>}
     {me.chatEnabled && me.canDiscover && connection.state==="ACCEPTED" ? <DiscoveryChat key={connection.id} connectionId={connection.id} opening={connection} onBlocked={onBlocked}/> : connection.state==="ACCEPTED" ? <p role="status">Messaging is currently unavailable for this connection.</p> : null}
+    <ConnectionStatus connection={connection}/>
     <BuildTogetherPanel connection={connection} busy={busy} currentRelationshipId={me.currentRelationshipId} onChoose={ready=>void chooseBuild(ready)} onOpen={()=>void leave("/journey")}/>
     {connection.canClose?<button className={styles.danger} disabled={busy} onClick={async()=>{if(await confirmLeave())setClose(true);}}>Close this connection</button>:null}
     <DiscoverySafetyActions connectionId={connection.id} reportSource={reportSources.at(-1)??null} reportSources={reportSources} onBlocked={onBlocked}/>

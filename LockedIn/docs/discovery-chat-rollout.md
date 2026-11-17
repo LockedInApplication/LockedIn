@@ -33,6 +33,15 @@ and visibility changes, plus every 15 seconds while visible as a fallback.
 History is loaded in bounded pages. A reconnect with more than a page of missed
 messages resets pagination rather than stitching together a hidden gap.
 
+The conversation viewport has a bounded responsive height and scrolls internally;
+the two-line composer stays outside that scroll area. Initial load and successful
+sends show the latest messages. Incoming messages follow only while near the
+bottom; otherwise a jump-to-latest button appears. Loading older messages preserves
+the visible message position. Received-message reporting lives inside a keyboard-
+and touch-accessible ellipsis disclosure, including for the opening reply.
+Connection lists and inactive pages show explicit closed/expired/withdrawn/shared-
+space statuses rather than a generic starter-history label or an empty chat page.
+
 Request IDs deduplicate retries; reusing an ID with different text is rejected.
 Messages are plain React text, never rendered as HTML. Limits are 2,000 characters,
 20 messages/minute and 300/day/account. No message bodies are added to logs,

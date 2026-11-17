@@ -14,7 +14,7 @@ export default function StarterInvitation({userId,profile,topics,reply,photo,onI
   const publishedPhoto=profile.photos?.find(item=>item.id===photo);
   const photoPrompt=profile.photoPrompts?.find(item=>item.photoId===publishedPhoto?.id);
   const replyData=photo?(publishedPhoto?{replyPhotoId:publishedPhoto.id}:null):answer?{replyPromptKey:answer.key,expectedPromptAnswer:answer.answer}:null;
-  const canSend=!busy&&(replyToPrompt?!!replyData&&!!hello.trim():!!topic);
+  const canSend=!busy&&!!hello.trim()&&(replyToPrompt?!!replyData:!!topic);
   const submit=async()=>{if(!canSend)return;setBusy(true);onBusy(true);setError("");try{
     const body=JSON.stringify({targetProfileId:profile.id,topicKey:replyToPrompt?discoveryProfilePromptKey:topic,hello,...replyData});
     if(attempt.current?.body!==body)attempt.current={body,id:crypto.randomUUID()};
@@ -26,9 +26,9 @@ export default function StarterInvitation({userId,profile,topics,reply,photo,onI
       {publishedPhoto?<><h2>{photoPrompt?photoPrompts[photoPrompt.key]:"About this photo"}</h2><DiscoveryPhotoImage id={publishedPhoto.id} className={styles.replyPhoto} alt={`Photo of ${profile.publicName}`} fallback={null}/></>:answer?<><h2>{writtenPrompts[answer.key]}</h2><p className={styles.quote}>{answer.answer}</p></>:<p className={styles.quote}>{profile.bio}</p>}
       <form className={styles.form} onSubmit={event=>{event.preventDefault();void submit();}}>
         {!replyToPrompt?<label>Choose one starter question<select disabled={busy} value={topic} onChange={event=>{setTopic(event.target.value);onDirty(true);}}>{topics.map(topic=><option key={topic.key} value={topic.key}>{topic.text}</option>)}</select></label>:null}
-        <label>{replyToPrompt?"Your reply":"A short hello (optional)"}<textarea value={hello} maxLength={280} required={replyToPrompt} disabled={busy} onChange={event=>{setHello(event.target.value);onDirty(true);}}/></label>
-        <p className={styles.muted}>{replyToPrompt?"This sends your published name/avatar and reply as a starter invitation.":"This sends your published name/avatar, chosen question and hello."} Recipients keep this send-time information. Acceptance opens a starter—not a full shared space.</p>
-        {error?<p role="alert">{error}</p>:null}<button className={styles.primary} type="submit" disabled={!canSend}>{busy?"Sending…":replyToPrompt?"Send reply as invitation":"Send starter invitation"}</button>
+        <label>{replyToPrompt?"Your reply":"Your opening message"}<textarea value={hello} maxLength={280} required disabled={busy} onChange={event=>{setHello(event.target.value);onDirty(true);}}/></label>
+        <p className={styles.muted}>Send your reply to show you’d like to connect. If they accept, this becomes your opening chat message. Your published name and avatar are included. This does not create a full shared workspace.</p>
+        {error?<p role="alert">{error}</p>:null}<button className={styles.primary} type="submit" disabled={!canSend}>{busy?"Sending…":"Send reply to connect"}</button>
       </form>
     </>}
   </section>;

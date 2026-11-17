@@ -1,9 +1,10 @@
 import type {DiscoveryConnectionView} from "./discovery.types";
 import styles from "./discovery.module.scss";
-export default function StarterConversation({connection,text,busy,onChange,onSave,onShare}:{connection:DiscoveryConnectionView;text:string;busy:boolean;onChange:(text:string)=>void;onSave:()=>void;onShare:()=>void}){
-  const editable=connection.state==="ACCEPTED"&&connection.canShare,dirty=text!==(connection.ownDraft?.text??"");
-  return <><p className={styles.eyebrow}>Starter with {connection.partner.publicName}</p><h1>{connection.topic.text}</h1>{!editable?<p className={styles.status}>Read-only history</p>:null}
-    {editable?<section className={`${styles.card} ${styles.form}`}><label>Your private response<textarea value={text} maxLength={2000} onChange={event=>onChange(event.target.value)} disabled={busy}/></label><p className={styles.muted}>Only you can see this draft. Saving does not share it.</p><div className={styles.actions}><button disabled={busy||!dirty} onClick={onSave}>Save privately</button><button className={styles.primary} disabled={busy||dirty||!connection.ownDraft?.text.trim()} onClick={onShare}>Share saved response</button></div>{dirty?<p className={styles.muted}>Save your changes before choosing to share.</p>:null}</section>:connection.ownDraft?<details className={styles.card}><summary>Your saved private draft · only you</summary><p className={styles.quote}>{connection.ownDraft.text}</p></details>:null}
-    <section className={styles.card} aria-label="Shared starter responses"><h2>Chosen to share</h2>{connection.sharedResponses.length?connection.sharedResponses.map(response=><article key={response.id}><p className={styles.eyebrow}>{response.author==="self"?"You":connection.partner.publicName} · version {response.version}</p><p className={styles.quote}>{response.text}</p></article>):<p>No response has been shared yet. There is no deadline to answer.</p>}<p className={styles.muted}>Shared versions stay in this starter history. Later edits to a private draft do not change them.</p></section>
-  </>;
+export default function StarterConversation({connection}:{connection:DiscoveryConnectionView}){
+  if(!connection.sharedResponses.length&&!connection.ownDraft?.text)return null;
+  return <details className={styles.card}><summary>Earlier starter answers · read-only history</summary>
+    <p className={styles.muted}>These answers were saved before the chat-first flow. Continue your conversation in Messages.</p>
+    {connection.sharedResponses.length?<section aria-label="Shared starter responses"><h2>Previously shared answers</h2>{connection.sharedResponses.map(response=><article key={response.id}><p className={styles.eyebrow}>{response.author==="self"?"You":connection.partner.publicName} · version {response.version}</p><p className={styles.quote}>{response.text}</p></article>)}</section>:null}
+    {connection.ownDraft?.text?<details><summary>Your saved private draft · only you</summary><p className={styles.quote}>{connection.ownDraft.text}</p><p>This draft has not been sent as a chat message.</p></details>:null}
+  </details>;
 }

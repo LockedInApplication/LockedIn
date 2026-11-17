@@ -2,8 +2,19 @@
 
 ## Scope
 
-Text-only chat is attached to an accepted Discovery starter, not an independent
-inbox. No attachments, typing indicators, read receipts, date plans, calendar
+Text-only chat is attached to an accepted Discovery connection, not an independent
+inbox. A profile reply expresses interest; acceptance opens Messages, where the
+original invitation reply is displayed first with its saved prompt context.
+The opener uses the existing invitation record, not a duplicated message row;
+its report action uses the existing invitation-evidence path. The original reply
+stays visible above paginated follow-up messages, including after reconnecting.
+
+There is no separate private-response composer in the connection UI. Existing
+shared responses and the owner's saved private drafts remain in collapsed,
+read-only history. Private drafts are never automatically sent as chat messages.
+Legacy invitations with no hello show their question without inventing a message.
+
+No attachments, typing indicators, read receipts, date plans, calendar
 permissions or push notifications are included.
 
 The API checks both participants and current Discovery eligibility under the

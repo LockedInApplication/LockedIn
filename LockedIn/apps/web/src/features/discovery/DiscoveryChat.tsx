@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { JourneyApiError } from "@/features/journey/journey.client";
 import { useDiscovery } from "./DiscoveryShell";
-import DiscoverySafetyActions from "./DiscoverySafetyActions";
+import DiscoverySafetyActions, { type DiscoveryReportSource } from "./DiscoverySafetyActions";
+import ConversationOpening, { type ConversationOpener } from "./ConversationOpening";
 import { discoveryRequest } from "./discovery.client";
 import { mergeLatestMessages, type ChatMessage as Message, type ChatPage as Page } from "./discovery-chat";
 import styles from "./discovery.module.scss";
@@ -11,7 +12,7 @@ import chatStyles from "./discovery-chat.module.scss";
 
 const accessEnded = (error: unknown) => error instanceof JourneyApiError && [401, 403, 404].includes(error.status);
 
-export default function DiscoveryChat({ connectionId, onBlocked }: { connectionId: string; onBlocked: () => void }) {
+export default function DiscoveryChat({ connectionId, opening, onBlocked }: { connectionId: string; opening: ConversationOpener; onBlocked: () => void }) {
   const { userId, chatRevision, busy } = useDiscovery();
   const path = `/api/discovery/connections/${connectionId}/messages`;
   const [page, setPage] = useState<Page | null>(null);
@@ -21,7 +22,7 @@ export default function DiscoveryChat({ connectionId, onBlocked }: { connectionI
   const [closed, setClosed] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [actionError, setActionError] = useState("");
-  const [report, setReport] = useState<Message | null>(null);
+  const [report, setReport] = useState<DiscoveryReportSource | null>(null);
   const refresh = useRef<(() => void) | null>(null);
   const lifecycle = useRef<AbortController | null>(null);
   const ended = useRef(false);
@@ -129,19 +130,20 @@ export default function DiscoveryChat({ connectionId, onBlocked }: { connectionI
   return <section className={styles.card} aria-label="Discovery chat">
     <h2>Messages</h2>
     {closed ? <p role="status">This chat is no longer available.</p> : <>
-      <p className={styles.muted}>Sent only to this connection. Reported messages can be reviewed by moderators. Starter drafts stay separate.</p>
+      <p className={styles.muted}>You’re connected. Continue from the opening reply below. Reported messages can be reviewed by moderators.</p>
       {!page && !syncError ? <p role="status">Loading messages…</p> : null}
       {syncError ? <p role="alert">{syncError} <button type="button" onClick={() => refresh.current?.()}>Retry</button></p> : null}
+      {page ? <ConversationOpening opening={opening} busy={busy} onReport={() => setReport({ sourceType: "INVITATION", sourceId: connectionId, label: "Opening message", preview: opening.hello })}/> : null}
       {page?.nextCursor ? <button type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load older messages"}</button> : null}
-      {page && !page.items.length ? <p>No messages yet. Say hello when you’re ready.</p> : null}
+      {page && !page.items.length ? <p>Connection accepted. Send a message to keep the conversation going.</p> : null}
       {page?.items.length ? <ol className={chatStyles.messages} role="log" aria-label="Conversation messages">{page.items.map(message => <li key={message.id} className={message.author === "self" ? chatStyles.mine : undefined}>
         <strong>{message.author === "self" ? "You" : "Your connection"}</strong>
         <p>{message.text}</p>
-        {message.author === "partner" ? <button type="button" disabled={busy} onClick={() => setReport(message)}>Report message</button> : null}
+        {message.author === "partner" ? <button type="button" disabled={busy} onClick={() => setReport({ sourceType: "MESSAGE", sourceId: message.id, label: "Received message", preview: message.text })}>Report message</button> : null}
       </li>)}</ol> : null}
       {report ? <div>
         <button type="button" onClick={() => setReport(null)}>Close message report</button>
-        <DiscoverySafetyActions key={report.id} expanded connectionId={connectionId} reportSource={{ sourceType: "MESSAGE", sourceId: report.id, label: "Received message", preview: report.text }} onBlocked={onBlocked}/>
+        <DiscoverySafetyActions key={report.sourceId} expanded connectionId={connectionId} reportSource={report} onBlocked={onBlocked}/>
       </div> : null}
       {page ? <form className={styles.form} onSubmit={event => { event.preventDefault(); void send(); }}>
         <label>Message<textarea maxLength={2000} value={draft} disabled={sending || busy} onChange={event => setDraft(event.target.value)}/></label>

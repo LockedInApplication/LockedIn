@@ -1,5 +1,5 @@
 "use client";
-import {useCallback,useRef,useState} from "react";
+import {useCallback,useState} from "react";
 import DiscoveryShell,{useDiscovery} from "./DiscoveryShell";
 import {discoveryRequest} from "./discovery.client";
 import {useDiscoveryResource} from "./use-discovery-resource";
@@ -19,16 +19,11 @@ function Connection({id}:{id:string}){
   return <Starter key={`${userId}:${id}`} initial={resource.value} onRefresh={resource.retry}/>;
 }
 function Starter({initial,onRefresh}:{initial:DiscoveryConnectionView;onRefresh:()=>void}){
-  const {userId,me,refreshAccess,leave,setDirty,busy,setBusy,confirmLeave}=useDiscovery(),[connection,setConnection]=useState(initial),[text,setText]=useState(initial.ownDraft?.text??""),[notice,setNotice]=useState(""),[close,setClose]=useState(false);
-  const shareAttempt=useRef<{revision:number;id:string}|null>(null),url=`/api/discovery/connections/${connection.id}`;
+  const {userId,me,refreshAccess,leave,setDirty,busy,setBusy,confirmLeave}=useDiscovery(),[connection,setConnection]=useState(initial),[notice,setNotice]=useState(""),[close,setClose]=useState(false);
+  const url=`/api/discovery/connections/${connection.id}`;
   const run=async(path:string,body:object,method="POST")=>{setBusy(true);setNotice("");try{const next=await discoveryRequest<DiscoveryConnectionView>(userId,path,{method,body:JSON.stringify(body)});setConnection(next);if(next.state==="PROMOTED")refreshAccess();return next;}catch(error){setNotice(error instanceof Error?error.message:"Please try again.");return null;}finally{setBusy(false);}};
-  const save=async()=>{const next=await run(`${url}/draft`,{text,revision:connection.ownDraft?.revision??0},"PUT");if(next){setDirty(false);setNotice("Saved privately. Nothing was shared.");}};
-  const share=async()=>{const revision=connection.ownDraft?.revision??0;if(shareAttempt.current?.revision!==revision)shareAttempt.current={revision,id:crypto.randomUUID()};const next=await run(`${url}/share`,{draftRevision:revision,requestId:shareAttempt.current.id});if(next)setNotice("Saved response shared with this connection.");};
   const chooseBuild=async(ready:boolean)=>{
-    const unsaved=text!==(connection.ownDraft?.text??"");
-    if(ready&&unsaved&&!await confirmLeave())return;
-    const next=await run(`${url}/readiness`,{ready,consentVersion:connection.readiness.consentVersion});
-    if(next&&ready&&unsaved){setText(next.ownDraft?.text??"");setDirty(false);}
+    await run(`${url}/readiness`,{ready,consentVersion:connection.readiness.consentVersion});
   };
   const reportSources:DiscoveryReportSource[]=connection.sharedResponses.filter(response=>response.author==="partner").map(response=>({sourceType:"SHARED_RESPONSE",sourceId:response.id,label:`Shared response · version ${response.version}`,preview:response.text}));
   if(connection.inviter==="partner")reportSources.unshift({sourceType:"INVITATION",sourceId:connection.id,label:"Received invitation",preview:`${connection.topic.text}\n${connection.hello}`});
@@ -40,11 +35,12 @@ function Starter({initial,onRefresh}:{initial:DiscoveryConnectionView;onRefresh:
     onRefresh();
   };
   return <><button disabled={busy} onClick={()=>void leave("/connections")}>← Connections</button>{notice?<p role="status" className={styles.notice}>{notice}</p>:null}
-    {connection.state==="PENDING"?<section className={styles.card}><p className={styles.eyebrow}>{connection.inviter==="partner"?"Starter invitation":"Waiting for a reply"}</p><h1>{connection.topic.text}</h1><p>From {connection.senderSnapshot.publicName} · send-time public identity</p><p className={styles.quote}>{connection.hello}</p>{connection.canAccept?<div className={styles.actions}><button className={styles.primary} disabled={busy} onClick={()=>void run(`${url}/accept`,{})}>Accept starter</button><button disabled={busy} onClick={()=>void run(`${url}/decline`,{})}>Decline quietly</button></div>:<p>Your invitation stays here for up to seven days. Existing conversations and your private space are still available.</p>}{connection.inviter==="self"?<button disabled={busy} onClick={()=>void run(`${url}/withdraw`,{})}>Withdraw invitation</button>:null}<details><summary>What acceptance means</summary><p>A separate starter conversation—not a full shared workspace. Private responses stay private until explicitly shared.</p></details></section>:<StarterConversation connection={connection} text={text} busy={busy} onChange={value=>{setText(value);setDirty(value!==(connection.ownDraft?.text??""));}} onSave={()=>void save()} onShare={()=>void share()}/>}
+    {connection.state==="PENDING"?<section className={styles.card}><p className={styles.eyebrow}>{connection.inviter==="partner"?"Wants to connect":"Waiting for acceptance"}</p><h1>{connection.topic.text}</h1><p>From {connection.senderSnapshot.publicName}</p><p className={styles.quote}>{connection.hello}</p>{connection.canAccept?<div className={styles.actions}><button className={styles.primary} disabled={busy} onClick={()=>void run(`${url}/accept`,{})}>Accept and chat</button><button disabled={busy} onClick={()=>void run(`${url}/decline`,{})}>Decline quietly</button></div>:<p>Your invitation has been sent. Once accepted, your reply opens the conversation. Invitations expire after seven days.</p>}{connection.inviter==="self"?<button disabled={busy} onClick={()=>void run(`${url}/withdraw`,{})}>Withdraw invitation</button>:null}<details><summary>What acceptance means</summary><p>Acceptance lets you message each other. It does not create a full shared workspace.</p></details></section>:<><p className={styles.eyebrow}>Your connection</p><h1>Conversation with {connection.partner.publicName}</h1></>}
+    {me.chatEnabled && me.canDiscover && connection.state==="ACCEPTED" ? <DiscoveryChat key={connection.id} connectionId={connection.id} opening={connection} onBlocked={onBlocked}/> : connection.state==="ACCEPTED" ? <p role="status">Messaging is currently unavailable for this connection.</p> : null}
+    {connection.state!=="PENDING"?<StarterConversation connection={connection}/>:null}
     <BuildTogetherPanel connection={connection} busy={busy} currentRelationshipId={me.currentRelationshipId} onChoose={ready=>void chooseBuild(ready)} onOpen={()=>void leave("/journey")}/>
-    {me.chatEnabled && me.canDiscover && connection.state==="ACCEPTED" ? <DiscoveryChat connectionId={connection.id} onBlocked={onBlocked}/> : null}
-    {connection.canClose?<button className={styles.danger} disabled={busy} onClick={async()=>{if(await confirmLeave())setClose(true);}}>Close this starter</button>:null}
+    {connection.canClose?<button className={styles.danger} disabled={busy} onClick={async()=>{if(await confirmLeave())setClose(true);}}>Close this connection</button>:null}
     <DiscoverySafetyActions connectionId={connection.id} reportSource={reportSources.at(-1)??null} reportSources={reportSources} onBlocked={onBlocked}/>
-    <ConfirmDialog open={close} onCancel={()=>setClose(false)} onConfirm={async()=>{setClose(false);const result=await run(`${url}/close`,{});if(result)setDirty(false);}} title="Close this starter?" description="New responses and build choices stop. Previously shared text remains in read-only history; your private draft stays yours." confirmLabel="Close starter" cancelLabel="Keep starter"/>
+    <ConfirmDialog open={close} onCancel={()=>setClose(false)} onConfirm={async()=>{setClose(false);const result=await run(`${url}/close`,{});if(result)setDirty(false);}} title="Close this connection?" description="Messaging and new build choices stop. Earlier shared starter answers stay in read-only history. Saved private drafts are not shared." confirmLabel="Close connection" cancelLabel="Keep connection"/>
   </>;
 }

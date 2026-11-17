@@ -6,9 +6,10 @@ import type { DiscoveryProfileInput } from "./discovery.types";
 import { DiscoveryPhotoImage } from "./photos/DiscoveryPhotoGallery";
 import common from "./discovery.module.scss";
 import styles from "./discovery-profile-card.module.scss";
+import { discoveryProfilePrompt } from "./discovery-prompt";
 
-export default function DiscoveryProfileCard({ profile, area, photoIds = [], children }: {
-  profile: DiscoveryProfileInput; area?: string; photoIds?: string[]; children?: ReactNode;
+export default function DiscoveryProfileCard({ profile, area, photoIds = [], onReply, children }: {
+  profile: DiscoveryProfileInput; area?: string; photoIds?: string[]; onReply?: () => void; children?: ReactNode;
 }) {
   const [index, setIndex] = useState(0);
   const photos = photoIds.slice(0, 3);
@@ -30,6 +31,10 @@ export default function DiscoveryProfileCard({ profile, area, photoIds = [], chi
     <div className={styles.details}>
       <div><h2>{profile.publicName}</h2>{area ? <p className={common.muted}>{area}</p> : null}</div>
       <p className={styles.intention}>{profile.intention === "LONG_TERM" ? "Looking for a long-term relationship" : "Open to a long-term relationship"}</p>
+      {profile.promptAnswer ? <section className={styles.prompt}>
+        <h3>{discoveryProfilePrompt}</h3><p className={common.quote}>{profile.promptAnswer}</p>
+        {onReply ? <button type="button" onClick={onReply}>Reply to this answer</button> : null}
+      </section> : null}
       {profile.bio ? <div><h3>About me</h3><p className={common.quote}>{profile.bio}</p></div> : null}
       {profile.interests.length ? <div><h3>Interests</h3><ul className={styles.interests}>{profile.interests.map((interest, i) => <li key={i}>{interest}</li>)}</ul></div> : null}
       {profile.pace ? <div><h3>Communication pace</h3><p className={common.quote}>{profile.pace}</p></div> : null}

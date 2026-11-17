@@ -14,3 +14,10 @@
 .interests { display:flex; flex-wrap:wrap; gap:6px; padding:0; margin:0; list-style:none; }
 .interests li { border:1px solid #d2c8ce; border-radius:999px; padding:4px 10px; }
 @media (max-width:700px) { .layout { grid-template-columns:1fr; } }
+.prompt {
+  border-inline-start: 3px solid currentColor;
+  display: grid;
+  gap: .5rem;
+  justify-items: start;
+  padding-inline-start: 1rem;
+}

@@ -7,6 +7,8 @@ import { publicDiscoveryProfile } from "./discovery-profile.view.js";
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import { discoveryInvitationSchema } from "./discovery.schemas.js";
 import { discoveryTopics } from "./discovery-topics.js";
+import { intentionsMatch, profilePrompt, profilePromptKey } from "./discovery-matching.js";
+import { distancePairEligible } from "./discovery-distance.js";
 import { lockDiscoveryConnection, lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryConnectionView, effectiveDiscoveryState } from "./discovery-connection.view.js";
 import type { DiscoveryResult } from "./discovery.types.js";
@@ -57,7 +59,10 @@ export async function sendDiscoveryInvitation(actorId: string, input: z.infer<ty
     const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
     if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor)) return denied;
     const partner = await tx.discoveryProfile.findUnique({ where: { id: data.targetProfileId } });
-    if (!partner || !await isDiscoveryAdmitted(tx, target.ownerId, partner) || !hasDiscoveryPublication(partner) || actor.publishedIntention !== partner.publishedIntention || await invitationBlockBetween(tx, actorId, target.ownerId)) return missing;
+    if (!partner || !await isDiscoveryAdmitted(tx, target.ownerId, partner) || !hasDiscoveryPublication(partner) || !intentionsMatch(actor.publishedIntention, partner.publishedIntention) || await invitationBlockBetween(tx, actorId, target.ownerId) || !await distancePairEligible(tx, actor.id, partner.id)) return missing;
+    if (data.topicKey === profilePromptKey && publicDiscoveryProfile(partner.id, partner.publishedSnapshot)?.promptAnswer !== data.expectedPromptAnswer) {
+      return { ok: false as const, status: 409, error: "This profile answer changed. Reopen their profile before replying." };
+    }
     const userLowId = ordered[0]!.id, userHighId = ordered[1]!.id;
     const now = new Date();
     // Expire only this locked pair. Other expired rows are excluded from capacity
@@ -71,7 +76,7 @@ export async function sendDiscoveryInvitation(actorId: string, input: z.infer<ty
     }
     const quota = await consumeDiscoveryQuota(tx, actorId, "invite", now); if (!quota.ok) return quota;
     const sender = publicDiscoveryProfile(actor.id, actor.publishedSnapshot)!;
-    const topic = discoveryTopics.find(topic => topic.key === data.topicKey)!;
+    const topic = data.topicKey === profilePromptKey ? { key: profilePromptKey, text: profilePrompt } : discoveryTopics.find(topic => topic.key === data.topicKey)!;
     const row = await tx.discoveryConnection.create({ data: { userLowId, userHighId, inviterId: actorId, requestId: data.requestId, questionKey: topic.key, questionText: topic.text, hello: data.hello, senderPublicName: sender.publicName, senderAvatarPreset: sender.avatarPreset, expiresAt: new Date(now.getTime() + week) } });
     effects.set(actorId, false);
     effects.set(target.ownerId, await persistDiscoveryTask(tx, row.id, target.ownerId, "DISCOVERY_INVITED", "sent"));

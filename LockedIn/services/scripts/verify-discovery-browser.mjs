@@ -74,6 +74,17 @@ try{
     const saved=await request(person,"PUT","/api/discovery/profile",{publicName:person.publicName,avatarPreset:"leaf",bio:`A public introduction from ${person.publicName}`,intention:"LONG_TERM",interests:["Reading"],pace:null,areaId,revision:0,...(person===b&&reviewRuns("matching")?{promptAnswer:"Make time and follow through."}:{})});assert.equal(saved.status,200);
     const result=await request(person,"POST","/api/discovery/profile/publish",{draftRevision:1,adultAttested:true});assert.equal(result.status,200);person.profileId=result.body.value.published.id;
   }
+  if(reviewRuns("onboarding")){
+    await pageA.goto(`${base}/journey`);
+    await pageA.getByRole("heading",{name:"How would you like to start?",exact:true}).waitFor();
+    await pageA.getByRole("button",{name:"Invite someone I know",exact:true}).click();
+    assert(await pageA.getByLabel("Partner's email",{exact:true}).evaluate(element=>element===document.activeElement));
+    await pageA.getByRole("button",{name:"Explore Discovery instead",exact:true}).click();
+    await pageA.getByRole("button",{name:"Set up my profile",exact:true}).waitFor();
+    await pageA.getByRole("button",{name:"Set up my profile",exact:true}).click();
+    await pageA.getByLabel("Public name",{exact:true}).waitFor();
+    console.log("PASS new unconnected member can choose private invitation or Discovery");
+  }
   await pageA.goto(`${base}/discover/profile`);await pageA.getByLabel("Public name",{exact:true}).fill(a.publicName);await pageA.getByLabel("Short introduction").fill("A public introduction from A");
   if(reviewRuns("matching")){
     await pageA.getByRole("button",{name:"Add written prompt",exact:true}).click();
@@ -194,6 +205,14 @@ try{
     await pageA.goto(`${base}/discover`);
     const picker=pageA.getByLabel("Explore an area");
     assert.equal(await picker.inputValue(),"pilot-city");
+    if(reviewRuns("distance")){
+      await pageA.setViewportSize({width:1280,height:852});
+      const [area, distanceButton, profileButton]=await Promise.all([picker.boundingBox(),pageA.getByRole("button",{name:"Distance preferences",exact:true}).boundingBox(),pageA.getByRole("button",{name:"My discovery profile",exact:true}).boundingBox()]);
+      assert(area&&distanceButton&&profileButton);
+      assert(Math.abs(area.y+area.height-distanceButton.y-distanceButton.height)<2);
+      assert(Math.abs(area.y+area.height-profileButton.y-profileButton.height)<2);
+      await pageA.setViewportSize({width:393,height:852});
+    }
     await picker.selectOption("other-city");
     await pageA.getByRole("heading",{name:"No profiles to show in Other city yet",exact:true}).waitFor();
     await pageA.getByText("Your profile stays listed in Pilot city.",{exact:false}).waitFor();

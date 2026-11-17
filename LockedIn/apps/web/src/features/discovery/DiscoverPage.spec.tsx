@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it, vi } from "vitest";
 import DiscoverPage from "./DiscoverPage";
 const state = vi.hoisted(() => ({ emailVerified: false as boolean | null }));
-vi.mock("./DiscoveryShell", () => ({ default: ({ children }: { children: ReactNode }) => children, useDiscovery: () => ({ userId: "a", emailVerified: state.emailVerified, me: { canDiscover: false, hasHistory: false }, leave: async () => true }) }));
+vi.mock("./DiscoveryShell", () => ({ default: ({ children }: { children: ReactNode }) => children, useDiscovery: () => ({ userId: "a", emailVerified: state.emailVerified, me: { canDiscover: false, hasHistory: false, areas: [] }, leave: async () => true }) }));
 it("explains email verification on unavailable Discovery without promising access or hiding history", () => {
   state.emailVerified = false;
   const html = renderToStaticMarkup(<DiscoverPage />);

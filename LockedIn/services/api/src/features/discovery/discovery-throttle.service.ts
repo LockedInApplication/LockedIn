@@ -1,10 +1,10 @@
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { lockInvitationUsers } from "../invitations/invitation-access.service.js";
 
-export type DiscoveryQuotaAction = "invite" | "report" | "profile" | "candidates" | "draft" | "mutation" | "photo";
+export type DiscoveryQuotaAction = "invite" | "report" | "profile" | "candidates" | "draft" | "mutation" | "photo" | "locationLookup" | "locationChange";
 export type DiscoveryQuotaResult = { ok: true } | { ok: false; status: 429; error: string; retryAfter: number };
 const minute = 60_000, hour = 60 * minute, day = 24 * hour;
-const limits: Record<DiscoveryQuotaAction, [number, number][]> = { invite: [[hour, 5], [day, 10]], report: [[day, 5]], profile: [[hour, 20]], candidates: [[minute, 30]], draft: [[minute, 60]], mutation: [[minute, 30]], photo: [[hour, 10], [day, 20]] };
+const limits: Record<DiscoveryQuotaAction, [number, number][]> = { invite: [[hour, 5], [day, 10]], report: [[day, 5]], profile: [[hour, 20]], candidates: [[minute, 30]], draft: [[minute, 60]], mutation: [[minute, 30]], photo: [[hour, 10], [day, 20]], locationLookup: [[hour, 10], [day, 20]], locationChange: [[day, 5]] };
 
 // Call inside the mutation transaction, after detecting idempotent send/report replay.
 // Account locks are shared with all pair decisions; repeated acquisition is safe.

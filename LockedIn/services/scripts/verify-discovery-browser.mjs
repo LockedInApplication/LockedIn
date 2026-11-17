@@ -15,7 +15,7 @@ let chromium;
 try{({chromium}=await import(process.env.LOCKEDIN_PLAYWRIGHT_MODULE||"playwright"));}catch{throw new Error("Install Playwright locally or set LOCKEDIN_PLAYWRIGHT_MODULE to its module entry");}
 const freePort=()=>new Promise((resolve,reject)=>{const socket=createServer();socket.once("error",reject);socket.listen(0,"127.0.0.1",()=>{const port=socket.address().port;socket.close(error=>error?reject(error):resolve(port));});});
 const webPort=await freePort(),apiPort=await freePort(),base=`http://127.0.0.1:${webPort}`;
-Object.assign(process.env,{APP_URL:base,BETTER_AUTH_URL:`http://127.0.0.1:${apiPort}`,DISCOVERY_ENABLED:"true",DISCOVERY_MODERATOR_USER_IDS:"browser-moderator",DISCOVERY_AREAS_JSON:'[{"id":"pilot-city","label":"Pilot city"}]',RESEND_API_KEY:"",RESEND_FROM_EMAIL:""});
+Object.assign(process.env,{APP_URL:base,BETTER_AUTH_URL:`http://127.0.0.1:${apiPort}`,DISCOVERY_ENABLED:"true",DISCOVERY_MODERATOR_USER_IDS:"browser-moderator",DISCOVERY_AREAS_JSON:'[{"id":"pilot-city","label":"Pilot city"},{"id":"other-city","label":"Other city"}]',RESEND_API_KEY:"",RESEND_FROM_EMAIL:""});
 Object.assign(process.env,{DISCOVERY_PHOTOS_ENABLED:"true",CLOUDINARY_CLOUD_NAME:"synthetic",CLOUDINARY_API_KEY:"synthetic",CLOUDINARY_API_SECRET:"synthetic"});
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../../.."),web=path.join(root,"LockedIn/apps/web");
 const artifacts=process.env.DISCOVERY_TEST_ARTIFACT_DIR||mkdtempSync(path.join(tmpdir(),"lockedin-discovery-browser-"));
@@ -29,7 +29,7 @@ async function ready(){for(let tries=0;tries<150;tries++){if(preview.exitCode!==
 try{
   ({prisma}=await import("../api/src/lib/prisma.ts"));
   const people=[];
-  for(const key of ["a","b","c","d","existing-partner","moderator"]){
+  for(const key of ["a","b","c","d","existing-partner","moderator","e","f"]){
     const id=`browser-${key}`,token=`browser-token-${randomUUID()}`;
     await prisma.user.create({data:{id,email:`${id}@example.test`,name:`PRIVATE ${key}`,emailVerified:true}});
     await prisma.session.create({data:{id:randomUUID(),userId:id,token,expiresAt:new Date(Date.now()+3600000)}});
@@ -37,7 +37,7 @@ try{
     people.push({id,cookie:{name:"better-auth.session_token",value,url:base},publicName:`Public ${key.toUpperCase()}`});
   }
   process.env.DISCOVERY_PILOT_USER_IDS=people.map(person=>person.id).join(",");
-  const [a,b,c,d,existingPartner,moderator]=people;
+  const [a,b,c,d,existingPartner,moderator,e,f]=people;
   const oldRelationship=await prisma.relationship.create({data:{members:{create:[{userId:d.id},{userId:existingPartner.id}]}}});
   const oldSnapshot=JSON.stringify(await prisma.relationship.findUnique({where:{id:oldRelationship.id},include:{members:true}}));
   const jpeg=await (await import("sharp")).default({create:{width:120,height:80,channels:3,background:"#74a989"}}).jpeg().toBuffer();
@@ -47,7 +47,10 @@ try{
     const screening={moderation:[{kind:"aws_rek",status:"approved",response:{moderation_labels:[{name:"Implied Nudity",parent_name:"",confidence:50}]}}]};
     assets.set(asset.publicId,{asset,screening,jpeg});return{asset,screening};
   },inspect:async({publicId})=>assets.get(publicId)??null,read:async({publicId})=>assets.get(publicId).jpeg,destroy:async({publicId})=>{assets.delete(publicId);},override:async()=>{}};
-  api=await(await import("../api/src/app.ts")).buildServer({photoProvider});await api.listen({port:apiPort,host:"127.0.0.1"});
+  const discoveryGeocoder=async query=>query==="987 Synthetic Street"
+    ?[{label:"987 Synthetic Street",areaLabel:"Pilot city",latitude:40.75123,longitude:-73.99987}]
+    :[{label:"Uptown result",areaLabel:"Other city",latitude:40.87473,longitude:-73.99987}];
+  api=await(await import("../api/src/app.ts")).buildServer({photoProvider,...(reviewRuns("distance")?{discoveryGeocoder}:{})});await api.listen({port:apiPort,host:"127.0.0.1"});
   const previewEnv={...process.env,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",API_PROXY_URL:`http://127.0.0.1:${apiPort}`,NEXT_PUBLIC_API_URL:""};
   // Production output avoids development HMR reloading a form while a newly
   // visited route compiles. The build uses this run's exact owned API port.
@@ -67,11 +70,12 @@ try{
   pageA.on("framenavigated",frame=>{if(frame===pageA.mainFrame())console.log(`A navigation: ${frame.url()}`);});
   pageA.on("dialog",async dialog=>{console.log(`A dialog: ${dialog.type()} ${dialog.message()}`);await dialog.dismiss();});
   async function request(person,method,endpoint,body){const response=await contexts.get(person.id).context.request.fetch(`${base}${endpoint}`,{method,headers:{Origin:base,"X-Discovery-Owner":person.id},...(body!==undefined?{data:body}:{})});return{status:response.status(),body:await response.json()};}
-  async function publish(person){
-    const saved=await request(person,"PUT","/api/discovery/profile",{publicName:person.publicName,avatarPreset:"leaf",bio:`A public introduction from ${person.publicName}`,intention:"LONG_TERM",interests:["Reading"],pace:null,areaId:"pilot-city",revision:0});assert.equal(saved.status,200);
+  async function publish(person,areaId="pilot-city"){
+    const saved=await request(person,"PUT","/api/discovery/profile",{publicName:person.publicName,avatarPreset:"leaf",bio:`A public introduction from ${person.publicName}`,intention:"LONG_TERM",interests:["Reading"],pace:null,areaId,revision:0,...(person===b&&reviewRuns("matching")?{promptAnswer:"Make time and follow through."}:{})});assert.equal(saved.status,200);
     const result=await request(person,"POST","/api/discovery/profile/publish",{draftRevision:1,adultAttested:true});assert.equal(result.status,200);person.profileId=result.body.value.published.id;
   }
   await pageA.goto(`${base}/discover/profile`);await pageA.getByLabel("Public name",{exact:true}).fill(a.publicName);await pageA.getByLabel("Short introduction").fill("A public introduction from A");
+  if(reviewRuns("matching"))await pageA.getByLabel(/What does showing up for someone look like to you/).fill("Listen and follow up.");
   assert.equal(await pageA.getByRole("button",{name:"Refresh when ready",exact:true}).count(),0,"Initial quiet notification connection must not fill the page with a false activity banner");
   async function pendingProfileOperation(endpoint,button){
     if(!reviewRuns("profile")){await button.click();return;}
@@ -85,6 +89,7 @@ try{
   }
   await pendingProfileOperation("/api/discovery/profile",pageA.getByRole("button",{name:"Save private draft",exact:true}));await pageA.getByText("Private draft saved. It has not been published.").waitFor();
   await pageA.getByLabel(/I confirm I am 18 or older/).check();await pendingProfileOperation("/api/discovery/profile/publish",pageA.getByRole("button",{name:"Publish profile",exact:true}));await pageA.getByText(/^Profile published/).waitFor();
+  if(reviewRuns("matching"))await pageA.getByRole("region",{name:"Published Discovery profile",exact:true}).getByText("Listen and follow up.",{exact:true}).waitFor();
   a.profileId=(await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:a.id}})).id;
   for(const person of [b,c,d])await publish(person);
   if(reviewRuns("photos")){
@@ -170,7 +175,27 @@ try{
   await pageB.goto(`${base}/discover`);await pageB.getByRole("heading",{name:"Find someone to build with."}).waitFor();await pageB.getByRole("region",{name:"Selected person"}).waitFor();
   assert(!await pageB.locator("main").innerText().then(text=>text.includes("PRIVATE")));
   await checkDiscoveryLayout(pageB,{screenshotDir:artifacts,name:"browse"});
-  await pageA.goto(`${base}/connections?profile=${b.profileId}`);await pageA.getByLabel("A short hello (optional)").fill("A browser starter hello");await pageA.getByRole("button",{name:"Send starter invitation",exact:true}).click();
+  if(reviewRuns("matching")){
+    await pageA.goto(`${base}/discover`);
+    const picker=pageA.getByLabel("Explore an area");
+    assert.equal(await picker.inputValue(),"pilot-city");
+    await picker.selectOption("other-city");
+    await pageA.getByRole("heading",{name:"No profiles to show in Other city yet",exact:true}).waitFor();
+    await pageA.getByText("Your profile stays listed in Pilot city.",{exact:false}).waitFor();
+    await pageA.getByRole("button",{name:"Explore another area",exact:true}).click();
+    assert(await picker.evaluate(element=>element===document.activeElement));
+    await picker.selectOption("pilot-city");
+    await pageA.getByRole("list",{name:"People in this area"}).getByRole("button").filter({hasText:b.publicName}).click();
+    const selected=pageA.getByRole("region",{name:"Selected person",exact:true});
+    await selected.getByText("Why you’re seeing this profile:",{exact:true}).waitFor();
+    await selected.getByRole("button",{name:"Reply to this answer",exact:true}).click();
+    await pageA.getByText("Make time and follow through.",{exact:true}).waitFor();
+    await pageA.getByLabel("Your reply",{exact:true}).fill("A browser starter hello");
+    await pageA.getByRole("button",{name:"Send reply as invitation",exact:true}).click();
+    console.log("PASS city switching, recommendation reasons and published profile prompt reply");
+  }else{
+    await pageA.goto(`${base}/connections?profile=${b.profileId}`);await pageA.getByLabel("A short hello (optional)").fill("A browser starter hello");await pageA.getByRole("button",{name:"Send starter invitation",exact:true}).click();
+  }
   await pageA.waitForURL(/\/connections\/[a-f0-9-]+$/,{timeout:5000});const connectionId=new URL(pageA.url()).pathname.split("/").at(-1),connectionUrl=`/connections/${connectionId}`;
   await pageB.goto(`${base}/journey`);await pageB.getByRole("button",{name:/^Notifications,/}).click();await pageB.getByRole("button",{name:"Open activity"}).click();await pageB.waitForURL(`${base}${connectionUrl}`);
   const accept=pageB.getByRole("button",{name:"Accept starter",exact:true});await accept.waitFor();assert((await accept.boundingBox()).y<760,"Acceptance must be visible near the top on phone");
@@ -222,6 +247,41 @@ try{
   await pageC.goto(`${base}/discover`);await pageC.getByRole("list",{name:"People in this area",exact:true}).getByRole("button").filter({hasText:d.publicName}).click();
   const selectedPerson=pageC.getByRole("region",{name:"Selected person",exact:true});await selectedPerson.getByRole("heading",{name:d.publicName,exact:true}).waitFor();await selectedPerson.getByText("Safety & contact controls",{exact:true}).click();await selectedPerson.getByRole("button",{name:"Block contact",exact:true}).click();await pageC.getByRole("alertdialog",{name:"Block this contact?",exact:true}).getByRole("button",{name:"Block contact",exact:true}).click();
   await pageC.waitForURL(`${base}/connections`,{timeout:5000});
+  if(reviewRuns("distance")){
+    const pageE=await pageFor(e),pageF=await pageFor(f);
+    await publish(e);await publish(f,"other-city");
+    async function setDistance(page,query,label,miles){
+      await page.goto(`${base}/discover`);
+      await page.getByRole("button",{name:"Distance preferences",exact:true}).click();
+      const preferences=page.getByRole("region",{name:"Distance preferences",exact:true});
+      await preferences.getByLabel("Search location",{exact:true}).fill(query);
+      await preferences.getByRole("button",{name:"Find location",exact:true}).click();
+      await preferences.getByRole("radio",{name:label,exact:true}).check();
+      await preferences.getByLabel("Maximum distance",{exact:true}).selectOption(String(miles));
+      await preferences.getByRole("button",{name:"Save preferences",exact:true}).click();
+      await page.getByText("Distance preferences saved.",{exact:true}).waitFor();
+    }
+    await setDistance(pageE,"987 Synthetic Street","987 Synthetic Street",25);
+    await setDistance(pageF,"Uptown","Uptown result",5);
+    await pageE.reload();
+    await pageE.getByRole("heading",{name:"No profiles fit your distance preferences right now.",exact:true}).waitFor();
+    assert.equal(await pageE.getByText("987 Synthetic Street",{exact:true}).count(),0);
+    assert(!pageE.url().includes("Synthetic"));
+    await pageF.getByRole("button",{name:"Change distance",exact:true}).click();
+    const settings=pageF.getByRole("region",{name:"Distance preferences",exact:true});
+    await checkDiscoveryLayout(pageF,{screenshotDir:artifacts,name:"distance-preferences"});
+    await settings.getByLabel("Maximum distance",{exact:true}).selectOption("10");
+    await settings.getByRole("button",{name:"Save preferences",exact:true}).click();
+    await settings.waitFor({state:"hidden"});
+    await pageE.reload();
+    const card=pageE.getByRole("region",{name:"Selected person",exact:true});
+    await card.getByRole("heading",{name:f.publicName,exact:true}).waitFor();
+    await card.getByText("Other city",{exact:true}).waitFor();
+    await pageF.getByRole("button",{name:"Distance preferences",exact:true}).click();
+    await settings.getByRole("button",{name:"Remove search location and browse by city",exact:true}).click();
+    await pageF.getByLabel("Explore an area").waitFor();
+    console.log("PASS private location selection, mutual distance limits, cross-city Discovery and removing the saved location");
+  }
   const fallback=await pageFor(c,true);await fallback.goto(`${base}/connections`);await fallback.getByRole("button",{name:"Your space",exact:true}).click();await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).fill("FALLBACK UNSAVED");const fallbackBack=fallback.goBack({waitUntil:"commit",timeout:4000}).catch(()=>null);await fallback.getByRole("button",{name:"Keep editing",exact:true}).click();await fallbackBack;assert.equal(await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).inputValue(),"FALLBACK UNSAVED");
   // Account switch discards mounted state; old text is never installed for B.
   await contexts.get(a.id).context.clearCookies();await contexts.get(a.id).context.addCookies([b.cookie]);await pageA.goto(`${base}/your-space`);await pageA.getByRole("textbox",{name:"Your private reflection",exact:true}).waitFor();assert.equal(await pageA.getByRole("textbox",{name:"Your private reflection",exact:true}).inputValue(),"");

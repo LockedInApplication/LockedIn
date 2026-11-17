@@ -88,6 +88,7 @@ try{
   a.profileId=(await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:a.id}})).id;
   for(const person of [b,c,d])await publish(person);
   if(reviewRuns("photos")){
+    await pageA.getByRole("button",{name:"Edit profile",exact:true}).click();
     await pageA.getByLabel("Choose photo").setInputFiles({name:"synthetic.jpg",mimeType:"image/jpeg",buffer:jpeg});
     await pageA.getByLabel("Short introduction").fill("Unsaved draft text");
     assert.equal(await pageA.getByRole("button",{name:"Upload photo",exact:true}).isDisabled(),true);
@@ -126,9 +127,16 @@ try{
     await pageA.getByText("Ready to publish",{exact:true}).waitFor();
     await pageA.getByLabel(/I confirm I am 18 or older/).check();await pageA.getByRole("button",{name:"Publish profile",exact:true}).click();
     await pageA.getByText(/^Profile published/).waitFor();
+    const ownerCard=pageA.getByRole("region",{name:"Published Discovery profile",exact:true});
+    await ownerCard.getByRole("img",{name:`Photo 1 of ${a.publicName}`,exact:true}).waitFor();
+    assert.equal(await pageA.getByLabel("Public name",{exact:true}).count(),0);
+    await checkDiscoveryLayout(pageA,{screenshotDir:artifacts,name:"published-profile"});
+    await pageA.getByRole("button",{name:"Edit profile",exact:true}).click();
     const publishedPhoto = pageA.getByText("Published on your Discovery profile",{exact:true});
     await publishedPhoto.waitFor();
     await pageA.reload();
+    await ownerCard.getByRole("img",{name:`Photo 1 of ${a.publicName}`,exact:true}).waitFor();
+    await pageA.getByRole("button",{name:"Edit profile",exact:true}).click();
     await publishedPhoto.waitFor();
     assert.equal(await pageA.getByText("Ready to publish",{exact:true}).count(),0);
     await pageB.goto(`${base}/discover`);

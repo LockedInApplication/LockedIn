@@ -3,38 +3,33 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { connectionFixtures } from "./discovery-connection.fixtures.js";
 vi.mock("../../../lib/email.js", () => ({ sendEmail: async () => {}, sendPasswordResetEmail: async () => {} }));
 vi.mock("../../journey-notifications/journey-email.service.js", () => ({ sendJourneyEmailSafely: async () => {} }));
-describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private starter drafts and explicit shared snapshots", () => {
+describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("retired private starter drafts", () => {
   let server: Awaited<ReturnType<typeof import("../../../app.js").buildServer>>, f: ReturnType<typeof connectionFixtures>;
   const oldEnv = { ...process.env };
   beforeAll(async () => { server = await (await import("../../../app.js")).buildServer(); await server.listen({ port: 0, host: "127.0.0.1" }); f = connectionFixtures(server); });
   afterAll(async () => { process.env = oldEnv; await server?.close(); await (await import("../../../lib/prisma.js")).prisma.$disconnect(); });
-  it("keeps unsent responses owner-only and immutable after sharing; retries share once", async () => {
+  it("never returns historical private drafts and rejects retired writes without changing stored data", async () => {
     const { prisma } = await import("../../../lib/prisma.js");
-    const a = await f.person(), b = await f.person(), c = await f.person();
+    const a = await f.person(), b = await f.person(), outsider = await f.person();
     const invite = await f.send(a, b); expect(invite.statusCode).toBe(200);
     const id = invite.json().value.id, url = `/api/discovery/connections/${id}`;
-    await f.request(b, "POST", `${url}/accept`, {});
-    const before = await prisma.notification.count({ where: { recipientId: b.id } });
-    const save = await f.request(a, "PUT", `${url}/draft`, { text: "Unsent private words", revision: 0 }); expect(save.statusCode).toBe(200);
-    expect(save.json().value.ownDraft).toEqual({ text: "Unsent private words", revision: 1 });
-    const partner = await f.request(b, "GET", url);
-    expect(partner.json().value.ownDraft).toBeNull(); expect(JSON.stringify(partner.json())).not.toContain("Unsent private words");
-    expect(await prisma.notification.count({ where: { recipientId: b.id } })).toBe(before);
-    expect((await f.request(a, "PUT", `${url}/draft`, { text: "Lost stale update", revision: 0 })).statusCode).toBe(409);
-    expect((await f.request(a, "POST", `${url}/share`, { draftRevision: 0, requestId: randomUUID() })).statusCode).toBe(409);
-    const requestId = randomUUID(), shared = await f.request(a, "POST", `${url}/share`, { draftRevision: 1, requestId });
-    expect(shared.statusCode).toBe(200); expect(shared.json().value.sharedResponses[0].text).toBe("Unsent private words");
-    await f.request(a, "PUT", `${url}/draft`, { text: "Different unsent revision", revision: 1 });
-    const replay = await f.request(a, "POST", `${url}/share`, { draftRevision: 1, requestId });
-    expect(replay.statusCode).toBe(200); expect(replay.json().value.sharedResponses).toHaveLength(1);
-    const nextView = (await f.request(b, "GET", url)).json().value;
-    expect(nextView.sharedResponses[0].text).toBe("Unsent private words"); expect(JSON.stringify(nextView)).not.toContain("Different unsent revision");
-    for (const [method, suffix, body] of [["GET", "", undefined], ["PUT", "/draft", {text:"Intruder",revision:0}], ["POST", "/share", {draftRevision:1,requestId:randomUUID()}]] as const) expect((await f.request(c, method, url + suffix, body)).statusCode).toBe(404);
-    process.env.DISCOVERY_ENABLED = "false";
-    expect((await f.request(a, "GET", url)).json().value.ownDraft.text).toBe("Different unsent revision");
-    expect((await f.request(a, "POST", `${url}/share`, { draftRevision: 2, requestId: randomUUID() })).statusCode).toBe(409);
-    expect((await f.request(a, "POST", `${url}/close`, {})).statusCode).toBe(200);
-    expect((await f.request(a, "PUT", `${url}/draft`, {text:"After closure",revision:2})).statusCode).toBe(409);
-    f.configure();
+    expect((await f.request(b, "POST", `${url}/accept`, {})).statusCode).toBe(200);
+    const draft = await prisma.discoveryDraft.create({ data: { connectionId: id, ownerId: a.id, text: "HISTORICAL PRIVATE WORDS" } });
+    const shared = await prisma.discoverySharedResponse.create({ data: { connectionId: id, ownerId: a.id, text: "Previously shared", version: 1, requestId: randomUUID() } });
+    const notificationCount = await prisma.notification.count({ where: { discoveryConnectionId: id } });
+    for (const person of [a, b]) {
+      const response = await f.request(person, "GET", url);
+      expect(response.statusCode).toBe(200);
+      expect(response.json().value).toMatchObject({ ownDraft: null, canShare: false, hello: "Hello there" });
+      expect(JSON.stringify(response.json())).not.toContain(draft.text);
+    }
+    for (const person of [a, b, outsider]) {
+      expect((await f.request(person, "PUT", `${url}/draft`, { text: "New draft", revision: 1 })).statusCode).toBe(404);
+      expect((await f.request(person, "POST", `${url}/share`, { draftRevision: 1, requestId: randomUUID() })).statusCode).toBe(404);
+    }
+    expect((await f.request(outsider, "GET", url)).statusCode).toBe(404);
+    expect(await prisma.discoveryDraft.findUnique({ where: { id: draft.id } })).toEqual(draft);
+    expect(await prisma.discoverySharedResponse.findUnique({ where: { id: shared.id } })).toEqual(shared);
+    expect(await prisma.notification.count({ where: { discoveryConnectionId: id } })).toBe(notificationCount);
   });
 });

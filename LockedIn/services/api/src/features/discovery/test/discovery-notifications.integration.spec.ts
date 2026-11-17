@@ -20,12 +20,12 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION!=="true")("isolated discovery 
     await f.request(b,"POST",`${url}/accept`,{});await f.request(b,"POST",`${url}/accept`,{});
     expect(await prisma.notification.count({where:{recipientId:a.id,kind:"DISCOVERY_ACCEPTED"}})).toBe(1);
     const fingerprint=await notificationFingerprint(b.id);
-    await f.request(a,"PUT",`${url}/draft`,{text:"SECRET DRAFT",revision:0});
+    expect((await f.request(a,"PUT",`${url}/draft`,{text:"SECRET DRAFT",revision:0})).statusCode).toBe(404);
     expect(await notificationFingerprint(b.id)).toBe(fingerprint);
     const share={draftRevision:1,requestId:randomUUID()};
-    await f.request(a,"POST",`${url}/share`,share);await f.request(a,"POST",`${url}/share`,share);
-    expect(await notificationFingerprint(b.id)).not.toBe(fingerprint);
-    expect(await prisma.notification.count({where:{recipientId:b.id,kind:"DISCOVERY_RESPONSE_SHARED"}})).toBe(1);
+    expect((await f.request(a,"POST",`${url}/share`,share)).statusCode).toBe(404);
+    expect(await notificationFingerprint(b.id)).toBe(fingerprint);
+    expect(await prisma.notification.count({where:{recipientId:b.id,kind:"DISCOVERY_RESPONSE_SHARED"}})).toBe(0);
     expect(JSON.stringify(await listNotifications(b.id))).not.toMatch(/SECRET DRAFT|PRIVATE AUTH NAME|@example/);
     const beforeClose=await notificationFingerprint(b.id),count=await prisma.notification.count({where:{recipientId:b.id}});
     await f.request(a,"POST",`${url}/close`,{});

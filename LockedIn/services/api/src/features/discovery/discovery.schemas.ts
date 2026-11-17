@@ -47,8 +47,6 @@ export const discoveryInvitationSchema = z.strictObject({
     : value.expectedPromptAnswer === undefined && !value.replyPromptKey && !value.replyPhotoId);
 export const discoveryConnectionParams = z.strictObject({ id: z.string().uuid() });
 export const discoveryConnectionQuery = z.strictObject({ before: z.string().uuid().optional() });
-export const starterDraftSchema = z.strictObject({ text: z.string().max(2000), revision: z.number().int().nonnegative() });
-export const starterShareSchema = z.strictObject({ draftRevision: z.number().int().nonnegative(), requestId: z.string().uuid() });
 export const buildReadinessSchema = z.strictObject({ ready: z.boolean(), consentVersion: z.number().int().nonnegative() });
 export const privateReflectionSchema = z.strictObject({ text: z.string().max(4000), revision: z.number().int().nonnegative() });
 export const discoveryBlockSchema = z.strictObject({ profileId: z.string().uuid().optional(), connectionId: z.string().uuid().optional() }).refine(value => Number(!!value.profileId) + Number(!!value.connectionId) === 1);

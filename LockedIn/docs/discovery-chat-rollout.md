@@ -9,9 +9,11 @@ The opener uses the existing invitation record, not a duplicated message row;
 its report action uses the existing invitation-evidence path. The original reply
 stays visible above paginated follow-up messages, including after reconnecting.
 
-There is no separate private-response composer in the connection UI. Existing
-shared responses and the owner's saved private drafts remain in collapsed,
-read-only history. Private drafts are never automatically sent as chat messages.
+The private-response composer and legacy starter-history panel are retired.
+The draft/save/share endpoints are removed, and connection responses never return
+private draft text. On November 17, 2026, the owner-approved production cleanup
+deleted 2 legacy drafts and 3 shared starter answers. All 4 chat messages and
+3 opening replies were verified unchanged. No legacy text was converted to chat.
 Legacy invitations with no hello show their question without inventing a message.
 
 No attachments, typing indicators, read receipts, date plans, calendar
@@ -20,7 +22,7 @@ permissions or push notifications are included.
 The API checks both participants and current Discovery eligibility under the
 same ordered account/connection locks as blocking and closure. Closing, blocking,
 suspension or promotion stops chat access; blocked chats are not reopened by
-unblocking. Existing starter-response history retains its separate access rules.
+unblocking. Existing safety-report evidence is preserved.
 
 ## Delivery and recovery
 

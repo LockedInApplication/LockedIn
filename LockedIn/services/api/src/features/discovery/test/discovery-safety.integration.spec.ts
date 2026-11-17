@@ -45,8 +45,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("canonical discove
     const { prisma }=await import("../../../lib/prisma.js");
     const a=await f.person(),b=await f.person(),c=await f.person(), sent=await f.send(a,b); expect(sent.statusCode).toBe(200); const id=sent.json().value.id;
     await f.request(b,"POST",`/api/discovery/connections/${id}/accept`,{});
-    await f.request(a,"PUT",`/api/discovery/connections/${id}/draft`,{text:"SECRET UNSHARED",revision:0});
-    const ownDraft=await prisma.discoveryDraft.findFirstOrThrow({where:{connectionId:id,ownerId:a.id}});
+    const ownDraft=await prisma.discoveryDraft.create({data:{connectionId:id,ownerId:a.id,text:"SECRET UNSHARED"}});
     const input={sourceType:"INVITATION",sourceId:id,reason:"SPAM",detail:"Please review",requestId:randomUUID()};
     expect((await f.request(c,"POST","/api/discovery/reports",input)).statusCode).toBe(404);
     expect((await f.request(b,"POST","/api/discovery/reports",{...input,sourceType:"SHARED_RESPONSE",sourceId:ownDraft.id})).statusCode).toBe(404);

@@ -47,6 +47,6 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("restricted discov
     const row=await prisma.discoveryConnection.findUniqueOrThrow({where:{id}});
     expect(["CLOSED","PROMOTED"]).toContain(row.state);
     expect(await prisma.relationship.count({where:{status:"ACTIVE",members:{some:{userId:a.id}}}})).toBe(row.state==="PROMOTED"?1:0);
-    expect((await f.request(a,"PUT",`/api/discovery/connections/${id}/draft`,{text:"Later contact",revision:0})).statusCode).toBe(409);
+    expect((await f.request(a,"PUT",`/api/discovery/connections/${id}/draft`,{text:"Later contact",revision:0})).statusCode).toBe(404);
   });
 });

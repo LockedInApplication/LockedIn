@@ -32,7 +32,8 @@ export async function discoveryPairEligible(tx: Prisma.TransactionClient, row: D
   return true;
 }
 export async function connectionValue(tx: Prisma.TransactionClient, row: DiscoveryConnection, actorId: string) {
-  const connection = await tx.discoveryConnection.findUniqueOrThrow({ where: { id: row.id }, include: { drafts: { where: { ownerId: actorId } }, sharedResponses: { orderBy: [{ sharedAt: "asc" }, { id: "asc" }] } } });
+  const stored = await tx.discoveryConnection.findUniqueOrThrow({ where: { id: row.id }, include: { sharedResponses: { orderBy: [{ sharedAt: "asc" }, { id: "asc" }] } } });
+  const connection = { ...stored, drafts: [] };
   const partnerId = row.userLowId === actorId ? row.userHighId : row.userLowId;
   const profile = await tx.discoveryProfile.findUnique({ where: { ownerId: partnerId }, select: { id: true, publishedSnapshot: true } });
   const published = profile ? publicDiscoveryProfile(profile.id, profile.publishedSnapshot) : null;

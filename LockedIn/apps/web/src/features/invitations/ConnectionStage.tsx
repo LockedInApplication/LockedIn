@@ -30,16 +30,16 @@ export default function ConnectionStage({
   return (
     <section className={styles.stageGrid}>
       <article className={styles.primaryCard}>
-        <span className={styles.cardNumber}>01</span>
+        {!showChoice && <span className={styles.cardNumber} aria-hidden="true">01</span>}
         <span className={styles.eyebrow}>CONNECT BY CHOICE</span>
         <h2>{showChoice ? "How would you like to start?" : "Create a private space for two."}</h2>
         {showChoice ? <>
-          <p>Already have someone you’d like to start the journey with? Send them a private invitation. If not, you can explore and meet someone new.</p>
+          <p>Invite someone you know to start a private journey, or explore Discovery to meet someone new.</p>
           <div className={choiceStyles.actions}>
             <button type="button" disabled={busy} onClick={() => setInviteSelected(true)}>Invite someone I know</button>
             <button type="button" disabled={busy} onClick={onExplore}>Explore Discovery</button>
           </div>
-          <p>Exploring is optional. Your profile stays private until you choose to publish it.</p>
+          <p>Your profile stays private until you publish it.</p>
         </> : <><p>
           Invite the person you want to build with. Nothing is shared until they
           independently accept and decide what they want to reveal.

@@ -77,6 +77,13 @@ try{
   if(reviewRuns("onboarding")){
     await pageA.goto(`${base}/journey`);
     await pageA.getByRole("heading",{name:"How would you like to start?",exact:true}).waitFor();
+    const welcome=pageA.getByRole("heading",{name:"Welcome to LockedIn.",exact:true});
+    const gap=await welcome.evaluate(heading=>{
+      const intro=heading.closest("section");
+      return intro.nextElementSibling.getBoundingClientRect().top-intro.getBoundingClientRect().bottom;
+    });
+    assert(gap>=24,"The onboarding cards should not touch on mobile");
+    await checkDiscoveryLayout(pageA,{widths:[320,393,430],screenshotDir:artifacts,name:"onboarding"});
     await pageA.getByRole("button",{name:"Invite someone I know",exact:true}).click();
     assert(await pageA.getByLabel("Partner's email",{exact:true}).evaluate(element=>element===document.activeElement));
     await pageA.getByRole("button",{name:"Explore Discovery instead",exact:true}).click();

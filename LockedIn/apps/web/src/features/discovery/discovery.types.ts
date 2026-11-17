@@ -1,6 +1,8 @@
 import type { AvatarPreset } from "@/features/profile/profile.types";
 import type { PhotoCard } from "./photos/discovery-photo.types";
-export type DiscoveryProfileInput = { publicName: string; avatarPreset: AvatarPreset; bio: string; intention: "LONG_TERM" | "OPEN_TO_LONG_TERM"; interests: string[]; pace: string | null; areaId: string; photoIds?: string[]; promptAnswer?: string };
+import type { familyOptions, petOptions, PhotoKey, WrittenKey } from "./discovery-prompt";
+export type DiscoveryAbout = { heightCm?: number; languages?: string[]; pets?: keyof typeof petOptions; familyPlans?: keyof typeof familyOptions };
+export type DiscoveryProfileInput = { publicName: string; avatarPreset: AvatarPreset; bio: string; intention: "LONG_TERM" | "OPEN_TO_LONG_TERM"; interests: string[]; pace: string | null; areaId: string; photoIds?: string[]; promptAnswer?: string; prompts?: { key: WrittenKey; answer: string }[]; photoPrompts?: { photoId: string; key: PhotoKey }[]; about?: DiscoveryAbout };
 export type PublicDiscoveryProfile = DiscoveryProfileInput & { id: string; photos?: PhotoCard[]; recommendation?: { sameArea: boolean; sameIntention: boolean; sharedInterests: string[] } };
 export type DiscoveryMe = { canDiscover: boolean; canModerate: boolean; hasHistory: boolean; canReflect: boolean; currentRelationshipId: string | null; areas: {id:string;label:string}[]; topics: {key:string;text:string}[]; photos?: { enabled: boolean; configured: boolean } };
 export type OwnDiscoveryProfile = { draft: DiscoveryProfileInput | null; revision: number; published: PublicDiscoveryProfile | null; publicationVersion: number; paused: boolean; adultAttested: boolean; suspended: boolean };

@@ -9,12 +9,13 @@ export async function enrichPublishedPhotos(tx: Prisma.TransactionClient, visibl
   const ids = config.enabled && config.configured ? visible.flatMap(card => card.photoIds ?? []) : [];
   const rows = ids.length ? await tx.discoveryPhoto.findMany({ where: { id: { in: ids }, state: "APPROVED", scanCompleted: true, deletedAt: null, revokedAt: null, destroyedAt: null, assetId: { not: null } }, select: { id: true, profileId: true, width: true, height: true } }) : [];
   const byId = new Map(rows.map(photo => [photo.id, photo]));
-  return visible.map(({ photoIds, ...profile }) => {
+  return visible.map(({ photoIds, photoPrompts, ...profile }) => {
     const photos: PhotoCard[] = [];
     for (const id of photoIds ?? []) {
       const photo = byId.get(id);
       if (photo?.profileId === profile.id && photo.width && photo.height) photos.push({ id, src: photoMediaPath(id), width: photo.width, height: photo.height });
     }
-    return { ...profile, ...(photos.length ? { photos } : {}) };
+    const visiblePrompts = photoPrompts?.filter(prompt => photos.some(photo => photo.id === prompt.photoId));
+    return { ...profile, ...(photos.length ? { photos } : {}), ...(visiblePrompts?.length ? { photoPrompts: visiblePrompts } : {}) };
   });
 }

@@ -43,13 +43,13 @@ export default function WorkspaceHeader({
           {onProfile ? (
             <button
               type="button"
-              className={invitationStyles.headerButton}
+              className={`${invitationStyles.headerButton} ${headerStyles.profileButton}`}
               onClick={onProfile}
             >
               {user ? (
                 <ProfileAvatar name={user.name} preset={user.avatarPreset} />
-              ) : null}{" "}
-              Profile &amp; settings
+              ) : null}
+              <span>Profile &amp; settings</span>
             </button>
           ) : null}
           {onInvitations ? (

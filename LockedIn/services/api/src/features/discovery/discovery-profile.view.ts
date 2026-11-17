@@ -6,15 +6,18 @@ import type { DiscoveryProfileInput, PublicDiscoveryProfile } from "./discovery.
 export function publicDiscoveryProfile(id: string, value: unknown): PublicDiscoveryProfile | null {
   const parsed = discoveryProfileSchema.safeParse(value);
   if (!parsed.success) return null;
-  const { publicName, avatarPreset, bio, intention, interests, pace, areaId, photoIds, promptAnswer } = parsed.data;
-  return { id, publicName, avatarPreset, bio, intention, interests, pace, areaId, ...(photoIds?.length ? { photoIds } : {}), ...(promptAnswer ? { promptAnswer } : {}) };
+  const { publicName, avatarPreset, bio, intention, interests, pace, areaId, photoIds, promptAnswer, prompts, photoPrompts, about } = parsed.data;
+  return { id, publicName, avatarPreset, bio, intention, interests, pace, areaId, ...(photoIds?.length ? { photoIds } : {}), ...(promptAnswer ? { promptAnswer } : {}),
+    ...(prompts ? { prompts } : {}), ...(photoPrompts ? { photoPrompts: photoPrompts.filter(prompt => photoIds?.includes(prompt.photoId)) } : {}), ...(about ? { about } : {}) };
 }
 export function discoveryDraft(profile: DiscoveryProfile | null): { profile: DiscoveryProfileInput | null; revision: number } {
   const wrapper = profile?.draft;
   if (!wrapper || typeof wrapper !== "object" || Array.isArray(wrapper)) return { profile: null, revision: 0 };
   const revision = "revision" in wrapper && typeof wrapper.revision === "number" && Number.isSafeInteger(wrapper.revision) && wrapper.revision >= 0 ? wrapper.revision : 0;
   const parsed = discoveryProfileSchema.safeParse("profile" in wrapper ? wrapper.profile : null);
-  return { profile: parsed.success ? parsed.data : null, revision };
+  if (!parsed.success) return { profile: null, revision };
+  const data = parsed.data;
+  return { profile: { ...data, ...(data.photoPrompts ? { photoPrompts: data.photoPrompts.filter(prompt => data.photoIds?.includes(prompt.photoId)) } : {}) }, revision };
 }
 export function ownDiscoveryProfile(profile: DiscoveryProfile | null) {
   const draft = discoveryDraft(profile);

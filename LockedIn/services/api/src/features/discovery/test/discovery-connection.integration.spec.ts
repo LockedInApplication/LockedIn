@@ -67,6 +67,26 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("separate discover
     expect((await f.request(b, "POST", `${endpoint}/${id}/accept`, {})).json().value.state).toBe("ACCEPTED");
   });
 
+  it("publishes optional profile details and replies only to the selected current prompt", async () => {
+    const a = await f.person(), b = await f.person();
+    const prompts = [{ key: "sunday", answer: "Coffee and a long walk." }, { key: "cared_for", answer: "Checking in." }];
+    const about = { heightCm: 175, languages: ["English", "Twi"], pets: "have", familyPlans: "open" };
+    const reply = { targetProfileId: b.profileId, topicKey: "profile_prompt", replyPromptKey: "sunday", expectedPromptAnswer: prompts[0]!.answer, hello: "Where do you like walking?", requestId: randomUUID() };
+    const detail = `/api/discovery/profiles/${b.profileId}`;
+    const endpoint = "/api/discovery/connections";
+    const draft = { ...publicDraft, prompts, about, revision: 1 };
+    expect((await f.request(b, "PUT", "/api/discovery/profile", { ...draft, photoPrompts: [{ photoId: randomUUID(), key: "story" }] })).statusCode).toBe(400);
+    expect((await f.request(b, "PUT", "/api/discovery/profile", draft)).statusCode).toBe(200);
+    expect((await f.request(a, "GET", detail)).json().value).not.toHaveProperty("about");
+    expect((await f.request(a, "POST", endpoint, reply)).statusCode).toBe(409);
+    expect((await f.request(b, "POST", "/api/discovery/profile/publish", { draftRevision: 2, adultAttested: true })).statusCode).toBe(200);
+    expect((await f.request(a, "GET", detail)).json().value).toMatchObject({ prompts, about });
+    expect((await f.request(a, "POST", endpoint, { ...reply, replyPromptKey: "cared_for" })).statusCode).toBe(409);
+    const sent = await f.request(a, "POST", endpoint, reply);
+    expect(sent.statusCode).toBe(200);
+    expect(sent.json().value.topic.text).toBe("A Sunday I’d happily repeat…");
+  });
+
   it("quiet directional decline cooldown is fixed, permits reverse invite and ends at the boundary", async () => {
     const { prisma } = await import("../../../lib/prisma.js");
     const a = await f.person(), b = await f.person();

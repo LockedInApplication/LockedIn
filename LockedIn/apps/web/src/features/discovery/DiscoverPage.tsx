@@ -36,7 +36,7 @@ function DiscoveryBrowse(){
   if(!canBrowse)return <section className={styles.card}><p className={styles.eyebrow}>Optional discovery</p><h1>{own.value.paused?"Your visibility is paused.":"Meet someone to build with."}</h1><p>Choose exactly what to publish before exploring. Your shared space stays separate.</p><button className={styles.primary} onClick={()=>void leave("/discover/profile")}>{own.value.paused?"Manage visibility":"Set up my profile"}</button></section>;
   const canSetDistance=distance.value&&(distance.value.configured||preference);
   return <><p className={styles.eyebrow}>Discovery · {preference?"Browse by distance":"Browse by city"}</p><h1>Find someone to build with.</h1>
-    <div className={styles.actions}>{distance.value&&!preference?<label>Explore an area <select ref={cityPicker} className={styles.field} value={searchArea} onChange={event=>{setArea(event.target.value);restart();}}>{me.areas.map(area=><option key={area.id} value={area.id}>{area.label}</option>)}</select></label>:null}
+    <div className={`${styles.actions} ${styles.browseActions}`}>{distance.value&&!preference?<label className={styles.areaPicker}>Explore an area<select ref={cityPicker} aria-label="Explore an area" className={styles.field} value={searchArea} onChange={event=>{setArea(event.target.value);restart();}}>{me.areas.map(area=><option key={area.id} value={area.id}>{area.label}</option>)}</select></label>:null}
       {canSetDistance?<button type="button" aria-expanded={showDistance} onClick={()=>setShowDistance(value=>!value)}>Distance preferences</button>:null}
       <button onClick={()=>void leave("/discover/profile")}>My discovery profile</button>
     </div>

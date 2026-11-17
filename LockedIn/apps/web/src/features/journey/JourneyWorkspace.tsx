@@ -227,6 +227,8 @@ export default function JourneyWorkspace() {
     return true;
   }
   const isHome = Boolean(overview.relationship && activeView === "home");
+  const canChooseStart = !overview.relationship && !!discoveryAccess.value?.canDiscover && !discoveryAccess.value.hasHistory;
+  const showWelcome = canChooseStart && !overview.pendingInvites.length;
   const focusCurrentAction = () => {
     const element = document.getElementById("current-action");
     element?.scrollIntoView({
@@ -295,10 +297,10 @@ export default function JourneyWorkspace() {
         {mobileHome?<><h1 className={guidanceStyles.greeting}>Hi, {overview.user.name?.trim().split(/\s+/)[0]||'there'}.</h1>{nextAction}</>:null}
         {activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
           {!mobileHome?<div>
-            <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
-            <h1>{isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>
+            <span className={styles.eyebrow}>{showWelcome ? "GETTING STARTED" : "YOUR SHARED ROADMAP"}</span>
+            <h1>{showWelcome ? "Welcome to LockedIn." : isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>
             <p>
-              {isHome ? "Pick up where you left off, one step at a time." : "Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept."}
+              {showWelcome ? "Start with someone you know or explore at your own pace." : isHome ? "Pick up where you left off, one step at a time." : "Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept."}
             </p>
           </div>:null}
           <div className={styles.memberCard}>
@@ -313,9 +315,9 @@ export default function JourneyWorkspace() {
 
         {suggestionReference?null:overview.relationship ? (
           <WorkspaceNav active={activeView} onChange={setActiveView} compact={activeView==='conversations'} />
-        ) : (
+        ) : !showWelcome ? (
           <ProgressRail current={progress} />
-        )}
+        ) : null}
 
         {notice ? (
           <div className={`${styles.notice} ${notice.tone === "error" ? styles.noticeError : ""}`}>
@@ -331,10 +333,12 @@ export default function JourneyWorkspace() {
         ) : !overview.relationship ? (
           <>
           <ConnectionStage
+            key={overview.user.id}
             pendingInvites={overview.pendingInvites}
             inviteLink={inviteLink}
             busy={busy}
             onInvite={handleInvite}
+            onExplore={canChooseStart ? () => { if (!busy && confirmDiscard()) router.push("/discover"); } : undefined}
             onReview={id=>{if(confirmDiscard())navigateWorkspaceUrl(`/journey?invitation=${encodeURIComponent(id)}`);}}
           />
           <SentInvitations key={overview.user.id} revision={invitationRevision}

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { randomUUID } from "node:crypto";
 import { createPerson, discoveryRequest } from "./discovery.fixtures.js";
 
 vi.mock("../../../lib/email.js", () => ({ sendEmail: async () => {}, sendPasswordResetEmail: async () => {} }));
@@ -39,7 +40,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("consent-filtered 
 
   it("filters both block directions and live connections before pagination, and returns no count", async () => {
     const { prisma } = await import("../../../lib/prisma.js");
-    const exclusions = [await published({ publishedAreaId: "other-city", publishedSnapshot: { ...snapshot, areaId: "other-city" } }), await published({ publishedIntention: "OPEN_TO_LONG_TERM", publishedSnapshot: { ...snapshot, intention: "OPEN_TO_LONG_TERM" } }), await published(), await published(), await published(), await published(), await published({ publishedSnapshot: { ...snapshot, email: "private@example.test" } })];
+    const exclusions = [await published({ publishedAreaId: "other-city", publishedSnapshot: { ...snapshot, areaId: "other-city" } }), await published({ publishedIntention: "UNSUPPORTED", publishedSnapshot: { ...snapshot, intention: "UNSUPPORTED" } }), await published(), await published(), await published(), await published(), await published({ publishedSnapshot: { ...snapshot, email: "private@example.test" } })];
     await prisma.invitationBlock.createMany({ data: [{ blockerId: actor.id, blockedId: exclusions[2]!.id }, { blockerId: exclusions[3]!.id, blockedId: actor.id }] });
     for (const [index, state] of [[4, "PENDING"], [5, "ACCEPTED"]] as const) {
       const partner = exclusions[index]!;
@@ -67,11 +68,58 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("consent-filtered 
     expect(JSON.stringify(first.json())).not.toMatch(/private draft marker|email|coordinates|activityEmails|PRIVATE AUTH NAME/);
   });
 
+  it("ranks eligible profiles using shared interests, exact intent and coarse activity without exposing that activity", async () => {
+    const { prisma } = await import("../../../lib/prisma.js");
+    const city = { publishedAreaId: "other-city" };
+    const localSnapshot = { ...snapshot, areaId: city.publishedAreaId };
+    const viewer = await published({ ...city, publishedSnapshot: { ...localSnapshot, interests: ["Reading", "Music"] } });
+    const active = new Date(new Date().toISOString().slice(0, 10));
+    const make = (publicName: string, intention: string, interests: string[], lastDiscoveryActiveOn: Date | null = null) =>
+      published({ ...city, publishedSnapshot: { ...localSnapshot, publicName, intention, interests }, publishedIntention: intention, lastDiscoveryActiveOn });
+    const [best, shared, activeOnly] = await Promise.all([
+      make("Exact with shared interests", "LONG_TERM", ["READING", "MUSIC"]),
+      make("Compatible with shared interests", "OPEN_TO_LONG_TERM", ["reading", "Music"]),
+      make("Recently active", "LONG_TERM", [], active),
+    ]);
+    const result = await request(viewer, "GET", "/api/discovery/candidates?areaId=other-city");
+    expect(result.statusCode).toBe(200);
+    expect(result.json().value.items.slice(0, 3).map((item: { id: string }) => item.id)).toEqual([best.profileId, shared.profileId, activeOnly.profileId]);
+    expect(await prisma.discoveryProfile.findUnique({ where: { id: viewer.profileId } })).toMatchObject({ lastDiscoveryActiveOn: active });
+    const detail = await request(viewer, "GET", `/api/discovery/profiles/${shared.profileId}`);
+    expect(detail.json().value.recommendation).toEqual({ sameArea: true, sameIntention: false, sharedInterests: ["reading", "Music"] });
+    expect(JSON.stringify([detail.json(), result.json()])).not.toMatch(/lastDiscoveryActiveOn|rotation|score/);
+  });
+
   it("validates catalog, opaque cursor and query shape and supports newly selected search areas", async () => {
     const other = await published({ publishedAreaId: "other-city", publishedSnapshot: { ...snapshot, areaId: "other-city" } });
     const response = await request(actor, "GET", "/api/discovery/candidates?areaId=other-city");
     expect(response.json().value.items.map((item: { id: string }) => item.id)).toContain(other.profileId);
+    expect((await request(actor, "GET", `/api/discovery/profiles/${other.profileId}`)).json().value.recommendation.sameArea).toBe(false);
     for (const query of ["areaId=unknown", "areaId=pilot-city&before=not-a-cursor", "areaId=pilot-city&limit=100", "areaId=pilot-city&before=", "areaId=pilot-city&areaId=other-city"]) expect((await request(actor, "GET", `/api/discovery/candidates?${query}`)).statusCode).toBe(400);
     expect((await request(actor, "GET", "/api/discovery/profiles/not-an-id")).statusCode).toBe(400);
+  });
+
+  it("uses normal ID pagination for a city too large to rank in the pilot", async () => {
+    const { prisma } = await import("../../../lib/prisma.js");
+    const people = Array.from({ length: 301 }, () => ({ ownerId: `large-city-${randomUUID()}`, id: randomUUID() }));
+    const timestamp = new Date();
+    const profile = { ...snapshot, areaId: "large-city" };
+    await prisma.user.createMany({ data: people.map(({ ownerId }) => ({ id: ownerId, email: `${ownerId}@example.test`, name: "Private name", emailVerified: true })) });
+    await prisma.discoveryProfile.createMany({ data: people.map(person => ({
+      ...person, draft: { revision: 1, profile }, publishedSnapshot: profile, publishedAreaId: profile.areaId, publishedIntention: profile.intention,
+      adultAttestedAt: timestamp, publishedAt: timestamp, publicationConsentedAt: timestamp, publicationConsentVersion: 1, publicationVersion: 1,
+    })) });
+    process.env.DISCOVERY_AREAS_JSON = JSON.stringify([{ id: "pilot-city", label: "Pilot city" }, { id: "large-city", label: "Large city" }]);
+    process.env.DISCOVERY_PILOT_USER_IDS = [...cohort, ...people.map(person => person.ownerId)].join(",");
+    const endpoint = "/api/discovery/candidates?areaId=large-city";
+    const expected = people.map(person => person.id).sort().reverse();
+    const first = await request(actor, "GET", endpoint);
+    expect(first.statusCode).toBe(200);
+    expect(first.json().value.items.map((item: { id: string }) => item.id)).toEqual(expected.slice(0, 12));
+    // A fallback cursor must stay in ID order even if the pool later shrinks below the cap.
+    await prisma.discoveryProfile.update({ where: { id: expected.at(-1) }, data: { pausedAt: timestamp } });
+    const next = await request(actor, "GET", `${endpoint}&before=${encodeURIComponent(first.json().value.nextCursor)}`);
+    expect(next.statusCode).toBe(200);
+    expect(next.json().value.items.map((item: { id: string }) => item.id)).toEqual(expected.slice(12, 24));
   });
 });

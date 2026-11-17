@@ -37,11 +37,11 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("explicit discover
     const relationship = await prisma.relationship.create({ data: { members: { create: [{ userId: a.id }, { userId: b.id }] } } });
     const session = await prisma.intentionSession.create({ data: { relationshipId: relationship.id, createdById: a.id } });
     await prisma.intentionResponse.create({ data: { sessionId: session.id, userId: a.id, answers: { private: "legacy answer marker" } } });
-    await request(a, "PUT", "/api/discovery/profile", { ...publicDraft, bio: "private draft marker", areaId: "other-city", revision: 2 });
+    await request(a, "PUT", "/api/discovery/profile", { ...publicDraft, bio: "private draft marker", promptAnswer: "private draft marker", areaId: "other-city", revision: 2 });
     const candidates = await request(b, "GET", "/api/discovery/candidates?areaId=pilot-city");
     expect(candidates.json()).toEqual({ ownerId: b.id, value: { items: [{ id, ...publicDraft }], nextCursor: null } });
     const profile = await request(b, "GET", `/api/discovery/profiles/${id}`);
-    expect(profile.json()).toEqual({ ownerId: b.id, value: { id, ...publicDraft } });
+    expect(profile.json()).toEqual({ ownerId: b.id, value: { id, ...publicDraft, recommendation: { sameArea: true, sameIntention: true, sharedInterests: ["Walking"] } } });
     for (const response of [profile, candidates]) {
       expect(response.headers["cache-control"]).toBe("private, no-store");
       expect(JSON.stringify(response.json())).not.toMatch(/private draft marker|private reflection marker|PRIVATE AUTH NAME|email|activityEmails|latitude|longitude|legacy answer|ownerId.*ownerId/);
@@ -73,6 +73,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("explicit discover
     { publicName: " " }, { publicName: "x".repeat(61) }, { bio: "x".repeat(501) }, { pace: "x".repeat(241) },
     { avatarPreset: "https://tracker.test" }, { intention: "CASUAL" }, { areaId: "unknown" },
     { interests: ["same", " same "] }, { interests: ["a", "b", "c", "d", "e", "f"] }, { interests: ["x".repeat(31)] },
+    { promptAnswer: "x".repeat(241) },
   ])("rejects malformed or private input %j", async extra => {
     expect((await request(a, "PUT", "/api/discovery/profile", { ...publicDraft, revision: 3, ...extra })).statusCode).toBe(400);
   });

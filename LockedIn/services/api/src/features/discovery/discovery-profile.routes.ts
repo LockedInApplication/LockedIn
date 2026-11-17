@@ -39,7 +39,7 @@ export async function registerDiscoveryProfileRoutes(server: FastifyInstance) {
     const user = await requireUser(request, reply); if (!user) return;
     const parsed = discoveryCandidatesQuery.safeParse(request.query);
     if (!parsed.success) return sendError(reply, 400, "Please check your discovery search.");
-    return respond(reply, user.id, await listDiscoveryCandidates(user.id, parsed.data.areaId, parsed.data.before));
+    return respond(reply, user.id, await listDiscoveryCandidates(user.id, "areaId" in parsed.data ? parsed.data.areaId : null, parsed.data.before));
   });
   server.get("/api/discovery/profiles/:profileId", async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");

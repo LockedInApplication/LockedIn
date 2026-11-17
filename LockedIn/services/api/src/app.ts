@@ -7,8 +7,9 @@ import { journeyRoutes } from "./routes/journey.routes.js";
 import { registerProfileRoutes } from "./features/profile/profile.routes.js";
 import { registerDiscoveryRoutes } from "./features/discovery/discovery.routes.js";
 import type { PhotoProvider } from "./features/discovery/photos/photo.types.js";
+import type { DiscoveryGeocoder } from "./features/discovery/discovery-geocoding.js";
 
-export async function buildServer(options: { photoProvider?: PhotoProvider } = {}) {
+export async function buildServer(options: { photoProvider?: PhotoProvider; discoveryGeocoder?: DiscoveryGeocoder } = {}) {
   const server = Fastify({ logger: true });
 
   await server.register(fastifyCors, {

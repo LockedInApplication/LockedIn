@@ -2,17 +2,19 @@ import { z } from "zod";
 import { avatarPresetSchema } from "../profile/profile.schemas.js";
 import { getDiscoveryConfig } from "../../config/env.js";
 import { photoIdsSchema } from "./photos/photo.schemas.js";
+import { discoveryIntentions, profilePromptKey } from "./discovery-matching.js";
 
 const text = (max: number) => z.string().transform(value => value.trim().replace(/\s+/gu, " ")).pipe(z.string().max(max));
 export const discoveryProfileSchema = z.strictObject({
   publicName: text(60).pipe(z.string().min(1)),
   avatarPreset: avatarPresetSchema,
   bio: text(500),
-  intention: z.enum(["LONG_TERM", "OPEN_TO_LONG_TERM"]),
+  intention: z.enum(discoveryIntentions),
   interests: z.array(text(30).pipe(z.string().min(1))).max(5).refine(values => new Set(values.map(value => value.toLocaleLowerCase("en-US"))).size === values.length),
   pace: text(240).nullable(),
   areaId: z.string().min(1).max(100),
   photoIds: photoIdsSchema.optional(),
+  promptAnswer: text(240).optional(),
 });
 export const configuredArea = (areaId: string) => getDiscoveryConfig().areas.some(area => area.id === areaId);
 export const discoveryDraftSchema = discoveryProfileSchema.extend({ revision: z.number().int().nonnegative() }).strict();
@@ -20,8 +22,13 @@ export const discoveryPublishSchema = z.strictObject({ draftRevision: z.number()
 export const discoveryVisibilitySchema = z.strictObject({ paused: z.boolean() });
 export const emptyDiscoverySchema = z.strictObject({});
 export const discoveryProfileParams = z.strictObject({ profileId: z.string().uuid() });
-export const discoveryCandidatesQuery = z.strictObject({ areaId: z.string().min(1).max(100), before: z.string().min(1).max(512).optional() });
-export const discoveryInvitationSchema = z.strictObject({ targetProfileId: z.string().uuid(), topicKey: z.enum(["support", "commitment", "communication"]), hello: z.string().trim().max(280), requestId: z.string().uuid() });
+const discoveryCursorQuery = z.string().min(1).max(512).optional();
+export const discoveryCandidatesQuery = z.union([
+  z.strictObject({ areaId: z.string().min(1).max(100), before: discoveryCursorQuery }),
+  z.strictObject({ mode: z.literal("distance"), before: discoveryCursorQuery }),
+]);
+export const discoveryInvitationSchema = z.strictObject({ targetProfileId: z.string().uuid(), topicKey: z.enum(["support", "commitment", "communication", profilePromptKey]), hello: z.string().trim().max(280), requestId: z.string().uuid(), expectedPromptAnswer: text(240).optional() })
+  .refine(value => value.topicKey === profilePromptKey ? !!value.hello && !!value.expectedPromptAnswer : value.expectedPromptAnswer === undefined);
 export const discoveryConnectionParams = z.strictObject({ id: z.string().uuid() });
 export const discoveryConnectionQuery = z.strictObject({ before: z.string().uuid().optional() });
 export const starterDraftSchema = z.strictObject({ text: z.string().max(2000), revision: z.number().int().nonnegative() });

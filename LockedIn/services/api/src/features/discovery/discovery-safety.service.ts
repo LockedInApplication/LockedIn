@@ -11,13 +11,14 @@ import { discoveryBlockSchema, discoveryReportSchema } from "./discovery.schemas
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import { findVisibleDiscoveryProfile } from "./discovery-candidates.service.js";
 import { getPhotoConfig } from "./photos/photo.config.js";
+import { intentionsMatch } from "./discovery-matching.js";
 const missing = { ok: false as const, status: 404, error: "This content is not available." };
 const invalid = { ok: false as const, status: 400, error: "Please check your safety request." };
 
 async function visibleProfile(tx: Prisma.TransactionClient, actorId: string, id: string) {
   const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
   const profile = await tx.discoveryProfile.findUnique({ where: { id } });
-  if (!actor || !profile || actorId === profile.ownerId || !await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || !await isDiscoveryAdmitted(tx, profile.ownerId, profile) || !hasDiscoveryPublication(profile) || actor.publishedIntention !== profile.publishedIntention || await invitationBlockBetween(tx, actorId, profile.ownerId)) return null;
+  if (!actor || !profile || actorId === profile.ownerId || !await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || !await isDiscoveryAdmitted(tx, profile.ownerId, profile) || !hasDiscoveryPublication(profile) || !intentionsMatch(actor.publishedIntention, profile.publishedIntention) || await invitationBlockBetween(tx, actorId, profile.ownerId)) return null;
   return { targetId: profile.ownerId, label: publicDiscoveryProfile(profile.id, profile.publishedSnapshot)!.publicName, evidence: publicDiscoveryProfile(profile.id, profile.publishedSnapshot)! };
 }
 async function visibleConnection(tx: Prisma.TransactionClient, actorId: string, id: string) {

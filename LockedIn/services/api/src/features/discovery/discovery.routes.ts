@@ -13,8 +13,10 @@ import { registerPhotoUploadRoutes } from "./photos/photo-upload.routes.js";
 import type { PhotoProvider } from "./photos/photo.types.js";
 import { registerPhotoMediaRoutes } from "./photos/photo-media.routes.js";
 import { registerPhotoModerationRoutes } from "./photos/photo-moderation.routes.js";
+import { registerDiscoveryDistanceRoutes } from "./discovery-distance.routes.js";
+import { getDiscoveryGeocoder, type DiscoveryGeocoder } from "./discovery-geocoding.js";
 
-export async function registerDiscoveryRoutes(server: FastifyInstance, options: { photoProvider?: PhotoProvider } = {}): Promise<void> {
+export async function registerDiscoveryRoutes(server: FastifyInstance, options: { photoProvider?: PhotoProvider; discoveryGeocoder?: DiscoveryGeocoder } = {}): Promise<void> {
   const provider = options.photoProvider ?? getPhotoProvider();
   await server.register(scope => registerPhotoUploadRoutes(scope, provider));
   registerPhotoMediaRoutes(server, provider, "ordinary");
@@ -23,6 +25,7 @@ export async function registerDiscoveryRoutes(server: FastifyInstance, options: 
   await registerDiscoveryConnectionRoutes(server);
   await registerDiscoveryResponseRoutes(server);
   await registerDiscoverySafetyRoutes(server);
+  registerDiscoveryDistanceRoutes(server, options.discoveryGeocoder ?? getDiscoveryGeocoder());
   server.get("/api/discovery/me", async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply);

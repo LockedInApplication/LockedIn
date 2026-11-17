@@ -48,6 +48,25 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("separate discover
     expect((await f.send(a, c, key)).statusCode).toBe(409);
   });
 
+  it("lets a compatible candidate reply only to the currently published prompt through an accept-only starter", async () => {
+    const a = await f.person(), b = await f.person();
+    const endpoint = "/api/discovery/connections";
+    const payload = { targetProfileId: b.profileId, topicKey: "profile_prompt", expectedPromptAnswer: "Make the time.", hello: "I like your answer.", requestId: randomUUID() };
+    const save = await f.request(b, "PUT", "/api/discovery/profile", { ...publicDraft, intention: "OPEN_TO_LONG_TERM", promptAnswer: "  Make the time.  ", revision: 1 });
+    expect(save.statusCode).toBe(200);
+    expect((await f.request(a, "POST", endpoint, payload)).statusCode).toBe(409);
+    expect((await f.request(b, "POST", "/api/discovery/profile/publish", { draftRevision: 2, adultAttested: true })).statusCode).toBe(200);
+    expect((await f.request(a, "POST", endpoint, { ...payload, hello: " " })).statusCode).toBe(400);
+    expect((await f.request(a, "POST", endpoint, { ...payload, expectedPromptAnswer: "Out of date" })).statusCode).toBe(409);
+    const sent = await f.request(a, "POST", endpoint, payload);
+    expect(sent.statusCode).toBe(200);
+    const { id } = sent.json().value;
+    const incoming = await f.request(b, "GET", `${endpoint}/${id}`);
+    expect(incoming.json().value).toMatchObject({ state: "PENDING", topic: { key: "profile_prompt" }, hello: payload.hello, canAccept: true, canShare: false });
+    expect(JSON.stringify(incoming.json())).not.toContain(payload.expectedPromptAnswer);
+    expect((await f.request(b, "POST", `${endpoint}/${id}/accept`, {})).json().value.state).toBe("ACCEPTED");
+  });
+
   it("quiet directional decline cooldown is fixed, permits reverse invite and ends at the boundary", async () => {
     const { prisma } = await import("../../../lib/prisma.js");
     const a = await f.person(), b = await f.person();

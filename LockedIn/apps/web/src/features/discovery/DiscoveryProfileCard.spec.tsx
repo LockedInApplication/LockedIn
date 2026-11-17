@@ -23,3 +23,11 @@ it("falls back to the avatar and hides carousel controls without published photo
   expect(html).not.toContain("/api/discovery/photos/");
   expect(html).not.toContain('aria-label="Next photo"');
 });
+
+it("shows the profile answer and offers a reply only on a peer card", () => {
+  const answered = { ...profile, promptAnswer: "Make the time." };
+  expect(renderToStaticMarkup(<DiscoveryProfileCard profile={answered}/>)).toContain("Make the time.");
+  expect(renderToStaticMarkup(<DiscoveryProfileCard profile={answered}/>)).not.toContain("Reply to this answer");
+  expect(renderToStaticMarkup(<DiscoveryProfileCard profile={answered} onReply={() => {}}/>)).toContain("Reply to this answer");
+  expect(renderToStaticMarkup(<DiscoveryProfileCard profile={profile} onReply={() => {}}/>)).not.toContain("Reply to this answer");
+});

@@ -7,6 +7,7 @@ import ProfileAvatar from "./ProfileAvatar";
 import ProfileDetails from "./ProfileDetails";
 import ProfileSecurity from "./ProfileSecurity";
 import ProfileNotifications from "./ProfileNotifications";
+import ProfileDeletion from "./ProfileDeletion";
 import InvitationBlocks from "@/features/invitations/InvitationBlocks";
 import styles from "./profile.module.scss";
 import { useProfileLeaveGuard } from "./use-profile-leave-guard";
@@ -41,7 +42,7 @@ function AccountProfile({ userId }: { userId: string }) {
     [],
   );
   const hasDirty = Object.values(dirty).some(Boolean);
-  const { confirmLeave, resetApproval, dialog } =
+  const { confirmLeave, resetApproval, allowLeave, dialog } =
     useProfileLeaveGuard(hasDirty);
   const leave = async (path: string) => {
     if (await confirmLeave()) router.push(path);
@@ -129,6 +130,12 @@ function AccountProfile({ userId }: { userId: string }) {
               </button>
               {signOutError ? <p role="alert">{signOutError}</p> : null}
             </section>
+            <ProfileDeletion userId={userId} onDeleted={() => {
+              // The deletion already revoked all server sessions. A full navigation
+              // also discards in-memory account data, regardless of cookie cleanup.
+              allowLeave();
+              window.location.replace("/login");
+            }} />
           </>
         ) : null}
       </main>

@@ -6,6 +6,13 @@ import type {
 } from "./profile.types";
 export const loadProfile = (signal?: AbortSignal) =>
   journeyRequest<Profile>("/api/profile", { cache: "no-store", signal });
+export const deleteProfileAccount = (password: string, userId: string) =>
+  journeyRequest<null>("/api/profile/account/delete", {
+    method: "POST",
+    headers: { "X-Profile-Owner": userId },
+    body: JSON.stringify({ password }),
+    cache: "no-store",
+  });
 export const saveProfileDetails = (
   input: ProfileDetailsInput,
   userId: string,

@@ -133,6 +133,7 @@ export function useProfileLeaveGuard(dirty: boolean, currentPath = "/profile") {
   return {
     confirmLeave,
     resetApproval,
+    allowLeave: () => { approved.current = true; },
     dialog: {
       open,
       onConfirm: () => decide(true),

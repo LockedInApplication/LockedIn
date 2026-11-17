@@ -92,6 +92,18 @@
   color: #4d335f;
   margin: 8px 0;
 }
+.deletionActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.danger {
+  composes: primary;
+  background: #912630;
+  border-color: #641820;
+  box-shadow: 0 4px 0 #641820;
+}
 .hint {
   color: #68616f;
   font-size: 14px;

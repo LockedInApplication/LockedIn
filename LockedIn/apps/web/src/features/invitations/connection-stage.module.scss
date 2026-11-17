@@ -26,3 +26,11 @@
 }
 
 .actions button:disabled { opacity: .5; cursor: not-allowed; }
+
+@media (max-width: 700px) {
+  .actions {
+    display: grid;
+    gap: 14px;
+    margin-block: 22px;
+  }
+}

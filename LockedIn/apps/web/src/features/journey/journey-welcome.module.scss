@@ -1,0 +1,15 @@
+.intro.intro {
+  margin-block-end: 28px;
+}
+
+@media (max-width: 700px) {
+  .intro.intro {
+    gap: 20px;
+    margin-block-end: 26px;
+  }
+
+  .intro.intro h1 {
+    font-size: clamp(2rem, 9vw, 2.85rem);
+    line-height: 1.06;
+  }
+}

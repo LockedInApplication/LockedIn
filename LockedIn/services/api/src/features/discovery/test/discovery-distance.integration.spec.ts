@@ -84,4 +84,60 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private distance 
     expect((await f.request(viewer, "PUT", endpoint, { maxDistanceMiles: 25 })).statusCode).toBe(200);
     expect((await f.request(viewer, "GET", next)).statusCode).toBe(400);
   });
+
+  it("pages an open nearby population in ID order without dropping safe profiles between invalid snapshots", async () => {
+    const { prisma } = await import("../../../lib/prisma.js");
+    const viewer = await f.person();
+    const nearby = await Promise.all(Array.from({ length: 75 }, () => f.person()));
+    const excluded = await Promise.all(Array.from({ length: 9 }, () => f.person()));
+    const malformed = await Promise.all(Array.from({ length: 35 }, () => f.person()));
+    await prisma.discoveryDistancePreference.createMany({ data: [viewer, ...nearby, ...excluded, ...malformed].map(p => ({ profileId: p.profileId, latitude: 70, longitude: 30, maxDistanceMiles: 25 })) });
+    await prisma.discoveryProfile.updateMany({ where: { id: { in: malformed.map(p => p.profileId) } }, data: { publishedSnapshot: { ...publicDraft, email: "private@example.test" } } });
+    await prisma.discoveryProfile.update({ where: { id: excluded[0]!.profileId }, data: { pausedAt: new Date() } });
+    await prisma.discoveryProfile.update({ where: { id: excluded[1]!.profileId }, data: { suspendedAt: new Date() } });
+    await prisma.discoveryProfile.update({ where: { id: excluded[2]!.profileId }, data: { publicationConsentedAt: null } });
+    await prisma.user.update({ where: { id: excluded[3]!.id }, data: { emailVerified: false } });
+    await prisma.invitationBlock.createMany({ data: [{ blockerId: viewer.id, blockedId: excluded[4]!.id }, { blockerId: excluded[5]!.id, blockedId: viewer.id }] });
+    await prisma.discoveryDistancePreference.update({ where: { profileId: excluded[6]!.profileId }, data: { latitude: 71, maxDistanceMiles: 5 } });
+    await prisma.discoveryProfile.update({ where: { id: excluded[7]!.profileId }, data: { publishedIntention: "UNSUPPORTED" } });
+    expect((await f.send(viewer, excluded[8]!)).statusCode).toBe(200);
+    Object.assign(process.env, { DISCOVERY_ACCESS_MODE: "open", DISCOVERY_PILOT_USER_IDS: "" });
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < 10; page++) {
+      const response = await f.request(viewer, "GET", `${search}${cursor ? `&before=${encodeURIComponent(cursor)}` : ""}`);
+      expect(response.statusCode).toBe(200);
+      const value = response.json().value;
+      expect(value.items.length).toBeLessThanOrEqual(12);
+      expect(JSON.stringify(value)).not.toMatch(/latitude|longitude|private@example|lastDiscoveryActiveOn/);
+      seen.push(...value.items.map((p: { id: string }) => p.id));
+      cursor = value.nextCursor;
+      if (!cursor) break;
+    }
+    expect(cursor).toBeNull();
+    expect(seen).toEqual(nearby.map(p => p.profileId).sort().reverse());
+    expect(new Set(seen).size).toBe(75);
+    delete process.env.DISCOVERY_ACCESS_MODE;
+  });
+
+  it("continues after a bounded scan of malformed snapshots instead of scanning the whole population in one request", async () => {
+    const { prisma } = await import("../../../lib/prisma.js");
+    const viewer = await f.person(), safe = await f.person();
+    const bad = Array.from({ length: 260 }, (_, index) => ({ id: `ffffffff-ffff-4fff-8fff-${index.toString(16).padStart(12, "0")}`, ownerId: `bad-snapshot-${randomUUID()}` }));
+    const now = new Date();
+    await prisma.discoveryProfile.update({ where: { id: safe.profileId }, data: { id: "00000000-0000-4000-8000-000000000001" } });
+    safe.profileId = "00000000-0000-4000-8000-000000000001";
+    await prisma.user.createMany({ data: bad.map(p => ({ id: p.ownerId, email: `${p.ownerId}@example.test`, emailVerified: true })) });
+    await prisma.discoveryProfile.createMany({ data: bad.map(p => ({ ...p, draft: {}, publishedSnapshot: { ...publicDraft, email: "private@example.test" }, publishedAreaId: "pilot-city", publishedIntention: "LONG_TERM", adultAttestedAt: now, publicationConsentedAt: now, publishedAt: now, publicationConsentVersion: 1, publicationVersion: 1 })) });
+    await prisma.discoveryDistancePreference.createMany({ data: [viewer.profileId, safe.profileId, ...bad.map(p => p.id)].map(profileId => ({ profileId, latitude: -60, longitude: 50, maxDistanceMiles: 25 })) });
+    Object.assign(process.env, { DISCOVERY_ACCESS_MODE: "open", DISCOVERY_PILOT_USER_IDS: "" });
+    const first = await f.request(viewer, "GET", search);
+    expect(first.statusCode).toBe(200);
+    expect(first.json().value.items).toEqual([]);
+    expect(first.json().value.nextCursor).toBeTypeOf("string");
+    const second = await f.request(viewer, "GET", `${search}&before=${encodeURIComponent(first.json().value.nextCursor)}`);
+    expect(second.statusCode).toBe(200);
+    expect(second.json().value.items.map((p: { id: string }) => p.id)).toEqual([safe.profileId]);
+    expect(second.json().value.nextCursor).toBeNull();
+  });
 });

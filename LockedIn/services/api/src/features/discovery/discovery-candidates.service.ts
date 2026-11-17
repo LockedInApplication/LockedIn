@@ -12,7 +12,8 @@ import type { Prisma } from "../../../generated/prisma/client.js";
 import { enrichPublishedPhotos } from "./photos/photo-cards.service.js";
 import type { PhotoCard } from "./photos/photo.types.js";
 import { compareDiscoveryRank, compatibleIntentions, dayMs, rankCandidate, recommendation, type DiscoveryRank } from "./discovery-matching.js";
-import { distancePairEligible, mutualDistanceProfileIds } from "./discovery-distance.js";
+import { distancePairEligible } from "./discovery-distance.js";
+import { distanceCandidateIds, distanceSearchBatchSize } from "./discovery-distance-search.js";
 type VisibleProfile = Omit<PublicDiscoveryProfile, "photoIds"> & { photos?: PhotoCard[]; recommendation?: ReturnType<typeof recommendation> };
 
 const denied = { ok: false as const, status: 403, error: "Discovery is not available for this account." };
@@ -26,7 +27,14 @@ function discoverySecret() {
   if (!secret) throw new Error("Discovery cursors require the configured authentication secret");
   return secret;
 }
-const scopeFor = (actor: string, area: string, version: number) => createHmac("sha256", discoverySecret()).update(JSON.stringify(["discovery-scope", actor, area, version])).digest("base64url");
+const scopeFor = (actor: string, area: string, version: number) => {
+  const config = getDiscoveryConfig();
+  return createHmac("sha256", discoverySecret()).update(JSON.stringify([
+    "discovery-scope-v3", actor, area, version, config.accessMode,
+    config.accessMode === "pilot" ? [...config.pilotUserIds].sort() : [],
+    config.areas.map(item => item.id).sort(),
+  ])).digest("base64url");
+};
 const cursorKey = () => createHmac("sha256", discoverySecret()).update("discovery-cursor-v2").digest();
 function encodeCursor(cursor: CandidateCursor) {
   // The anchor includes a score influenced by private coarse activity.
@@ -50,9 +58,10 @@ function decodeCursor(value: string, scope: string, day: number): CandidateCurso
 
 // The database predicates exclude unsafe pairs before the page is selected.
 export function visibleWhere(actorId: string, intention: string): Prisma.DiscoveryProfileWhereInput {
+  const config = getDiscoveryConfig();
   const live: Prisma.DiscoveryConnectionWhereInput = { OR: [{ state: "ACCEPTED" }, { state: "PENDING", expiresAt: { gt: new Date() } }, { state: "PROMOTED", relationship: { status: "ACTIVE" } }] };
   return {
-    ownerId: { not: actorId, in: getDiscoveryConfig().pilotUserIds }, pausedAt: null, suspendedAt: null,
+    ownerId: { not: actorId, ...(config.accessMode === "open" ? {} : { in: config.pilotUserIds }) }, pausedAt: null, suspendedAt: null,
     adultAttestedAt: { not: null }, publicationConsentedAt: { not: null }, publicationConsentVersion: 1,
     publishedAt: { not: null }, publicationVersion: { gt: 0 }, publishedIntention: { in: compatibleIntentions(intention) },
     owner: { emailVerified: true,
@@ -96,12 +105,12 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
     }
     const config = getDiscoveryConfig();
     const where: Prisma.DiscoveryProfileWhereInput = { ...visibleWhere(actorId, intention), ...(distance
-      ? { id: { in: await mutualDistanceProfileIds(tx, distance, config.pilotUserIds) }, publishedAreaId: { in: config.areas.map(area => area.id) } }
+      ? { publishedAreaId: { in: config.areas.map(area => area.id) } }
       : { publishedAreaId: areaId, distancePreference: null }) };
     const day = before?.day ?? today;
     // Rank the whole eligible pilot cohort or fall back to ID keysets. Never
     // rank a truncated cohort that leaves the rest of the city undiscoverable.
-    if (!before || before.rank) {
+    if (!distance && (!before || before.rank)) {
       const profiles = await tx.discoveryProfile.findMany({ where, take: rankedLimit + 1, select: { ...publicSelect, lastDiscoveryActiveOn: true } });
       if (profiles.length <= rankedLimit) {
         const viewer = publicDiscoveryProfile(actor.id, actor.publishedSnapshot)!;
@@ -122,20 +131,29 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
 
     const items: PublicDiscoveryProfile[] = [];
     let scanBefore = before?.id;
-    while (items.length < 13) {
-      const profiles = await tx.discoveryProfile.findMany({ where: scanBefore ? { AND: [where, { id: { lt: scanBefore } }] } : where, orderBy: { id: "desc" }, take: 32, select: publicSelect });
-      if (!profiles.length) break;
+    let batches = 0, exhausted = false;
+    // Bound snapshot-validation work as well as SQL result size. An empty or
+    // partial page can carry a continuation after a run of corrupt snapshots.
+    while (items.length < 13 && (!distance || batches < 8)) {
+      batches++;
+      const ids = distance ? await distanceCandidateIds(tx, actorId, distance, intention, config, scanBefore) : null;
+      if (ids && !ids.length) { exhausted = true; break; }
+      const profiles = await tx.discoveryProfile.findMany({ where: ids ? { AND: [where, { id: { in: ids } }] } : scanBefore ? { AND: [where, { id: { lt: scanBefore } }] } : where, orderBy: { id: "desc" }, take: distanceSearchBatchSize, select: publicSelect });
+      if (!ids && !profiles.length) { exhausted = true; break; }
       for (const profile of profiles) {
         const safe = safeProfile(profile);
         if (safe) items.push(safe);
         if (items.length === 13) break;
       }
-      scanBefore = profiles.at(-1)!.id;
-      if (profiles.length < 32) break;
+      // Advance using the SQL batch even if concurrent safety changes filtered
+      // every hydrated record. An unsafe snapshot never ends the search early.
+      scanBefore = ids?.at(-1) ?? profiles.at(-1)!.id;
+      if ((ids?.length ?? profiles.length) < distanceSearchBatchSize) { exhausted = true; break; }
     }
-    const hasNext = items.length > 12;
+    const hasNext = items.length > 12 || (!!distance && batches === 8 && !exhausted);
     const page = items.slice(0, 12);
-    return { ok: true, value: { items: await enrichPublishedPhotos(tx, page), nextCursor: hasNext ? encodeCursor({ scope, day, id: page.at(-1)!.id }) : null } };
+    const anchor = items.length > 12 ? page.at(-1)!.id : scanBefore;
+    return { ok: true, value: { items: await enrichPublishedPhotos(tx, page), nextCursor: hasNext && anchor ? encodeCursor({ scope, day, id: anchor }) : null } };
   });
 }
 export async function getVisibleDiscoveryProfile(actorId: string, profileId: string): Promise<DiscoveryResult<VisibleProfile>> {

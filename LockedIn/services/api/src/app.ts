@@ -7,6 +7,7 @@ import { usersRoutes } from "./routes/users.routes.js";
 import { journeyRoutes } from "./routes/journey.routes.js";
 import { registerProfileRoutes } from "./features/profile/profile.routes.js";
 import { registerDiscoveryRoutes } from "./features/discovery/discovery.routes.js";
+import { registerMessagingRoutes } from "./features/messaging/messaging.routes.js";
 import type { PhotoProvider } from "./features/discovery/photos/photo.types.js";
 import type { DiscoveryGeocoder } from "./features/discovery/discovery-geocoding.js";
 
@@ -46,7 +47,7 @@ export async function buildServer({
   await server.register(fastifyCors, {
     origin: ["http://localhost:3000", "http://localhost:3001"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Discovery-Owner"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Discovery-Owner", "X-Messaging-Owner"],
     credentials: true,
   });
 
@@ -56,6 +57,7 @@ export async function buildServer({
   server.register(journeyRoutes);
   server.register(registerProfileRoutes);
   server.register(registerDiscoveryRoutes, discoveryOptions);
+  server.register(registerMessagingRoutes);
 
   return server;
 }

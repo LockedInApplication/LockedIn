@@ -4,12 +4,20 @@ import { requireDiscoveryMutation } from "./discovery.http.js";
 import { discoveryConnectionParams, discoveryConnectionQuery, discoveryInvitationSchema, emptyDiscoverySchema } from "./discovery.schemas.js";
 import { closeDiscoveryConnection, getDiscoveryConnection, listDiscoveryConnections, respondDiscoveryInvitation, sendDiscoveryInvitation, withdrawDiscoveryInvitation } from "./discovery-connection.service.js";
 import type { DiscoveryResult } from "./discovery.types.js";
+import { getConnectedProfile } from './discovery-connected-profile.service.js';
 
 export function respondDiscovery<T>(reply: FastifyReply, ownerId: string, result: DiscoveryResult<T>) {
   if (!result.ok) { if (result.retryAfter) reply.header("Retry-After", result.retryAfter); return sendError(reply, result.status, result.error); }
   return { ownerId, value: result.value };
 }
 export async function registerDiscoveryConnectionRoutes(server: FastifyInstance) {
+  server.get('/api/discovery/connections/:id/profile', async (request, reply) => {
+    reply.header('Cache-Control', 'private, no-store');
+    const user = await requireUser(request, reply); if (!user) return;
+    const params = discoveryConnectionParams.safeParse(request.params);
+    if (!params.success || !emptyDiscoverySchema.safeParse(request.query).success) return sendError(reply, 400, 'Please check your profile request.');
+    return respondDiscovery(reply, user.id, await getConnectedProfile(user.id, params.data.id));
+  });
   server.post("/api/discovery/connections", { config: { discoveryValidation: { body: discoveryInvitationSchema, params: emptyDiscoverySchema } } }, async (request, reply) => {
     const context = await requireDiscoveryMutation(request, reply); if (!context) return;
     return respondDiscovery(reply, context.userId, await sendDiscoveryInvitation(context.userId, discoveryInvitationSchema.parse(request.body)));

@@ -2,6 +2,7 @@ import { prisma } from "../../../lib/prisma.js";
 import { getDiscoveryConfig } from "../../../config/env.js";
 import { lockInvitationUsers } from "../../invitations/invitation-access.service.js";
 import { findVisibleDiscoveryProfile } from "../discovery-candidates.service.js";
+import { findConnectedProfile } from '../discovery-connected-profile.service.js';
 import { draftPhotoIds, publishedPhotoIds } from "./photo-profile.service.js";
 import { getPhotoConfig } from "./photo.config.js";
 import type { PhotoAsset, PhotoProvider } from "./photo.types.js";
@@ -28,7 +29,7 @@ export async function getPhotoAccess(actorId: string, id: string, purpose: "ordi
       } else {
         const config = getPhotoConfig();
         if (!config.enabled || !config.configured || photo.state !== "APPROVED" || !photo.scanCompleted) return null;
-        const visible = await findVisibleDiscoveryProfile(tx, actorId, photo.profileId);
+        const visible = await findVisibleDiscoveryProfile(tx, actorId, photo.profileId) ?? await findConnectedProfile(tx, actorId, photo.profileId);
         if (!visible || !publishedPhotoIds(visible).includes(id)) return null;
       }
     }

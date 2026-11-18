@@ -15,6 +15,9 @@ import { lockDiscoveryConnection, lockDiscoveryUsers } from "./discovery-locks.j
 import { discoveryConnectionView, effectiveDiscoveryState } from "./discovery-connection.view.js";
 import type { DiscoveryResult } from "./discovery.types.js";
 import { persistDiscoveryTask, publishDiscoveryEffects, resolveDiscoveryTasks, type DiscoveryNotify } from "./discovery-notifications.service.js";
+import { ensureDiscoveryConversation, samePairRelationshipConflict } from "../messaging/messaging-conversation.service.js";
+import { conversationAllowsChat } from "../messaging/messaging-access.service.js";
+import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
 
 const week = 7 * 86400000;
 const missing = { ok: false as const, status: 404, error: "This connection is not available." };
@@ -43,7 +46,8 @@ export async function connectionValue(tx: Prisma.TransactionClient, row: Discove
   const occupied = await tx.relationship.findFirst({ where: { status: "ACTIVE", members: { some: { userId: { in: [row.userLowId, row.userHighId] } } } }, select: { id: true } });
   const eligible = await discoveryPairEligible(tx, row);
   const lockedIn = await isDiscoveryLockedIn(tx, row.userLowId) || await isDiscoveryLockedIn(tx, row.userHighId);
-  return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligible && !lockedIn, linkedMembership, !occupied), canChat: eligible && await connectionAllowsChat(tx, row) } };
+  const chat = sharedMessagingEnabled() ? await tx.chatConversation.findUnique({ where: { discoveryConnectionId: row.id } }) : null;
+  return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligible && !lockedIn, linkedMembership, !occupied), canChat: chat?.accessMode === "RELATIONSHIP" ? await conversationAllowsChat(tx, chat) : eligible && await connectionAllowsChat(tx, row) } };
 }
 type ConnectionResult = DiscoveryResult<ReturnType<typeof discoveryConnectionView>>;
 
@@ -70,6 +74,7 @@ export async function sendDiscoveryInvitation(actorId: string, input: z.infer<ty
     if (await isDiscoveryLockedIn(tx, target.ownerId)) return missing;
     const partner = await tx.discoveryProfile.findUnique({ where: { id: data.targetProfileId } });
     if (!partner || !await isDiscoveryAdmitted(tx, target.ownerId, partner) || !hasDiscoveryPublication(partner) || !intentionsMatch(actor.publishedIntention, partner.publishedIntention) || await invitationBlockBetween(tx, actorId, target.ownerId) || !await distancePairEligible(tx, actor.id, partner.id)) return missing;
+    const overlap = await samePairRelationshipConflict(tx, actorId, target.ownerId); if (overlap) return overlap;
     let replyQuestion = profilePrompt;
     if (data.topicKey === profilePromptKey) {
       const published = publicDiscoveryProfile(partner.id, partner.publishedSnapshot);
@@ -135,6 +140,9 @@ export async function withDiscoveryConnection(actorId: string, id: string, actio
 }
 async function transition(actorId: string, id: string, action: "accept" | "decline" | "withdraw" | "close"): Promise<ConnectionResult> {
   return withDiscoveryConnection(actorId, id, async (tx, row, notify) => {
+    if (action === "accept") {
+      const overlap = await samePairRelationshipConflict(tx, row.userLowId, row.userHighId); if (overlap && row.state === "PENDING") return overlap;
+    }
     // Terminal retries never reopen consent or extend decline dates.
     if (!["PENDING", "ACCEPTED"].includes(row.state)) return connectionValue(tx, row, actorId);
     if (action === "accept" || action === "decline") {
@@ -148,6 +156,7 @@ async function transition(actorId: string, id: string, action: "accept" | "decli
     const quota = await consumeDiscoveryQuota(tx, actorId, "mutation"); if (!quota.ok) return quota;
     const now = new Date();
     const updated = await tx.discoveryConnection.update({ where: { id }, data: action === "accept" ? { state: "ACCEPTED", acceptedAt: now } : { state: action === "decline" ? "DECLINED" : action === "withdraw" ? "WITHDRAWN" : "CLOSED", ...(action === "decline" ? { declinedAt: now } : { closedAt: now }), lowReadinessVersion: null, highReadinessVersion: null, consentVersion: { increment: 1 } } });
+    if (action === "accept") await ensureDiscoveryConversation(tx, id);
     await resolveDiscoveryTasks(tx, id);
     if (action === "accept") notify(row.inviterId, await persistDiscoveryTask(tx, id, row.inviterId, "DISCOVERY_ACCEPTED", "accepted"));
     return connectionValue(tx, updated, actorId);

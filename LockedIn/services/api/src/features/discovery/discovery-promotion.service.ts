@@ -3,6 +3,7 @@ import { connectionValue, discoveryPairEligible, withDiscoveryConnection } from 
 import { buildReadinessSchema } from "./discovery.schemas.js";
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import { persistDiscoveryTask, resolveDiscoveryTasks } from "./discovery-notifications.service.js";
+import { attachPromotedRelationship } from "../messaging/messaging-conversation.service.js";
 const unavailable = { ok: false as const, status: 409, error: "Building a shared space is not available right now." };
 export async function setBuildReadiness(actorId: string, id: string, input: z.infer<typeof buildReadinessSchema>) {
   const parsed = buildReadinessSchema.safeParse(input);
@@ -26,6 +27,7 @@ export async function setBuildReadiness(actorId: string, id: string, input: z.in
       const relationship = await tx.relationship.create({ data: { members: { create: [{ userId: updated.userLowId }, { userId: updated.userHighId }] } } });
       const lockedInAt = new Date();
       updated = await tx.discoveryConnection.update({ where: { id }, data: { state: "PROMOTED", relationshipId: relationship.id, lockedInAt } });
+      await attachPromotedRelationship(tx, { connectionId: id, relationshipId: relationship.id });
       await tx.discoveryProfile.updateMany({ where: { ownerId: { in: [row.userLowId, row.userHighId] } }, data: { pausedAt: lockedInAt } });
       await resolveDiscoveryTasks(tx, id);
       for (const recipient of [row.userLowId, row.userHighId]) notify(recipient, await persistDiscoveryTask(tx, id, recipient, "DISCOVERY_PROMOTED", relationship.id));

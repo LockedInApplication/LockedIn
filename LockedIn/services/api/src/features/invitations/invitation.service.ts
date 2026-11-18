@@ -4,6 +4,8 @@ import {lockInvitationUsers as lockUsers,isInvitationRecipient as isRecipient,is
 import { persistTask, notificationBroker } from "../notifications/index.js";
 import { recordInvitationNotification, resolveInvitationNotifications } from "./invitation-notifications.service.js";
 import { inAppActivityAllowed } from "../notifications/notification-preferences.js";
+import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
+import { attachDirectRelationshipConversation } from "../messaging/messaging-conversation.service.js";
 export async function createInvitation(inviterId: string, email: string) {
     const result = await prisma.$transaction(async (tx) => {
         await lockUsers(tx, [inviterId]);
@@ -58,6 +60,7 @@ export async function acceptInvitation(inviteId: string, inviterId: string, user
             return failure(409, "One of you already has an active relationship space.");
         const relationship = await tx.relationship.create({ data: { members: { create: [{ userId: inviterId }, { userId }] } } });
         await tx.relationshipInvite.update({ where: { id: inviteId }, data: { status: "ACCEPTED", inviteeId: userId, acceptedAt: new Date() } });
+        if (sharedMessagingEnabled()) await attachDirectRelationshipConversation(tx, { relationshipId: relationship.id, invitationId: inviteId, inviterId, inviteeId: userId });
         await resolveInvitationNotifications(tx, inviteId);
         await persistTask(tx, { recipientId: inviterId, relationshipId: relationship.id, kind: "INVITATION_ACCEPTED", entityId: relationship.id, wordKey: null, eventKey: `invitation:${inviteId}` });
         return { ok: true as const, relationship };

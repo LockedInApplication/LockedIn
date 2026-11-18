@@ -7,7 +7,7 @@ import type { DiscoveryResult } from "./discovery.types.js";
 import { getConnectedProfile } from './discovery-connected-profile.service.js';
 
 export function respondDiscovery<T>(reply: FastifyReply, ownerId: string, result: DiscoveryResult<T>) {
-  if (!result.ok) { if (result.retryAfter) reply.header("Retry-After", result.retryAfter); return sendError(reply, result.status, result.error); }
+  if (!result.ok) { if (result.retryAfter) reply.header("Retry-After", result.retryAfter); return reply.code(result.status).send({ error: result.error, ...(result.conversationId ? { conversationId: result.conversationId } : {}) }); }
   return { ownerId, value: result.value };
 }
 export async function registerDiscoveryConnectionRoutes(server: FastifyInstance) {

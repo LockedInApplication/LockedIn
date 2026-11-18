@@ -14,6 +14,7 @@ import type { PhotoCard } from "./photos/photo.types.js";
 import { compareDiscoveryRank, compatibleIntentions, dayMs, rankCandidate, recommendation, type DiscoveryRank } from "./discovery-matching.js";
 import { distancePairEligible } from "./discovery-distance.js";
 import { distanceCandidateIds, distanceSearchBatchSize } from "./discovery-distance-search.js";
+import { activeLockIn, isDiscoveryLockedIn } from './discovery-lock-in.js';
 type VisibleProfile = Omit<PublicDiscoveryProfile, "photoIds"> & { photos?: PhotoCard[]; recommendation?: ReturnType<typeof recommendation> };
 
 const denied = { ok: false as const, status: 403, error: "Discovery is not available for this account." };
@@ -65,6 +66,7 @@ export function visibleWhere(actorId: string, intention: string): Prisma.Discove
     adultAttestedAt: { not: null }, publicationConsentedAt: { not: null }, publicationConsentVersion: 1,
     publishedAt: { not: null }, publicationVersion: { gt: 0 }, publishedIntention: { in: compatibleIntentions(intention) },
     owner: { emailVerified: true,
+      AND: [{ discoveryConnectionsLow: { none: activeLockIn } }, { discoveryConnectionsHigh: { none: activeLockIn } }],
       invitationBlocksCreated: { none: { blockedId: actorId } }, invitationBlocksReceived: { none: { blockerId: actorId } },
       discoveryConnectionsLow: { none: { userHighId: actorId, ...live } },
       discoveryConnectionsHigh: { none: { userLowId: actorId, ...live } },
@@ -78,7 +80,7 @@ function safeProfile(row: Parameters<typeof hasDiscoveryPublication>[0]) {
 
 export async function findVisibleDiscoveryProfile(tx: Prisma.TransactionClient, actorId: string, profileId: string) {
   const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
-  if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor)) return null;
+  if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || await isDiscoveryLockedIn(tx, actorId)) return null;
   const profile = await tx.discoveryProfile.findFirst({ where: { ...visibleWhere(actorId, actor.publishedIntention!), id: profileId, publishedAreaId: { in: getDiscoveryConfig().areas.map(area => area.id) } } });
   return hasDiscoveryPublication(profile) && await distancePairEligible(tx, actor.id, profile.id) ? profile : null;
 }
@@ -88,7 +90,7 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
   return prisma.$transaction(async tx => {
     await lockInvitationUsers(tx, [actorId]);
     const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId }, include: { distancePreference: true } });
-    if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor)) return denied;
+    if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || await isDiscoveryLockedIn(tx, actorId)) return denied;
     const distance = actor.distancePreference;
     if (areaId === null ? !distance : !!distance) {
       return { ok: false, status: 409, error: "Your Discovery preferences changed. Refresh your search." };

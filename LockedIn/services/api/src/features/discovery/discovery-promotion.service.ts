@@ -11,7 +11,7 @@ export async function setBuildReadiness(actorId: string, id: string, input: z.in
     if (row.state === "PROMOTED" && parsed.data.ready) return connectionValue(tx, row, actorId);
     if (row.state !== "ACCEPTED" || row.consentVersion !== parsed.data.consentVersion) return unavailable;
     const low = actorId === row.userLowId;
-    const current = low ? row.lowReadinessVersion : row.highReadinessVersion;
+    const current = low ? row.lowLockInVersion : row.highLockInVersion;
     if (parsed.data.ready) {
       if (!await discoveryPairEligible(tx, row)) return unavailable;
       if (await tx.relationship.findFirst({ where: { status: "ACTIVE", members: { some: { userId: { in: [row.userLowId, row.userHighId] } } } }, select: { id: true } })) return unavailable;
@@ -19,12 +19,14 @@ export async function setBuildReadiness(actorId: string, id: string, input: z.in
     const desired = parsed.data.ready ? row.consentVersion : null;
     if (current === desired) return connectionValue(tx, row, actorId);
     const quota = await consumeDiscoveryQuota(tx, actorId, "mutation"); if (!quota.ok) return quota;
-    let updated = await tx.discoveryConnection.update({ where: { id }, data: low ? { lowReadinessVersion: desired } : { highReadinessVersion: desired } });
-    if (updated.lowReadinessVersion === updated.consentVersion && updated.highReadinessVersion === updated.consentVersion) {
+    let updated = await tx.discoveryConnection.update({ where: { id }, data: low ? { lowLockInVersion: desired } : { highLockInVersion: desired } });
+    if (updated.lowLockInVersion === updated.consentVersion && updated.highLockInVersion === updated.consentVersion) {
       // Both accounts are still locked in the legacy invitation convention.
       // No existing space is reused, ended or imported into this new pair.
       const relationship = await tx.relationship.create({ data: { members: { create: [{ userId: updated.userLowId }, { userId: updated.userHighId }] } } });
-      updated = await tx.discoveryConnection.update({ where: { id }, data: { state: "PROMOTED", relationshipId: relationship.id } });
+      const lockedInAt = new Date();
+      updated = await tx.discoveryConnection.update({ where: { id }, data: { state: "PROMOTED", relationshipId: relationship.id, lockedInAt } });
+      await tx.discoveryProfile.updateMany({ where: { ownerId: { in: [row.userLowId, row.userHighId] } }, data: { pausedAt: lockedInAt } });
       await resolveDiscoveryTasks(tx, id);
       for (const recipient of [row.userLowId, row.userHighId]) notify(recipient, await persistDiscoveryTask(tx, id, recipient, "DISCOVERY_PROMOTED", relationship.id));
     } else {

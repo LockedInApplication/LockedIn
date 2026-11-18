@@ -13,7 +13,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("canonical discove
     const a = await f.person(), b = await f.person();
     const sent = await f.send(a,b); expect(sent.statusCode).toBe(200); const id=sent.json().value.id;
     await f.request(b,"POST",`/api/discovery/connections/${id}/accept`,{});
-    await f.request(a,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1});
+    await f.request(a,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1,exclusiveConsent:true});
     const blocked=await f.request(a,"POST","/api/discovery/blocks",{connectionId:id}); expect(blocked.statusCode).toBe(200);
     const blockId=blocked.json().value.id;
     for (const path of ["/api/discovery/blocks","/api/journey/invitation-blocks"]) {
@@ -65,7 +65,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("canonical discove
     const a=await f.person(),b=await f.person(),sent=await f.send(a,b); expect(sent.statusCode).toBe(200); const id=sent.json().value.id;
     await Promise.all([f.request(a,"POST","/api/discovery/blocks",{connectionId:id}), f.request(b,"POST",`/api/discovery/connections/${id}/accept`,{})]);
     expect((await f.request(b,"GET",`/api/discovery/connections/${id}`)).json().value.state).toBe("CLOSED");
-    expect((await f.request(b,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1})).statusCode).toBe(409);
+    expect((await f.request(b,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1,exclusiveConsent:true})).statusCode).toBe(409);
     expect(await prisma.relationshipMember.count({where:{userId:a.id}})).toBe(0);
   });
   it("replays a combined public-profile report/block after visibility is gone, without burning more quota",async()=>{

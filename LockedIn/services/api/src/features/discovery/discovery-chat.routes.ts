@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
 import { notificationBroker } from "../notifications/notification.broker.js";
 import { discoveryPairEligible } from "./discovery-connection.service.js";
+import { connectionAllowsChat } from './discovery-lock-in.js';
 import { respondDiscovery } from "./discovery-connection.routes.js";
 import { requireDiscoveryMutation } from "./discovery.http.js";
 import { lockDiscoveryConnection, lockDiscoveryUsers } from "./discovery-locks.js";
@@ -20,12 +21,12 @@ const pageSize = 30;
 
 async function openChat(tx: Prisma.TransactionClient, id: string, actor: string) {
   const previous = await tx.discoveryConnection.findUnique({ where: { id } });
-  if (!previous || previous.state !== "ACCEPTED" || ![previous.userLowId, previous.userHighId].includes(actor)) return null;
+  if (!previous || ![previous.userLowId, previous.userHighId].includes(actor)) return null;
   // Block, moderation and close use the same account-first lock order.
   await lockDiscoveryUsers(tx, [previous.userLowId, previous.userHighId]);
   await lockDiscoveryConnection(tx, id);
   const row = await tx.discoveryConnection.findUnique({ where: { id } });
-  if (!row || row.state !== "ACCEPTED" || !await discoveryPairEligible(tx, row)) return null;
+  if (!row || !await connectionAllowsChat(tx, row) || !await discoveryPairEligible(tx, row)) return null;
   return row;
 }
 

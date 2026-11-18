@@ -359,6 +359,9 @@ model DiscoveryConnection {
   lowReadinessVersion  Int?
   highReadinessVersion Int?
   consentVersion       Int                       @default(1)
+  lowLockInVersion     Int?
+  highLockInVersion    Int?
+  lockedInAt           DateTime?
   relationshipId       String?                   @unique
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt

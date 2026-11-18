@@ -9,6 +9,7 @@ import type { DiscoveryProfileInput, DiscoveryResult } from "./discovery.types.j
 import { draftPhotoIds, publishedPhotoIds, revokeRemovedPhotos, validPhotoSelection } from "./photos/photo-profile.service.js";
 import { getPhotoConfig } from "./photos/photo.config.js";
 import { isDiscoveryAccountAllowed } from "./discovery.config.js";
+import { isDiscoveryLockedIn } from './discovery-lock-in.js';
 
 export async function isDiscoveryAdmitted(tx: Prisma.TransactionClient, actorId: string, profile: DiscoveryProfile | null) {
   const config = getDiscoveryConfig();
@@ -73,7 +74,7 @@ export async function setDiscoveryPaused(actorId: string, paused: boolean): Prom
   return prisma.$transaction(async tx => {
     await lockInvitationUsers(tx, [actorId]);
     const existing = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
-    if (!paused && !await isDiscoveryAdmitted(tx, actorId, existing)) return denied;
+    if (!paused && (!await isDiscoveryAdmitted(tx, actorId, existing) || await isDiscoveryLockedIn(tx, actorId))) return denied;
     const quota = await consumeDiscoveryQuota(tx, actorId, "mutation"); if (!quota.ok) return quota;
     const profile = await tx.discoveryProfile.upsert({ where: { ownerId: actorId }, create: { ownerId: actorId, draft: { revision: 0 }, pausedAt: paused ? new Date() : null }, update: { pausedAt: paused ? new Date() : null } });
     return { ok: true, value: ownDiscoveryProfile(profile) };

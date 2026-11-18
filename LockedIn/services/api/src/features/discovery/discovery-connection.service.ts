@@ -10,6 +10,7 @@ import { discoveryTopics } from "./discovery-topics.js";
 import { intentionsMatch, photoPrompts, profilePrompt, profilePromptKey, writtenPrompts } from "./discovery-matching.js";
 import { enrichPublishedPhotos } from "./photos/photo-cards.service.js";
 import { distancePairEligible } from "./discovery-distance.js";
+import { connectionAllowsChat, isDiscoveryLockedIn } from './discovery-lock-in.js';
 import { lockDiscoveryConnection, lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryConnectionView, effectiveDiscoveryState } from "./discovery-connection.view.js";
 import type { DiscoveryResult } from "./discovery.types.js";
@@ -40,7 +41,9 @@ export async function connectionValue(tx: Prisma.TransactionClient, row: Discove
   const partner = row.inviterId !== actorId ? { publicName: row.senderPublicName, avatarPreset: row.senderAvatarPreset } : { publicName: published?.publicName ?? "Your connection", avatarPreset: published?.avatarPreset ?? "leaf" };
   const linkedMembership = !!row.relationshipId && !!await tx.relationshipMember.findFirst({ where: { relationshipId: row.relationshipId, userId: actorId }, select: { id: true } });
   const occupied = await tx.relationship.findFirst({ where: { status: "ACTIVE", members: { some: { userId: { in: [row.userLowId, row.userHighId] } } } }, select: { id: true } });
-  return { ok: true as const, value: discoveryConnectionView(connection, actorId, partner, await discoveryPairEligible(tx, row), linkedMembership, !occupied) };
+  const eligible = await discoveryPairEligible(tx, row);
+  const lockedIn = await isDiscoveryLockedIn(tx, row.userLowId) || await isDiscoveryLockedIn(tx, row.userHighId);
+  return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligible && !lockedIn, linkedMembership, !occupied), canChat: eligible && await connectionAllowsChat(tx, row) } };
 }
 type ConnectionResult = DiscoveryResult<ReturnType<typeof discoveryConnectionView>>;
 
@@ -59,6 +62,7 @@ export async function sendDiscoveryInvitation(actorId: string, input: z.infer<ty
       return connectionValue(tx, replay, actorId);
     }
     const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
+    if (await isDiscoveryLockedIn(tx, actorId) || await isDiscoveryLockedIn(tx, target.ownerId)) return unavailable;
     if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor)) return denied;
     const partner = await tx.discoveryProfile.findUnique({ where: { id: data.targetProfileId } });
     if (!partner || !await isDiscoveryAdmitted(tx, target.ownerId, partner) || !hasDiscoveryPublication(partner) || !intentionsMatch(actor.publishedIntention, partner.publishedIntention) || await invitationBlockBetween(tx, actorId, target.ownerId) || !await distancePairEligible(tx, actor.id, partner.id)) return missing;
@@ -134,7 +138,7 @@ async function transition(actorId: string, id: string, action: "accept" | "decli
         if (action === "accept" && row.state === "ACCEPTED" && row.inviterId !== actorId) return connectionValue(tx, row, actorId);
         return unavailable;
       }
-      if (action === "accept" && !await discoveryPairEligible(tx, row)) return unavailable;
+      if (action === "accept" && (!await discoveryPairEligible(tx, row) || await isDiscoveryLockedIn(tx, row.userLowId) || await isDiscoveryLockedIn(tx, row.userHighId))) return unavailable;
     }
     if (action === "withdraw" && (row.inviterId !== actorId || row.state !== "PENDING")) return unavailable;
     const quota = await consumeDiscoveryQuota(tx, actorId, "mutation"); if (!quota.ok) return quota;

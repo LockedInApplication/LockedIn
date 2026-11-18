@@ -13,7 +13,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("mutual current bu
     const id = sent.json().value.id; await f.request(b, "POST", `/api/discovery/connections/${id}/accept`, {});
     return { a, b, id, url: `/api/discovery/connections/${id}` };
   }
-  const ready = { ready: true, consentVersion: 1 };
+  const ready = { ready: true, consentVersion:1,exclusiveConsent:true};
   it("requires two current choices, promotes exactly once, keeps starters separate and does not publish private answers", async () => {
     const { prisma } = await import("../../../lib/prisma.js");
     const { a, b, id, url } = await pair(), c = await f.person();
@@ -21,7 +21,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("mutual current bu
     const first = await f.request(a, "POST", `${url}/readiness`, ready); expect(first.statusCode).toBe(200);
     expect(first.json().value.readiness.mine).toBe(true); expect(first.json().value.promotedRelationshipId).toBeNull();
     expect(await prisma.relationshipMember.count({ where: { userId: a.id } })).toBe(0);
-    const revoke = await f.request(a, "POST", `${url}/readiness`, {ready:false,consentVersion:1}); expect(revoke.statusCode).toBe(200); expect(revoke.json().value.readiness.mine).toBe(false);
+    const revoke = await f.request(a, "POST", `${url}/readiness`, {ready:false,consentVersion:1,exclusiveConsent:true}); expect(revoke.statusCode).toBe(200); expect(revoke.json().value.readiness.mine).toBe(false);
     await f.request(a, "POST", `${url}/readiness`, ready);
     const results = await Promise.all([f.request(b, "POST", `${url}/readiness`, ready), f.request(b, "POST", `${url}/readiness`, ready), f.request(a, "POST", `${url}/readiness`, ready)]);
     expect(results.every(response => response.statusCode === 200)).toBe(true);
@@ -33,9 +33,9 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("mutual current bu
     expect((await prisma.discoveryConnection.findUniqueOrThrow({where:{id}})).state).toBe("PROMOTED");
     expect(await prisma.intentionSession.count({where:{relationshipId:promoted}})).toBe(0);
     expect(await prisma.discoveryConnection.count({where:{inviterId:a.id,state:"PENDING"}})).toBe(1);
-    expect((await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:a.id}})).pausedAt).toBeNull();
+    expect((await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:a.id}})).pausedAt).toBeInstanceOf(Date);
     expect((await f.send(a,b)).statusCode).toBe(409);
-    expect((await f.request(a,"GET",`/api/discovery/profiles/${b.profileId}`)).statusCode).toBe(404);
+    expect((await f.request(a,"GET",`/api/discovery/profiles/${b.profileId}`)).statusCode).toBe(403);
   });
   it("keeps an existing deep space byte-for-byte and returns a neutral unavailable result", async () => {
     const { prisma } = await import("../../../lib/prisma.js");
@@ -53,9 +53,9 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("mutual current bu
     expect((await f.request(a,"POST",`${url}/readiness`,ready)).statusCode).toBe(200);
     process.env.DISCOVERY_ENABLED="false";
     expect((await f.request(b,"POST",`${url}/readiness`,ready)).statusCode).toBe(409);
-    const revoked = await f.request(a,"POST",`${url}/readiness`,{ready:false,consentVersion:1}); expect(revoked.statusCode).toBe(200); expect(revoked.json().value.readiness.mine).toBe(false);
+    const revoked = await f.request(a,"POST",`${url}/readiness`,{ready:false,consentVersion:1,exclusiveConsent:true}); expect(revoked.statusCode).toBe(200); expect(revoked.json().value.readiness.mine).toBe(false);
     f.configure();
-    expect((await f.request(a,"POST",`${url}/readiness`,{ready:true,consentVersion:0})).statusCode).toBe(409);
+    expect((await f.request(a,"POST",`${url}/readiness`,{ready:true,consentVersion:0,exclusiveConsent:true})).statusCode).toBe(409);
     await f.request(a,"POST",`${url}/close`,{});
     expect((await f.request(b,"POST",`${url}/readiness`,ready)).statusCode).toBe(409);
     expect((await f.request(a,"GET",url)).json().value.readiness).toMatchObject({mine:false,theirs:false});

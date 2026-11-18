@@ -12,7 +12,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("restricted discov
     const {prisma}=await import("../../../lib/prisma.js");
     const a=await f.person(),b=await f.person(),moderator=await f.person(),sent=await f.send(a,b);expect(sent.statusCode).toBe(200);const id=sent.json().value.id;
     await f.request(b,"POST",`/api/discovery/connections/${id}/accept`,{});
-    await f.request(a,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1});
+    await f.request(a,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1,exclusiveConsent:true});
     const receipt=await f.request(b,"POST","/api/discovery/reports",{sourceType:"INVITATION",sourceId:id,reason:"HARASSMENT",requestId:randomUUID()});expect(receipt.statusCode).toBe(200);
     const reportId=receipt.json().value.id;
     process.env.DISCOVERY_MODERATOR_USER_IDS=moderator.id;
@@ -32,17 +32,17 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("restricted discov
     expect((await f.request(moderator,"POST",`/api/discovery/moderation/profiles/${a.profileId}/restore`,restore)).statusCode).toBe(200);
     expect(await prisma.discoveryModerationAudit.count({where:{targetUserId:a.id}})).toBe(2);
     expect((await prisma.discoveryConnection.findUniqueOrThrow({where:{id}})).state).toBe("CLOSED");
-    expect((await f.request(a,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1})).statusCode).toBe(409);
+    expect((await f.request(a,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1,exclusiveConsent:true})).statusCode).toBe(409);
     expect((await f.request(moderator,"POST",`/api/discovery/moderation/reports/${randomUUID()}/review`,{action:"DISMISS",requestId:randomUUID()})).statusCode).toBe(404);
   });
   it("suspension racing the second readiness choice cannot end a committed space or permit more starter contact",async()=>{
     const {prisma}=await import("../../../lib/prisma.js");
     const a=await f.person(),b=await f.person(),moderator=await f.person(),sent=await f.send(a,b);expect(sent.statusCode).toBe(200);const id=sent.json().value.id;
     await f.request(b,"POST",`/api/discovery/connections/${id}/accept`,{});
-    expect((await f.request(b,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1})).statusCode).toBe(200);
+    expect((await f.request(b,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1,exclusiveConsent:true})).statusCode).toBe(200);
     const report=await f.request(b,"POST","/api/discovery/reports",{sourceType:"INVITATION",sourceId:id,reason:"SPAM",requestId:randomUUID()});expect(report.statusCode).toBe(200);
     process.env.DISCOVERY_MODERATOR_USER_IDS=moderator.id;
-    const [suspend]=await Promise.all([f.request(moderator,"POST",`/api/discovery/moderation/reports/${report.json().value.id}/review`,{action:"SUSPEND",requestId:randomUUID()}),f.request(a,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1})]);
+    const [suspend]=await Promise.all([f.request(moderator,"POST",`/api/discovery/moderation/reports/${report.json().value.id}/review`,{action:"SUSPEND",requestId:randomUUID()}),f.request(a,"POST",`/api/discovery/connections/${id}/readiness`,{ready:true,consentVersion:1,exclusiveConsent:true})]);
     expect(suspend.statusCode).toBe(200);
     const row=await prisma.discoveryConnection.findUniqueOrThrow({where:{id}});
     expect(["CLOSED","PROMOTED"]).toContain(row.state);

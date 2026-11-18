@@ -51,7 +51,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION!=="true")("isolated discovery 
     const {listNotifications}=await import("../../notifications/notification.repository.js");
     const a=await f.person(),b=await f.person(),sent=await f.send(a,b);expect(sent.statusCode).toBe(200);const id=sent.json().value.id,url=`/api/discovery/connections/${id}`;
     await f.request(b,"POST",`${url}/accept`,{});
-    const ready={ready:true,consentVersion:1};
+    const ready={ready:true,consentVersion:1,exclusiveConsent:true};
     await f.request(a,"POST",`${url}/readiness`,ready);await f.request(a,"POST",`${url}/readiness`,ready);
     expect(await prisma.notification.count({where:{recipientId:b.id,kind:"DISCOVERY_BUILD_READY"}})).toBe(1);
     await f.request(b,"POST",`${url}/readiness`,ready);await f.request(b,"POST",`${url}/readiness`,ready);

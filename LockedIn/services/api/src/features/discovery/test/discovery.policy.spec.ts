@@ -93,7 +93,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("discovery policy 
     const { getDiscoveryCapabilities } = await import("../discovery.policy.js");
     const relationship = await prisma.relationship.create({ data: { members: { create: [{ userId: a.id }, { userId: b.id }] } } });
     await prisma.discoveryConnection.create({ data: { userLowId: [a.id,b.id].sort()[0]!, userHighId: [a.id,b.id].sort()[1]!, inviterId: a.id, questionKey: "synthetic", questionText: "A synthetic test question?", hello: "Hello", senderPublicName: "Public alias", senderAvatarPreset: "initials", state: "CLOSED", expiresAt: new Date() } });
-    expect(await getDiscoveryCapabilities({ userId: a.id, emailVerified: true })).toEqual({ canDiscover: false, canModerate: false, canReflect: true, hasHistory: true, currentRelationshipId: relationship.id });
+    expect(await getDiscoveryCapabilities({ userId: a.id, emailVerified: true })).toMatchObject({ canDiscover: false, canChat: false, discoveryLockedIn: false, canModerate: false, canReflect: true, hasHistory: true, currentRelationshipId: relationship.id });
     expect((await discoveryRequest(server)(a, "GET", "/api/discovery/me")).json()).toMatchObject({ ownerId: a.id, value: { canDiscover: false, hasHistory: true } });
     const old = { ...process.env };
     try {

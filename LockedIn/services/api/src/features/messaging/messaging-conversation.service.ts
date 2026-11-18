@@ -2,11 +2,12 @@ import type { ChatConversation, Prisma } from "../../../generated/prisma/client.
 import { discoveryPairEligible } from "../discovery/discovery-connection.service.js";
 import { conversationAllowsChat } from "./messaging-access.service.js";
 import { sharedMessagingEnabled } from "./messaging.config.js";
+import { accountSuspended } from "./messaging-safety.service.js";
 
 // Callers hold both account locks in database order before source/conversation locks.
 export async function pairClosure(tx: Prisma.TransactionClient, a: string, b: string) {
   const block = await tx.invitationBlock.findFirst({ where: { OR: [{ blockerId: a, blockedId: b }, { blockerId: b, blockedId: a }] } });
-  const suspension = await tx.discoveryProfile.findFirst({ where: { ownerId: { in: [a, b] }, suspendedAt: { not: null } } });
+  const suspension = await accountSuspended(tx,a) || await accountSuspended(tx,b);
   return block ? "BLOCK" : suspension ? "SUSPENSION" : null;
 }
 

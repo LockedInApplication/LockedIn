@@ -18,6 +18,7 @@ import { persistDiscoveryTask, publishDiscoveryEffects, resolveDiscoveryTasks, t
 import { ensureDiscoveryConversation, samePairRelationshipConflict } from "../messaging/messaging-conversation.service.js";
 import { conversationAllowsChat } from "../messaging/messaging-access.service.js";
 import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
+import { closePairConversationsUnderLock } from "../messaging/messaging-lifecycle.service.js";
 
 const week = 7 * 86400000;
 const missing = { ok: false as const, status: 404, error: "This connection is not available." };
@@ -140,6 +141,11 @@ export async function withDiscoveryConnection(actorId: string, id: string, actio
 }
 async function transition(actorId: string, id: string, action: "accept" | "decline" | "withdraw" | "close"): Promise<ConnectionResult> {
   return withDiscoveryConnection(actorId, id, async (tx, row, notify) => {
+    if (action === "close" && row.state === "PROMOTED" && row.lockedInAt) {
+      if (!row.closedAt) await tx.discoveryConnection.update({ where: { id }, data: { closedAt: new Date() } });
+      await closePairConversationsUnderLock(tx,row.userLowId,row.userHighId,"CONTACT_CLOSED");
+      return connectionValue(tx,await tx.discoveryConnection.findUniqueOrThrow({ where: { id } }),actorId);
+    }
     if (action === "accept") {
       const overlap = await samePairRelationshipConflict(tx, row.userLowId, row.userHighId); if (overlap && row.state === "PENDING") return overlap;
     }
@@ -157,6 +163,7 @@ async function transition(actorId: string, id: string, action: "accept" | "decli
     const now = new Date();
     const updated = await tx.discoveryConnection.update({ where: { id }, data: action === "accept" ? { state: "ACCEPTED", acceptedAt: now } : { state: action === "decline" ? "DECLINED" : action === "withdraw" ? "WITHDRAWN" : "CLOSED", ...(action === "decline" ? { declinedAt: now } : { closedAt: now }), lowReadinessVersion: null, highReadinessVersion: null, consentVersion: { increment: 1 } } });
     if (action === "accept") await ensureDiscoveryConversation(tx, id);
+    if (action === "close") await closePairConversationsUnderLock(tx,row.userLowId,row.userHighId,"CONTACT_CLOSED");
     await resolveDiscoveryTasks(tx, id);
     if (action === "accept") notify(row.inviterId, await persistDiscoveryTask(tx, id, row.inviterId, "DISCOVERY_ACCEPTED", "accepted"));
     return connectionValue(tx, updated, actorId);

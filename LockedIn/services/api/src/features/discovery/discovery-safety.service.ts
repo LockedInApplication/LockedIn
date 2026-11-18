@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import type { Prisma } from "../../../generated/prisma/client.js";
-import { invitationBlockBetween, invitationPairWhere, lockInvitationRows } from "../invitations/invitation-access.service.js";
+import { invitationBlockBetween } from "../invitations/invitation-access.service.js";
 import { listInvitationBlocks, unblockInvitations } from "../invitations/invitation-blocks.service.js";
-import { closeDiscoveryContactUnderLock } from "../invitations/invitation-restrictions.service.js";
+import { blockContactUnderLock as blockUnderLock } from "../invitations/invitation-restrictions.service.js";
+import { reportLegacyMessage } from "../messaging/messaging-safety.service.js";
 import { hasDiscoveryPublication, isDiscoveryAdmitted } from "./discovery-profile.service.js";
 import { publicDiscoveryProfile } from "./discovery-profile.view.js";
 import { lockDiscoveryUsers } from "./discovery-locks.js";
@@ -32,17 +33,6 @@ async function visibleConnection(tx: Prisma.TransactionClient, actorId: string, 
   const profile = await tx.discoveryProfile.findUnique({ where: { ownerId: targetId }, select: { id: true, publishedSnapshot: true } });
   const label = row.inviterId === targetId ? row.senderPublicName : (profile ? publicDiscoveryProfile(profile.id, profile.publishedSnapshot)?.publicName : null) ?? "Your connection";
   return { row, targetId, label };
-}
-async function blockUnderLock(tx: Prisma.TransactionClient, actorId: string, targetId: string, label: string) {
-  const users = await tx.user.findMany({ where: { id: { in: [actorId, targetId] } }, select: { id: true, email: true } });
-  const actor = users.find(user => user.id === actorId)!, target = users.find(user => user.id === targetId)!;
-  const pending = await tx.relationshipInvite.findMany({ where: { ...invitationPairWhere(actor, target), status: "PENDING" }, select: { id: true } });
-  await lockInvitationRows(tx, pending.map(row => row.id));
-  await tx.relationshipInvite.updateMany({ where: { id: { in: pending.map(row => row.id) }, status: "PENDING" }, data: { status: "DECLINED" } });
-  await tx.notification.updateMany({ where: { invitationId: { in: pending.map(row => row.id) }, resolvedAt: null }, data: { resolvedAt: new Date() } });
-  const block = await tx.invitationBlock.upsert({ where: { blockerId_blockedId: { blockerId: actorId, blockedId: targetId } }, create: { blockerId: actorId, blockedId: targetId, safePublicLabel: label }, update: { safePublicLabel: label } });
-  await closeDiscoveryContactUnderLock(tx, actorId, targetId);
-  return block;
 }
 export async function blockDiscoveryContact(actorId: string, input: z.infer<typeof discoveryBlockSchema>) {
   const parsed = discoveryBlockSchema.safeParse(input); if (!parsed.success) return invalid;
@@ -99,6 +89,7 @@ async function reportSource(tx: Prisma.TransactionClient, actorId: string, sourc
 export async function reportDiscoveryContent(actorId: string, input: z.infer<typeof discoveryReportSchema>) {
   const parsed = discoveryReportSchema.safeParse(input); if (!parsed.success) return invalid;
   const data = parsed.data;
+  if (data.sourceType === "MESSAGE") return reportLegacyMessage(actorId, data);
   return prisma.$transaction(async tx => {
     // A previous receipt belongs to this reporter even when the public card
     // is now hidden (including when this very report also blocked it).

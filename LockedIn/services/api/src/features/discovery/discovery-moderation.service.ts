@@ -4,6 +4,7 @@ import { getDiscoveryConfig } from "../../config/env.js";
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryRestoreSchema, discoveryReviewSchema } from "./discovery.schemas.js";
+import { accountSuspended } from "../messaging/messaging-safety.service.js";
 const denied = { ok: false as const, status: 403, error: "Moderator access is required." };
 const missing = { ok: false as const, status: 404, error: "This moderation record is not available." };
 const conflict = { ok: false as const, status: 409, error: "This review has already been handled." };
@@ -14,7 +15,7 @@ export async function listDiscoveryReports(moderatorId: string, before?: string)
   return prisma.$transaction(async tx => {
     if (!await allowed(tx, moderatorId)) return denied;
     const rows = await tx.discoveryReport.findMany({ where: before ? { id: { lt: before } } : {}, orderBy: { id: "desc" }, take: 21, include: { moderationAudits: { select: { id: true, action: true, createdAt: true } }, reportedUser: { select: { discoveryProfile: { select: { id: true, suspendedAt: true } } } } } });
-    return { ok: true as const, value: { items: rows.slice(0, 20).map(row => ({ id: row.id, sourceType: row.sourceType, reason: row.reason, detail: row.details, evidence: row.evidence, createdAt: row.createdAt.toISOString(), resolvedAt: row.resolvedAt?.toISOString() ?? null, profileId: row.reportedUser.discoveryProfile?.id ?? null, suspended: !!row.reportedUser.discoveryProfile?.suspendedAt, audits: row.moderationAudits.map(audit => ({ id: audit.id, action: audit.action, createdAt: audit.createdAt.toISOString() })) })), nextCursor: rows.length > 20 ? rows[19]!.id : null } };
+    return { ok: true as const, value: { items: await Promise.all(rows.slice(0, 20).map(async row => ({ id: row.id, sourceType: row.sourceType, reason: row.reason, detail: row.details, evidence: row.evidence, createdAt: row.createdAt.toISOString(), resolvedAt: row.resolvedAt?.toISOString() ?? null, profileId: row.reportedUser.discoveryProfile?.id ?? null, suspended: await accountSuspended(tx,row.reportedUserId), audits: row.moderationAudits.map(audit => ({ id: audit.id, action: audit.action, createdAt: audit.createdAt.toISOString() })) }))), nextCursor: rows.length > 20 ? rows[19]!.id : null } };
   });
 }
 export async function reviewDiscoveryReport(moderatorId: string, reportId: string, input: z.infer<typeof discoveryReviewSchema>) {
@@ -34,6 +35,7 @@ export async function reviewDiscoveryReport(moderatorId: string, reportId: strin
       await tx.discoveryConnection.updateMany({ where: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }], state: "PROMOTED", lockedInAt: { not: null }, closedAt: null }, data: { closedAt: new Date() } });
       await tx.discoveryConnection.updateMany({ where: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }], state: { in: ["PENDING", "ACCEPTED"] } }, data: { state: "CLOSED", closedAt: new Date(), lowReadinessVersion: null, highReadinessVersion: null, consentVersion: { increment: 1 } } });
       await tx.notification.updateMany({ where: { resolvedAt: null, discoveryConnection: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }], state: "CLOSED" } }, data: { resolvedAt: new Date() } });
+      await tx.chatConversation.updateMany({ where: { closedAt: null, OR: [{ userLowId: report.reportedUserId },{ userHighId: report.reportedUserId }] }, data: { closedAt: new Date(), closureReason: "SUSPENSION" } });
     }
     await tx.discoveryModerationAudit.create({ data: { moderatorId, targetUserId: report.reportedUserId, reportId, action: parsed.data.action, requestId: parsed.data.requestId, reason: report.reason } });
     await tx.discoveryReport.update({ where: { id: reportId }, data: { resolvedAt: new Date() } });
@@ -41,16 +43,24 @@ export async function reviewDiscoveryReport(moderatorId: string, reportId: strin
   });
 }
 export async function restoreDiscoveryAccount(moderatorId: string, profileId: string, requestId: string) {
+  const profile = await prisma.discoveryProfile.findUnique({ where: { id: profileId }, select: { ownerId: true } });
+  return profile ? restoreAccount(moderatorId,profile.ownerId,requestId) : missing;
+}
+export async function restoreReportedAccount(moderatorId: string, reportId: string, requestId: string) {
+  // Report IDs are already scoped to the restricted moderator queue.
+  const report = await prisma.discoveryReport.findUnique({ where: { id: reportId }, select: { reportedUserId: true } });
+  return report ? restoreAccount(moderatorId,report.reportedUserId,requestId) : missing;
+}
+async function restoreAccount(moderatorId: string, targetUserId: string, requestId: string) {
   if (!discoveryRestoreSchema.safeParse({ requestId }).success) return conflict;
   return prisma.$transaction(async tx => {
     if (!await allowed(tx, moderatorId)) return denied;
-    const profile = await tx.discoveryProfile.findUnique({ where: { id: profileId } }); if (!profile) return missing;
-    await lockDiscoveryUsers(tx, [moderatorId, profile.ownerId]);
+    await lockDiscoveryUsers(tx, [moderatorId, targetUserId]);
     if (!await allowed(tx, moderatorId)) return denied;
     const replay = await tx.discoveryModerationAudit.findUnique({ where: { moderatorId_requestId: { moderatorId, requestId } } });
-    if (replay) return replay.action === "RESTORE" && replay.targetUserId === profile.ownerId ? { ok: true as const, value: { restored: true } } : conflict;
-    await tx.discoveryProfile.update({ where: { id: profileId }, data: { suspendedAt: null } });
-    await tx.discoveryModerationAudit.create({ data: { moderatorId, targetUserId: profile.ownerId, action: "RESTORE", requestId, reason: "Moderator restored discovery access" } });
+    if (replay) return replay.action === "RESTORE" && replay.targetUserId === targetUserId ? { ok: true as const, value: { restored: true } } : conflict;
+    await tx.discoveryProfile.updateMany({ where: { ownerId: targetUserId }, data: { suspendedAt: null } });
+    await tx.discoveryModerationAudit.create({ data: { moderatorId, targetUserId, action: "RESTORE", requestId, reason: "Moderator restored account access" } });
     return { ok: true as const, value: { restored: true } };
   });
 }

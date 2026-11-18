@@ -63,6 +63,8 @@ describe.skipIf(process.env.NOTIFICATIONS_INTEGRATION !== "true")("account delet
     const relationship = await db.relationship.create({
       data: { members: { create: [{ userId: id }, { userId: partner }] } },
     });
+    const conversation = await db.chatConversation.create({ data: { id: relationship.id, userLowId: id, userHighId: partner, relationshipId: relationship.id, origin: "DIRECT_INVITATION", accessMode: "RELATIONSHIP" } });
+    await db.discoveryMessage.create({ data: { conversationId: conversation.id, senderId: partner, requestId: "deletion-chat-fixture", text: "Shared chat content" } });
     await db.privateReflection.create({ data: { ownerId: id, text: "Private test content" } });
     await db.privateReflection.create({ data: { ownerId: partner, text: "Keep me" } });
     await db.verification.create({
@@ -80,6 +82,8 @@ describe.skipIf(process.env.NOTIFICATIONS_INTEGRATION !== "true")("account delet
     expect(await db.user.findUnique({ where: { id: partner } })).not.toBeNull();
     expect(await db.privateReflection.findUnique({ where: { ownerId: partner } })).toMatchObject({ text: "Keep me" });
     expect(await db.relationship.findUnique({ where: { id: relationship.id } })).toMatchObject({ status: "ENDED" });
+    expect(await db.chatConversation.findUnique({ where: { id: conversation.id } })).toBeNull();
+    expect(await db.discoveryMessage.count({ where: { conversationId: conversation.id } })).toBe(0);
     expect((await app.inject({
       url: "/api/profile", headers: { cookie: cookie(`${id}-token-2`) },
     })).statusCode).toBe(401);

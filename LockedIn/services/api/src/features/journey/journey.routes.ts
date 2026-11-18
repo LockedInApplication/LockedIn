@@ -8,7 +8,7 @@ import { registerCheckInRoutes } from "../check-ins/check-in.routes.js";
 import { registerRoadmapRoutes } from "../roadmap/roadmap.routes.js";
 import { registerInvitationRoutes } from "../invitations/invitation.routes.js";
 import { buildJourneyOverview } from "./overview.service.js";
-import { withNotifications } from "../notifications/index.js";
+import { leaveMessagingRelationship } from "../messaging/messaging-lifecycle.service.js";
 import { registerNotificationRoutes } from "../notifications/notification.routes.js";
 
 export async function journeyRoutes(server: FastifyInstance) {
@@ -36,10 +36,7 @@ export async function journeyRoutes(server: FastifyInstance) {
         return sendError(reply, 404, "Relationship space not found.");
       }
 
-      await withNotifications(request.params.relationshipId, user.id, tx => tx.relationship.update({
-        where: { id: request.params.relationshipId },
-        data: { status: "ENDED" },
-      }));
+      if (!await leaveMessagingRelationship(request.params.relationshipId,user.id)) return sendError(reply,404,"Relationship space not found.");
 
       return { left: true };
     },

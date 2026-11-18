@@ -4,8 +4,12 @@ import { requireDiscoveryMutation } from "./discovery.http.js";
 import { respondDiscovery } from "./discovery-connection.routes.js";
 import { discoveryBlockSchema, discoveryConnectionParams, discoveryConnectionQuery, discoveryReportSchema, discoveryRestoreSchema, discoveryReviewSchema, emptyDiscoverySchema } from "./discovery.schemas.js";
 import { blockDiscoveryContact, listDiscoveryBlocks, reportDiscoveryContent, unblockDiscoveryContact } from "./discovery-safety.service.js";
-import { listDiscoveryReports, restoreDiscoveryAccount, reviewDiscoveryReport } from "./discovery-moderation.service.js";
+import { listDiscoveryReports, restoreDiscoveryAccount, restoreReportedAccount, reviewDiscoveryReport } from "./discovery-moderation.service.js";
 export async function registerDiscoverySafetyRoutes(server: FastifyInstance) {
+  server.post("/api/discovery/moderation/reports/:id/restore-account", { config: { discoveryValidation: { body: discoveryRestoreSchema, params: discoveryConnectionParams } } }, async (request,reply) => {
+    const actor = await requireDiscoveryMutation(request,reply); if (!actor) return;
+    return respondDiscovery(reply,actor.userId,await restoreReportedAccount(actor.userId,discoveryConnectionParams.parse(request.params).id,discoveryRestoreSchema.parse(request.body).requestId));
+  });
   server.post("/api/discovery/blocks", { config: { discoveryValidation: { body: discoveryBlockSchema, params: emptyDiscoverySchema } } }, async (request, reply) => {
     const actor = await requireDiscoveryMutation(request, reply); if (!actor) return;
     return respondDiscovery(reply, actor.userId, await blockDiscoveryContact(actor.userId, discoveryBlockSchema.parse(request.body)));

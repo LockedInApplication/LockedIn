@@ -9,6 +9,10 @@ import { notificationBroker } from "../notifications/notification.broker.js";
 import { publicDiscoveryProfile } from "../discovery/discovery-profile.view.js";
 import { findConnectedProfile } from "../discovery/discovery-connected-profile.service.js";
 import type { ChatResult } from "./messaging.types.js";
+import { z } from "zod";
+import { changeChatContact, reportMessage } from "./messaging-safety.service.js";
+
+const reportInput = z.strictObject({ messageId: z.string().uuid(), reason: z.enum(["HARASSMENT","IMPERSONATION","SPAM","OTHER"]), detail: z.string().max(1000).optional(), requestId: z.string().uuid(), blockAlso: z.boolean().optional() });
 
 export function respondMessaging<T>(reply: FastifyReply, ownerId: string, result: ChatResult<T>) {
   if (!result.ok) { if (result.retryAfter) reply.header("Retry-After", result.retryAfter); return sendError(reply, result.status, result.error); }
@@ -16,6 +20,19 @@ export function respondMessaging<T>(reply: FastifyReply, ownerId: string, result
 }
 export async function registerMessagingRoutes(server: FastifyInstance) {
   const base = "/api/messaging/conversations/:id";
+  for (const action of ["reports","block","close"] as const) server.post(`${base}/${action}`, { bodyLimit: 16_384 }, async (request,reply) => {
+    const actor = await requireAccountMutationIdentity(request,reply,"x-messaging-owner"); if (!actor) return;
+    if (!sharedMessagingEnabled()) return sendError(reply,404,chatMissing.error);
+    const params = chatParams.safeParse(request.params);
+    if (!params.success || !emptyChatInput.safeParse(request.query).success) return sendError(reply,400,"Invalid safety request.");
+    if (action === "reports") {
+      const input = reportInput.safeParse(request.body);
+      if (!input.success) return sendError(reply,400,"Invalid safety request.");
+      return respondMessaging(reply,actor.userId,await reportMessage(actor.userId,{ ...input.data, conversationId: params.data.id }));
+    }
+    if (!emptyChatInput.safeParse(request.body ?? {}).success) return sendError(reply,400,"Invalid safety request.");
+    return respondMessaging(reply,actor.userId,await changeChatContact(actor.userId,params.data.id,action));
+  });
   server.get(base, async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply); if (!user) return;

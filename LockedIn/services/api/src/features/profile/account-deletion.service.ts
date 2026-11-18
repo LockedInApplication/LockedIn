@@ -71,7 +71,9 @@ export async function deleteOwnAccount(userId: string, password: string) {
     await tx.verification.deleteMany({
       where: { identifier: { startsWith: "reset-password:" }, value: userId },
     });
-    // Postgres cascades personal data, credentials and all sessions together.
+    // Shared chat uses the same deletion policy as legacy Discovery contact:
+    // reports above require assisted review; otherwise participant FK cascades
+    // remove personal conversations/messages along with credentials and sessions.
     await tx.user.delete({ where: { id: userId } });
     return { ok: true as const };
   });

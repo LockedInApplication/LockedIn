@@ -13,6 +13,7 @@
 .main button,.main a,.explore {min-height:44px;}
 .main button,.explore {font:inherit;cursor:pointer;border:1px solid #7d697f;border-radius:10px;padding:10px 16px;background:#fffcf7;color:#4e345e;font-weight:650;}
 .main button:disabled {opacity:.5;cursor:not-allowed;}
+.main button.profileName {font:inherit;letter-spacing:inherit;line-height:inherit;border:0;padding:0;background:transparent;color:#4e345e;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.12em;}
 .main button:focus-visible,.main input:focus-visible,.main textarea:focus-visible,.main select:focus-visible,.main a:focus-visible {outline:3px solid #d45346;outline-offset:3px;}
 .main .primary {background:#4e345e;color:white;box-shadow:0 3px #f26b5b;}
 .main .selected {background:#deeee6;border-color:#2b6656;}

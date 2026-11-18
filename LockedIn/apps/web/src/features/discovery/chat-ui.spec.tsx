@@ -6,6 +6,12 @@ import { connectionStatus } from './connection-status';
 import type { DiscoveryConnectionView } from './discovery.types';
 
 describe('connection state labels', () => {
+  it('keeps messaging open after explicit mutual lock-in', () => {
+    const status = connectionStatus({state:'PROMOTED',inviter:'self',lockedIn:true,canChat:true});
+    expect(status.label).toBe('Locked in');
+    expect(status.description).not.toContain('ended');
+    expect(status.description).toContain('chat');
+  });
   it.each([
     ['ACCEPTED', 'Open chat'], ['CLOSED', 'Connection closed'], ['DECLINED', 'Invitation ended'],
     ['WITHDRAWN', 'Invitation withdrawn'], ['EXPIRED', 'Invitation expired'], ['PROMOTED', 'Shared space opened'],

@@ -13,5 +13,6 @@ export function useDiscoveryResource<T>(owner:string,key:string,load:(signal:Abo
     return()=>instance.dispose();
   },[owner,key,load,revision]);
   const install=useCallback((value:T)=>{resource.current?.dispose();setState({owner,key,value});setFailure(null);},[owner,key]);
-  return{value:currentDiscoveryValue(owner,key,state),error:currentDiscoveryValue(owner,key,failure),retry:()=>setRevision(value=>value+1),install};
+  const retry=useCallback(()=>setRevision(value=>value+1),[]);
+  return{value:currentDiscoveryValue(owner,key,state),error:currentDiscoveryValue(owner,key,failure),retry,install};
 }

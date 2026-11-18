@@ -21,8 +21,41 @@ permissions or push notifications are included.
 
 The API checks both participants and current Discovery eligibility under the
 same ordered account/connection locks as blocking and closure. Closing, blocking,
-suspension or promotion stops chat access; blocked chats are not reopened by
+suspension or closure stops chat access; blocked chats are not reopened by
 unblocking. Existing safety-report evidence is preserved.
+
+## Mutual lock-in and connected profiles
+
+An explicit lock-in choice is separate from the earlier build-readiness consent.
+Both current choices atomically open a shared space and pause both Discovery
+profiles. New invitations and acceptance are denied while the lock-in's shared
+space is active, including from stale tabs. All existing accepted chats remain
+available, including the promoted pair. Blocking, suspension, verification and
+publication requirements still apply. Legacy promoted spaces are not retroactively
+exclusive and their old chat authorization is unchanged.
+
+Ending the shared space releases the lock-in restriction but never automatically
+republishes either profile. Each person must explicitly unpause afterward.
+
+Selecting a chat partner's name opens their current published profile in a
+read-only dialog. Chat remains mounted so unsent text and history survive returning.
+The connection-scoped profile route and photo checks require an accepted connection
+or active explicit lock-in and honor blocks, withdrawn publication and revocations.
+The dialog refreshes on focus/visibility and every 15 seconds while visible;
+profile data already viewed cannot be remotely erased from someone's memory.
+
+Before release, apply additive migration
+`20261118001000_discovery_mutual_lock_in` with `npm run prisma -- migrate deploy`
+from the services directory through the existing release process. Generate Prisma
+and deploy API before web. Older clients cannot submit legacy build consent:
+they must reload to see and confirm the new lock-in terms. Do not backfill consent.
+Do not roll back this migration by deleting relationships or messages.
+
+The November 17 implementation was checked with disposable-local-database API
+tests and web unit/type/build checks. Local browser access was unavailable in the
+Codex session: keyboard focus return, mobile layout and end-to-end unsent-text
+preservation still need a real-browser release check. No production migration or
+deployment was performed for this change.
 
 ## Delivery and recovery
 

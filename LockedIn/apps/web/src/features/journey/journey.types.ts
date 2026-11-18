@@ -35,6 +35,7 @@ export type JourneySession = {
 };
 
 export type JourneyOverview = {
+  messaging?: { enabled: boolean; conversationId: string | null };
   user: { id: string; email: string; name: string; avatarPreset?:string };
   pendingInvites: Array<{
     id: string;

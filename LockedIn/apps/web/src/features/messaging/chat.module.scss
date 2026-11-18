@@ -1,4 +1,10 @@
 .chat { min-width: 0; }
+.page {min-height:100dvh;background:#f5f0e7;color:#211a32;}
+.main {max-width:1040px;margin:auto;padding:28px 24px 64px;}
+.main h1 {font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.2;display:flex;align-items:center;gap:12px;}
+.main a {color:#4e345e;min-height:44px;display:inline-flex;align-items:center;}
+.main > button {font:inherit;min-height:44px;padding:10px 16px;border:1px solid #7d697f;border-radius:10px;background:#fffcf7;color:#4e345e;cursor:pointer;}
+.main summary {cursor:pointer;min-height:44px;display:flex;align-items:center;}
 .viewport {
   height: clamp(14rem, 50dvh, 34rem);
   overflow-y: auto;

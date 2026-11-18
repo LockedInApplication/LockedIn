@@ -38,6 +38,7 @@ import {discoveryRequest} from "@/features/discovery/discovery.client";
 import {discoveryEntry} from "@/features/discovery/discovery-navigation";
 import {useDiscoveryResource} from "@/features/discovery/use-discovery-resource";
 import type {DiscoveryMe} from "@/features/discovery/discovery.types";
+import RelationshipMessages from "./components/RelationshipMessages";
 
 type Notice = { tone: "success" | "error"; message: string } | null;
 
@@ -319,6 +320,8 @@ export default function JourneyWorkspace() {
         ) : !showWelcome ? (
           <ProgressRail current={progress} />
         ) : null}
+
+        {overview.relationship ? <RelationshipMessages messaging={overview.messaging}/> : null}
 
         {notice ? (
           <div className={`${styles.notice} ${notice.tone === "error" ? styles.noticeError : ""}`}>

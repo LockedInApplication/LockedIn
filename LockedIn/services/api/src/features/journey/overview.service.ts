@@ -5,6 +5,7 @@ import { buildCheckInSnapshot, buildSessionView } from "../check-ins/check-in.vi
 import { addAlignmentTrends } from "../check-ins/alignment.js";
 import { atlasWords } from "../atlas/atlas.catalog.js";
 import { buildAtlasView } from "../atlas/atlas.view.js";
+import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
 
 type OverviewUser = { id: string; email: string; name: string | null };
 
@@ -102,7 +103,10 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
       );
     }
 
+    const messagingEnabled = sharedMessagingEnabled();
+    const chat = messagingEnabled && relationship?.members.length === 2 ? await prisma.chatConversation.findFirst({ where: { relationshipId: relationship.id, OR: [{ userLowId: userId },{ userHighId: userId }] }, select: { id: true } }) : null;
     return {
+      messaging: { enabled: messagingEnabled, conversationId: chat?.id ?? null },
       user: { id: user.id, email: user.email, name: user.displayName??user.name, ...(user.avatarPreset?{avatarPreset:user.avatarPreset}:{}) },
       pendingInvites: pendingInvites.map((invite) => ({
         id: invite.id,

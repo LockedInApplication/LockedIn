@@ -20,6 +20,42 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("shared messaging 
     expect(msg.statusCode).toBe(200);
     return { a,b,c,url, message: msg.json().value };
   }
+  it.each(["BLOCK", "SUSPENSION"] as const)("retains %s before a flag-off relationship has been backfilled", async action => {
+    const a = await createPerson(), b = await createPerson(), { prisma } = await import("../../../lib/prisma.js");
+    const invite = await prisma.relationshipInvite.create({ data: { inviterId: a.id, inviteeId: b.id, expiresAt: new Date(Date.now()+60000) } });
+    const { acceptInvitation } = await import("../../invitations/invitation.service.js");
+    const { lockDiscoveryUsers } = await import("../../discovery/discovery-locks.js");
+    const { ensureRelationshipConversation } = await import("../messaging-conversation.service.js");
+    process.env.SHARED_MESSAGING_ENABLED = "false";
+    try {
+      const accepted = await acceptInvitation(invite.id, a.id, b.id);
+      if (!accepted.ok) throw Error(accepted.error);
+      const { id } = accepted.relationship;
+      expect(await prisma.chatConversation.findUnique({ where: { relationshipId: id } })).toBeNull();
+      if (action === "BLOCK") {
+        const { blockInvitationSender, unblockInvitations } = await import("../../invitations/invitation-blocks.service.js");
+        const block = await blockInvitationSender(invite.token, b);
+        if (!block.ok) throw Error(block.error);
+        expect((await unblockInvitations(block.id, b.id)).ok).toBe(true);
+      } else {
+        const moderator = await createPerson();
+        process.env.DISCOVERY_MODERATOR_USER_IDS = moderator.id;
+        const report = await prisma.discoveryReport.create({ data: { reporterId: b.id, reportedUserId: a.id, reason: "HARASSMENT", sourceType: "MESSAGE", sourceId: randomUUID(), evidence: { text: "Historical report" } } });
+        const { reviewDiscoveryReport, restoreReportedAccount } = await import("../../discovery/discovery-moderation.service.js");
+        expect((await reviewDiscoveryReport(moderator.id, report.id, { action: "SUSPEND", requestId: randomUUID() })).ok).toBe(true);
+        expect((await restoreReportedAccount(moderator.id, report.id, randomUUID())).ok).toBe(true);
+      }
+      const chat = await prisma.$transaction(async tx => {
+        await lockDiscoveryUsers(tx, [a.id, b.id]);
+        return ensureRelationshipConversation(tx, id);
+      });
+      expect(chat.closedAt).not.toBeNull();
+      process.env.SHARED_MESSAGING_ENABLED = "true";
+      const url = `/api/messaging/conversations/${chat.id}/messages`;
+      expect((await request(b,"GET",url)).statusCode).toBe(404);
+      expect((await request(b,"POST",url,{ text: "No renewed consent", requestId: randomUUID() })).statusCode).toBe(404);
+    } finally { process.env.SHARED_MESSAGING_ENABLED = "true"; }
+  });
   it("closes direct chat without ending the relationship or erasing messages", async () => {
     const p = await pair(), { prisma } = await import("../../../lib/prisma.js");
     expect((await request(p.a,"POST",`${p.url}/close`,{})).statusCode).toBe(200);
@@ -49,6 +85,9 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("shared messaging 
     const receipt = await request(p.b,"POST",`${p.url}/reports`,{ messageId: p.message.id, reason: "HARASSMENT", requestId: randomUUID() });
     expect(receipt.statusCode).toBe(200);
     const moderation = await import("../../discovery/discovery-moderation.service.js");
+    for (const reportId of [receipt.json().value.id, randomUUID()]) {
+      expect(await moderation.restoreReportedAccount(p.a.id,reportId,randomUUID())).toMatchObject({ ok: false, status: 403 });
+    }
     expect((await moderation.reviewDiscoveryReport(moderator.id,receipt.json().value.id,{ action: "SUSPEND", requestId: randomUUID() })).ok).toBe(true);
     expect((await prisma.chatConversation.findUniqueOrThrow({ where: { id: p.c.id } })).closedAt).not.toBeNull();
     expect((await request(p.b,"GET",`${p.url}/messages`)).statusCode).toBe(404);

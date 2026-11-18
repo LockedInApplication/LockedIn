@@ -39,6 +39,8 @@ One eligible accepted Discovery chat can be reused by a direct invitation for th
 
 Disable the shared flag everywhere first; this hides the new entry and neutral/direct APIs without deleting data. Keep the expanded schema and upgraded safety/source writers. Prefer a forward correction or compatible application rollback that retains those writers.
 
+Upgraded block and suspension writers record durable closure even for an active shared space that hasn't been backfilled yet. Unblocking or restoring an account does not reopen that conversation when the flag is re-enabled.
+
 **Do not run old safety/contact writers against live mutations after enabling this feature.** If a binary rollback truly requires them, gate all contact mutations for the entire old-writer interval, not just the new chat endpoint. An old block/unblock implementation cannot record durable closure on direct conversations; a later integrity check cannot reconstruct removed blocks. Re-upgrade and verify all writers before enabling mutations or the shared flag again. Do not drop new tables/columns or use a destructive down migration.
 
 For a failed/partial backfill, keep the capability off, investigate source mismatches and rerun only after they are resolved. The script never clears an existing closure. Do not turn an explicit restricted Discovery relationship into a direct fallback.

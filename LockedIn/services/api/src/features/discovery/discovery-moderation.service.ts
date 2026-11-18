@@ -5,6 +5,7 @@ import type { Prisma } from "../../../generated/prisma/client.js";
 import { lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryRestoreSchema, discoveryReviewSchema } from "./discovery.schemas.js";
 import { accountSuspended } from "../messaging/messaging-safety.service.js";
+import { closeUnbackfilledRelationshipChatsUnderLock } from "../messaging/messaging-lifecycle.service.js";
 const denied = { ok: false as const, status: 403, error: "Moderator access is required." };
 const missing = { ok: false as const, status: 404, error: "This moderation record is not available." };
 const conflict = { ok: false as const, status: 409, error: "This review has already been handled." };
@@ -29,6 +30,7 @@ export async function reviewDiscoveryReport(moderatorId: string, reportId: strin
     if (replay) return replay.reportId === reportId && replay.action === parsed.data.action ? { ok: true as const, value: { reviewed: true } } : conflict;
     if ((await tx.discoveryReport.findUniqueOrThrow({ where: { id: reportId } })).resolvedAt) return conflict;
     if (parsed.data.action === "SUSPEND") {
+      await closeUnbackfilledRelationshipChatsUnderLock(tx,report.reportedUserId,"SUSPENSION");
       await tx.discoveryProfile.updateMany({ where: { ownerId: report.reportedUserId }, data: { suspendedAt: new Date() } });
       // Holding the target account lock excludes all concurrent pair decisions.
       // Do not acquire peer account locks in a second/reverse order.
@@ -43,20 +45,20 @@ export async function reviewDiscoveryReport(moderatorId: string, reportId: strin
   });
 }
 export async function restoreDiscoveryAccount(moderatorId: string, profileId: string, requestId: string) {
-  const profile = await prisma.discoveryProfile.findUnique({ where: { id: profileId }, select: { ownerId: true } });
-  return profile ? restoreAccount(moderatorId,profile.ownerId,requestId) : missing;
+  return restoreAccount(moderatorId,requestId,async tx => (await tx.discoveryProfile.findUnique({ where: { id: profileId }, select: { ownerId: true } }))?.ownerId);
 }
 export async function restoreReportedAccount(moderatorId: string, reportId: string, requestId: string) {
-  // Report IDs are already scoped to the restricted moderator queue.
-  const report = await prisma.discoveryReport.findUnique({ where: { id: reportId }, select: { reportedUserId: true } });
-  return report ? restoreAccount(moderatorId,report.reportedUserId,requestId) : missing;
+  return restoreAccount(moderatorId,requestId,async tx => (await tx.discoveryReport.findUnique({ where: { id: reportId }, select: { reportedUserId: true } }))?.reportedUserId);
 }
-async function restoreAccount(moderatorId: string, targetUserId: string, requestId: string) {
+async function restoreAccount(moderatorId: string, requestId: string, findTarget: (tx: Prisma.TransactionClient) => Promise<string | undefined>) {
   if (!discoveryRestoreSchema.safeParse({ requestId }).success) return conflict;
   return prisma.$transaction(async tx => {
     if (!await allowed(tx, moderatorId)) return denied;
-    await lockDiscoveryUsers(tx, [moderatorId, targetUserId]);
+    const targetUserId = await findTarget(tx);
+    if (!targetUserId) return missing;
+    const locked = await lockDiscoveryUsers(tx, [moderatorId, targetUserId]);
     if (!await allowed(tx, moderatorId)) return denied;
+    if (!locked.some(user => user.id === targetUserId)) return missing;
     const replay = await tx.discoveryModerationAudit.findUnique({ where: { moderatorId_requestId: { moderatorId, requestId } } });
     if (replay) return replay.action === "RESTORE" && replay.targetUserId === targetUserId ? { ok: true as const, value: { restored: true } } : conflict;
     await tx.discoveryProfile.updateMany({ where: { ownerId: targetUserId }, data: { suspendedAt: null } });

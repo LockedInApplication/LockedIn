@@ -47,8 +47,8 @@ export async function registerMessagingRoutes(server: FastifyInstance) {
       const partner = await tx.user.findUniqueOrThrow({ where: { id: partnerId }, select: { displayName: true, avatarPreset: true } });
       const source = canChat && c.discoveryConnectionId ? await tx.discoveryConnection.findUnique({ where: { id: c.discoveryConnectionId } }) : null;
       const candidate = source ? await tx.discoveryProfile.findUnique({ where: { ownerId: partnerId } }) : null;
-      const publicPartner = candidate ? publicDiscoveryProfile(candidate.id, candidate.publishedSnapshot) : null;
       const profile = source && candidate ? await findConnectedProfile(tx, user.id, candidate.id, source.id) : null;
+      const publicPartner = profile ? publicDiscoveryProfile(profile.id, profile.publishedSnapshot) : null;
       return { ok: true as const, value: {
         id: c.id, canChat, unavailableReason: canChat ? null : own.emailVerified ? "UNAVAILABLE" : "VERIFY_EMAIL",
         partner: { publicName: canChat ? publicPartner?.publicName ?? partner.displayName ?? "Your partner" : "Your partner", avatarPreset: canChat ? publicPartner?.avatarPreset ?? partner.avatarPreset : "initials" },

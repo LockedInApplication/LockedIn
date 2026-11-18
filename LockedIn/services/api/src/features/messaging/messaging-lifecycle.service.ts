@@ -1,11 +1,35 @@
-import type { Prisma } from "../../../generated/prisma/client.js";
+import { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { lockDiscoveryUsers } from "../discovery/discovery-locks.js";
 import { notificationBroker } from "../notifications/notification.broker.js";
+import { ensureRelationshipConversation } from "./messaging-conversation.service.js";
+
+export async function closeUnbackfilledRelationshipChatsUnderLock(tx: Prisma.TransactionClient, memberId: string, reason: "BLOCK" | "SUSPENSION", partnerId?: string) {
+  const relationships = await tx.relationship.findMany({
+    where: {
+      status: "ACTIVE", chatConversation: null,
+      members: { some: { userId: memberId } },
+      ...(partnerId ? { AND: [{ members: { some: { userId: partnerId } } }] } : {}),
+    },
+    orderBy: { id: "asc" },
+    select: { id: true, members: { select: { userId: true } } },
+  });
+  const pairs = relationships.filter(relationship => relationship.members.length === 2);
+  if (pairs.length === 0) return;
+  const peers = [...new Set(pairs.flatMap(relationship => relationship.members.map(member => member.userId)).filter(id => id !== memberId))];
+  const users = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "user" WHERE id IN (${Prisma.join(peers)}) ORDER BY id FOR KEY SHARE`;
+  const retained = new Set([memberId, ...users.map(user => user.id)]);
+  for (const pair of pairs) {
+    if (pair.members.every(member => retained.has(member.userId))) await ensureRelationshipConversation(tx, pair.id, reason);
+  }
+}
 
 // Callers hold all affected account locks first; closure is monotonic.
-export async function closePairConversationsUnderLock(tx: Prisma.TransactionClient, a: string, b: string, reason: "BLOCK" | "SUSPENSION" | "CONTACT_CLOSED") {
-  await tx.chatConversation.updateMany({ where: { closedAt: null, OR: [{ userLowId: a, userHighId: b }, { userLowId: b, userHighId: a }] }, data: { closedAt: new Date(), closureReason: reason } });
+export async function blockPairConversationsUnderLock(tx: Prisma.TransactionClient, a: string, b: string) {
+  await tx.chatConversation.updateMany({ where: { closedAt: null, OR: [{ userLowId: a, userHighId: b }, { userLowId: b, userHighId: a }] }, data: { closedAt: new Date(), closureReason: "BLOCK" } });
+}
+export async function closeDiscoveryConversationUnderLock(tx: Prisma.TransactionClient, discoveryConnectionId: string) {
+  await tx.chatConversation.updateMany({ where: { discoveryConnectionId, closedAt: null }, data: { closedAt: new Date(), closureReason: "CONTACT_CLOSED" } });
 }
 export async function closeRelationshipConversationUnderLock(tx: Prisma.TransactionClient, relationshipId: string) {
   const c = await tx.chatConversation.findUnique({ where: { relationshipId } });

@@ -49,6 +49,13 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("invited partner c
     if (!result.ok) throw Error(result.error);
     const c = await prisma.chatConversation.findUniqueOrThrow({ where: { relationshipId: result.relationship.id } });
     expect(c).toMatchObject({ id, accessMode: "RELATIONSHIP", directInvitationId: i.id });
+    const cohort = process.env.DISCOVERY_PILOT_USER_IDS!;
+    try {
+      process.env.DISCOVERY_PILOT_USER_IDS = cohort.split(",").filter(id => id !== b.id).join(",");
+      const metadata = (await app.inject({ url: `/api/messaging/conversations/${id}`, headers: { cookie: a.cookie } })).json().value;
+      expect(metadata).toMatchObject({ canChat: true, partner: { publicName: "Your partner" } });
+      expect(metadata.profileConnectionId).toBeUndefined();
+    } finally { process.env.DISCOVERY_PILOT_USER_IDS = cohort; }
     await prisma.discoveryProfile.update({ where: { ownerId: a.id }, data: { publishedSnapshot: Prisma.DbNull } });
     expect((await app.inject({ url: `/api/messaging/conversations/${id}/messages`, headers: { cookie: a.cookie } })).json().value.items[0].id).toBe(message.id);
     expect((await f.request(a,"GET",`/api/discovery/connections/${id}`)).json().value.canChat).toBe(true);
@@ -58,6 +65,18 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("invited partner c
     const fresh = await prisma.chatConversation.findUniqueOrThrow({ where: { relationshipId: restricted.relationship.id }, include: { messages: true } });
     expect(fresh).toMatchObject({ discoveryConnectionId: null, messages: [] });
     expect(fresh.id).not.toBe(other.id);
+  });
+  it.each(["discovery", "messaging"] as const)("closing an unrelated %s history leaves the independent shared chat open", async entry => {
+    const { acceptInvitation } = await import("../../invitations/invitation.service.js"), { prisma } = await import("../../../lib/prisma.js");
+    const { a,b,id } = await discoveryPair(), invitation = await invite(a,b);
+    await prisma.discoveryProfile.update({ where: { ownerId: a.id }, data: { publishedSnapshot: Prisma.DbNull } });
+    const accepted = await acceptInvitation(invitation.id,a.id,b.id);
+    if (!accepted.ok) throw Error(accepted.error);
+    const close = entry === "discovery" ? await f.request(a,"POST",`/api/discovery/connections/${id}/close`,{}) :
+      await app.inject({ method: "POST", url: `/api/messaging/conversations/${id}/close`, payload: {}, headers: { cookie: a.cookie, origin: "http://localhost:3001", "x-messaging-owner": a.id } });
+    expect(close.statusCode).toBe(200);
+    expect(await prisma.chatConversation.findUniqueOrThrow({ where: { relationshipId: accepted.relationship.id } })).toMatchObject({ discoveryConnectionId: null, closedAt: null });
+    expect((await app.inject({ url: `/api/messaging/conversations/${accepted.relationship.id}/messages`, headers: { cookie: a.cookie } })).statusCode).toBe(200);
   });
   it("rejects a second same-pair Discovery chat and preserves promotion identity", async () => {
     const { acceptInvitation } = await import("../../invitations/invitation.service.js"), { prisma } = await import("../../../lib/prisma.js");

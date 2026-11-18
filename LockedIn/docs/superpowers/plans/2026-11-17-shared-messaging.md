@@ -178,4 +178,6 @@ Local DB test runner: from `LockedIn/services`, with explicitly validated localh
 - Reports, moderation, durable block/close/leave and deletion: Task 4.
 - Shared bounded UI, local-only unsent text, updates and profile privacy: Tasks 5–6.
 - Existing spaces, old API tabs, mixed-binary gating and rollback: Tasks 1–2, 6–7.
-- All five Review Focus cases have explicit tests above. No implementation or production changes are part of writing this plan.
+- All five Review Focus cases have explicit checks. The original implementation review found that a block or suspension could be lost on an unbackfilled relationship while the capability was off. Regression tests failed first, then passed with durable closure in the upgraded safety writers. Related tests cover separate conversation closure and metadata authorization.
+- Final local verification: 338 API tests passed, 1 skipped; 203 web tests passed; API and web type checks, changed-file lint, webpack build and both two-account browser flows passed. A non-overlapping refresh after more than one page of new messages can still reset loaded history, as in the prior Discovery chat; ordinary overlapping refresh and pagination keep the reading position.
+- Current checkout preserved. No push, deployment or live database changes were performed.

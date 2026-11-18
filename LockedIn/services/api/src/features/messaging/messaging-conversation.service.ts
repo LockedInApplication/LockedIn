@@ -28,7 +28,7 @@ export async function ensureDiscoveryConversation(tx: Prisma.TransactionClient, 
   return row;
 }
 
-export async function ensureRelationshipConversation(tx: Prisma.TransactionClient, relationshipId: string): Promise<ChatConversation> {
+export async function ensureRelationshipConversation(tx: Prisma.TransactionClient, relationshipId: string, forcedClosure?: "BLOCK" | "SUSPENSION"): Promise<ChatConversation> {
   await tx.$queryRaw`SELECT id FROM "Relationship" WHERE id = ${relationshipId} FOR UPDATE`;
   const rel = await tx.relationship.findUniqueOrThrow({ where: { id: relationshipId }, include: { members: true, discoveryConnection: true } });
   if (rel.discoveryConnection?.lockedInAt) return ensureDiscoveryConversation(tx, rel.discoveryConnection.id);
@@ -36,7 +36,7 @@ export async function ensureRelationshipConversation(tx: Prisma.TransactionClien
   if (users.length !== 2) throw Error("Conversation requires exactly two relationship members");
   const a = users[0]!.id, b = users[1]!.id;
   const prior = await tx.chatConversation.findUnique({ where: { relationshipId } });
-  const reason = rel.status !== "ACTIVE" || rel.discoveryConnection?.closedAt ? "CONTACT_CLOSED" : await pairClosure(tx, a, b);
+  const reason = forcedClosure ?? (rel.status !== "ACTIVE" || rel.discoveryConnection?.closedAt ? "CONTACT_CLOSED" : await pairClosure(tx, a, b));
   if (prior) {
     if (prior.userLowId !== a || prior.userHighId !== b) throw Error("Conversation membership mismatch");
     return reason && !prior.closedAt ? tx.chatConversation.update({ where: { id: prior.id }, data: { closedAt: new Date(), closureReason: reason } }) : prior;

@@ -2,7 +2,7 @@ import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { chatMissing, lockConversation } from "./messaging-access.service.js";
 import { messageScope } from "./messaging-message.service.js";
-import { blockContactUnderLock, closeDiscoveryContactUnderLock } from "../invitations/invitation-restrictions.service.js";
+import { blockContactUnderLock, closeDiscoverySourcesUnderLock } from "../invitations/invitation-restrictions.service.js";
 import { consumeDiscoveryQuota } from "../discovery/discovery-throttle.service.js";
 import { ensureDiscoveryConversation } from "./messaging-conversation.service.js";
 import { lockDiscoveryUsers } from "../discovery/discovery-locks.js";
@@ -50,7 +50,7 @@ export async function changeChatContact(actorId: string, conversationId: string,
       return { ok: true as const, value: { id: block.id } };
     }
     if (!c.closedAt) {
-      if (c.discoveryConnectionId) await closeDiscoveryContactUnderLock(tx,actorId,partnerId);
+      if (c.discoveryConnectionId) await closeDiscoverySourcesUnderLock(tx,{ id: c.discoveryConnectionId });
       await tx.chatConversation.updateMany({ where: { id: c.id, closedAt: null }, data: { closedAt: new Date(), closureReason: "CONTACT_CLOSED" } });
     }
     return { ok: true as const, value: { id: c.id } };

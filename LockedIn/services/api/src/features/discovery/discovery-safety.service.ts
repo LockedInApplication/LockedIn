@@ -69,7 +69,7 @@ export async function unblockDiscoveryContact(actorId: string, blockId: string) 
 async function reportSource(tx: Prisma.TransactionClient, actorId: string, sourceType: string, sourceId: string) {
   if (sourceType === "MESSAGE") {
     const message = await tx.discoveryMessage.findUnique({ where: { id: sourceId } });
-    if (!message || message.senderId === actorId) return null;
+    if (!message || !message.connectionId || message.senderId === actorId) return null;
     // Previously received text remains reportable after closure or blocking.
     const connection = await visibleConnection(tx, actorId, message.connectionId);
     if (!connection || connection.targetId !== message.senderId) return null;

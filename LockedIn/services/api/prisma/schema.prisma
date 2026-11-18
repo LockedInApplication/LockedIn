@@ -126,6 +126,8 @@ model User {
   discoveryPhotos            DiscoveryPhoto[]
   discoveryPhotoAudits       DiscoveryPhotoAudit[]
   discoveryThrottles         DiscoveryThrottle[]
+  chatConversationsLow       ChatConversation[] @relation("ChatLowUser")
+  chatConversationsHigh      ChatConversation[] @relation("ChatHighUser")
 
   @@map("user")
 }
@@ -147,6 +149,7 @@ model RelationshipInvite {
   inviter User  @relation("sentInvites", fields: [inviterId], references: [id], onDelete: Cascade)
   invitee User? @relation("receivedInvites", fields: [inviteeId], references: [id], onDelete: Cascade)
   notifications Notification[]
+  chatConversation ChatConversation?
 
   @@index([inviterId])
   @@index([inviteeId])
@@ -179,6 +182,7 @@ model Relationship {
   meaningChapters     MeaningChapter[]
   notifications       Notification[]
   discoveryConnection DiscoveryConnection?
+  chatConversation    ChatConversation?
 }
 
 model Notification {
@@ -374,6 +378,7 @@ model DiscoveryConnection {
   messages             DiscoveryMessage[]
   reports              DiscoveryReport[]
   notifications        Notification[]
+  chatConversation     ChatConversation?
 
   @@index([userLowId, state])
   @@unique([inviterId, requestId])
@@ -381,18 +386,58 @@ model DiscoveryConnection {
   @@index([inviterId, userLowId, userHighId, declinedAt], map: "DiscoveryConnection_directional_decline_idx")
 }
 
+enum ChatOrigin {
+  DISCOVERY
+  DIRECT_INVITATION
+  LEGACY_RELATIONSHIP
+}
+
+enum ChatAccessMode {
+  DISCOVERY
+  RELATIONSHIP
+}
+
+model ChatConversation {
+  id                    String @id @default(uuid())
+  userLowId             String
+  userHighId            String
+  origin                ChatOrigin
+  accessMode            ChatAccessMode
+  discoveryConnectionId String? @unique
+  relationshipId        String? @unique
+  directInvitationId    String? @unique
+  closedAt              DateTime?
+  closureReason         String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  userLow               User @relation("ChatLowUser", fields: [userLowId], references: [id], onDelete: Cascade)
+  userHigh              User @relation("ChatHighUser", fields: [userHighId], references: [id], onDelete: Cascade)
+  discoveryConnection   DiscoveryConnection? @relation(fields: [discoveryConnectionId], references: [id], onDelete: SetNull)
+  relationship          Relationship? @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+  directInvitation      RelationshipInvite? @relation(fields: [directInvitationId], references: [id], onDelete: SetNull)
+  messages              DiscoveryMessage[]
+  reports               DiscoveryReport[]
+
+  @@index([userLowId])
+  @@index([userHighId])
+}
+
 model DiscoveryMessage {
   id           String              @id @default(uuid())
   sequence     BigInt              @unique @default(autoincrement())
-  connectionId String
+  connectionId String?
+  conversationId String?
   senderId     String
   requestId    String
   text         String
   createdAt    DateTime            @default(now())
-  connection   DiscoveryConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  connection   DiscoveryConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  conversation ChatConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@unique([connectionId, senderId, requestId])
+  @@unique([conversationId, senderId, requestId])
+  @@index([conversationId, sequence])
   @@index([connectionId, sequence])
   @@index([senderId])
 }
@@ -441,6 +486,7 @@ model DiscoveryReport {
   reporterId       String
   reportedUserId   String
   connectionId     String?
+  conversationId   String?
   reason           String
   details          String?
   requestId        String?
@@ -455,11 +501,13 @@ model DiscoveryReport {
   reporter         User                       @relation("DiscoveryReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   reportedUser     User                       @relation("DiscoveryReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
   connection       DiscoveryConnection?       @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  conversation     ChatConversation?           @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   moderationAudits DiscoveryModerationAudit[]
 
   @@index([resolvedAt, createdAt])
   @@index([photoId, resolvedAt])
   @@index([reporterId])
+  @@index([conversationId])
   @@index([reportedUserId])
   @@unique([reporterId, requestId])
 }

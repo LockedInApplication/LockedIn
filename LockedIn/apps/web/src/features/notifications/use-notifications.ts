@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL, JourneyApiError } from "@/features/journey/journey.client";
 import { fetchNotifications, readNotification } from "./notification.client";
 import type { ConnectionState, NotificationInbox } from "./notification.types";
+import { signalChatRefresh } from "../messaging/use-chat-refresh";
 export function useNotifications(userId: string, onActivity: () => void, onExpired: () => void,onStatusChange?:(activity?:boolean)=>void,onChatSync?:()=>void) {
     const [inbox, setInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, nextCursor: null });
     const [loading, setLoading] = useState(true);
@@ -46,13 +47,14 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
         const stream = new EventSource(`${API_URL}/api/journey/notifications/stream`, { withCredentials: true });
         source.current = stream;
         stream.onopen = () => { if (!abort.signal.aborted) {
-            setConnection("live"); onChatSync?.();
+            setConnection("live"); signalChatRefresh(userId); onChatSync?.();
         } };
-        stream.addEventListener("discovery-chat-changed", () => { if (!abort.signal.aborted) onChatSync?.(); });
+        stream.addEventListener("discovery-chat-changed", () => { if (!abort.signal.aborted) { signalChatRefresh(userId); onChatSync?.(); } });
         stream.addEventListener("notifications-changed", event => {
             if (abort.signal.aborted)
                 return;
             void load();
+            signalChatRefresh(userId);
             onChatSync?.();
             try {
                 const activity=JSON.parse((event as MessageEvent).data).activity===true;

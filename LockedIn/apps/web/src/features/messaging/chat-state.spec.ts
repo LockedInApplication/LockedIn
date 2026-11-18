@@ -1,0 +1,33 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ChatSession, mergeLatestMessages, prependMessages } from "./chat-state";
+const message = (id: string) => ({ id, sequence: id, author: "partner" as const, text: `Text ${id}`, createdAt: "2026-11-17T00:00:00.000Z" });
+afterEach(() => vi.unstubAllGlobals());
+describe("shared chat state and request ownership", () => {
+  it("keeps loaded history on overlapping refresh and removes duplicate messages", () => {
+    expect(mergeLatestMessages({ items: [message("1"),message("2")], nextCursor: "1" },{ items: [message("2"),message("3")], nextCursor: null })).toEqual({ items: [message("1"),message("2"),message("3")], nextCursor: "1" });
+    expect(prependMessages({ items: [message("2"),message("3")], nextCursor: "2" },{ items: [message("1"),message("2")], nextCursor: null }).items.map(m => m.id)).toEqual(["1","2","3"]);
+    expect(mergeLatestMessages({ items: [message("1")], nextCursor: null },{ items: [message("8")], nextCursor: "8" }).items.map(m => m.id)).toEqual(["8"]);
+  });
+  it("reuses the receipt on an unchanged retry and never forwards a stale account response", async () => {
+    const requests: RequestInit[] = []; let fail = true;
+    vi.stubGlobal("fetch",async (_url: string, init: RequestInit) => { requests.push(init); if (fail) { fail=false; throw Error("offline"); } return Response.json({ ownerId: "a", value: message("1") }); });
+    const session = new ChatSession("a","conversation");
+    await expect(session.send("Hello")).rejects.toThrow("offline");
+    await session.send("Hello");
+    expect(JSON.parse(requests[0]!.body as string).requestId).toBe(JSON.parse(requests[1]!.body as string).requestId);
+    expect(new Headers(requests[1]!.headers).get("x-messaging-owner")).toBe("a");
+    expect(requests[1]!.credentials).toBe("include"); expect(requests[1]!.cache).toBe("no-store");
+    session.close(); expect(requests[1]!.signal?.aborted).toBe(true);
+    await expect(session.send("Old account text")).rejects.toThrow(); expect(requests).toHaveLength(2);
+    vi.stubGlobal("fetch",async () => Response.json({ ownerId: "a", value: message("1") }));
+    const switched = new ChatSession("b","conversation");
+    await expect(switched.load()).rejects.toMatchObject({ status: 409 });
+  });
+  it("aborts old history and refuses sends after the mounted identity is disposed", async () => {
+    let signal: AbortSignal | null | undefined;
+    vi.stubGlobal("fetch",async (_url: string, init: RequestInit) => { signal=init.signal; return Response.json({ ownerId: "a", value: { items: [], nextCursor: null } }); });
+    const session = new ChatSession("a","first"); await session.load(); session.close();
+    expect(signal?.aborted).toBe(true);
+    await expect(session.load()).rejects.toThrow();
+  });
+});

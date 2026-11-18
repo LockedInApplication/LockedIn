@@ -53,6 +53,7 @@ For a failed/partial backfill, keep the capability off, investigate source misma
 - Unverified actor gets their own verification guidance; partner restriction is generic. Outsiders and ended/closed contacts cannot read/send.
 - Report via a received message's action menu. Confirm selected server-owned evidence in the existing moderator queue; profile-less accounts can be suspended/restored there. Restore/unblock never reopens closed chats. Direct close does not end the shared space; direct leave closes both shared and reused Discovery contact.
 - On phone and desktop, conversation height stays bounded; older history preserves its visible anchor and incoming messages while scrolled show a jump control. Composer remains compact, unsent text is local-only, transient refresh errors do not unmount it, and switching accounts clears prior draft/history and aborts requests.
+- With chat still open, return after more than one page of messages arrives. The chat fills the gap without moving the message you were reading. If the gap is larger than automatic catch-up can fill, the visible history stays intact until you choose **Jump to latest**; you can then load older messages normally.
 
 ## Local verification
 

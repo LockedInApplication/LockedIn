@@ -82,6 +82,20 @@ try {
   assert.equal((await request(b,"POST",`${route}/messages`,{text:"New while reading history",requestId:randomUUID()})).status,200);
   await pa.getByRole("button",{name:"New messages · Jump to latest ↓",exact:true}).waitFor();
   await pa.getByRole("button",{name:"New messages · Jump to latest ↓",exact:true}).click();
+  await viewport.evaluate(el=>{el.scrollTop=el.clientHeight;el.dispatchEvent(new Event("scroll",{bubbles:true}));});
+  const reading = await viewport.evaluate(el=>{
+    const top = el.getBoundingClientRect().top;
+    const message = [...el.querySelectorAll("[data-message-id]")].find(item=>item.getBoundingClientRect().bottom>top);
+    return {id:message.dataset.messageId,offset:message.getBoundingClientRect().top-top};
+  });
+  await prisma.discoveryMessage.createMany({data:Array.from({length:65},(_,i)=>({conversationId:id,senderId:b.id,requestId:randomUUID(),text:`Catch-up ${i}`}))});
+  await pa.evaluate(()=>window.dispatchEvent(new Event("focus")));
+  await pa.getByText("Catch-up 64",{exact:true}).waitFor({state:"attached"});
+  assert.equal(await viewport.getByText(/^Catch-up \d+$/).count(),65,"Refresh keeps every message in the gap");
+  const readingOffset=await viewport.locator(`[data-message-id="${reading.id}"]`).evaluate(el=>el.getBoundingClientRect().top-el.closest("[role=region]").getBoundingClientRect().top);
+  assert(Math.abs(readingOffset-reading.offset)<5,"Multi-page refresh retains visible message and position");
+  await pa.getByRole("button",{name:"New messages · Jump to latest ↓",exact:true}).click();
+  assert(await viewport.evaluate(el=>el.scrollHeight-el.scrollTop-el.clientHeight<5),"Jump reaches the latest message");
   assert.equal(await pa.getByRole("button",{name:"Report message",exact:true}).count(),0);
   const menu=viewport.getByLabel("Message actions",{exact:true}).last(); await menu.focus(); await menu.press("Enter");
   await pa.getByRole("button",{name:"Report message",exact:true}).click();
@@ -89,6 +103,16 @@ try {
   await reporting.getByRole("combobox").selectOption("SPAM"); await reporting.getByRole("button",{name:"Send report",exact:true}).click();
   await reporting.getByText("Report received for moderator review.",{exact:true}).waitFor();
   await pa.getByRole("button",{name:"Close message report",exact:true}).click();
+  await viewport.evaluate(el=>{el.scrollTop=0;el.dispatchEvent(new Event("scroll",{bubbles:true}));});
+  await prisma.discoveryMessage.createMany({data:Array.from({length:181},(_,i)=>({conversationId:id,senderId:b.id,requestId:randomUUID(),text:`Long catch-up ${i}`}))});
+  await pa.evaluate(()=>window.dispatchEvent(new Event("focus")));
+  const jump = pa.getByRole("button",{name:"New messages · Jump to latest ↓",exact:true});
+  await jump.waitFor();
+  assert.equal(await viewport.getByText("Hello from Alex",{exact:true}).count(),1,"Very large gaps leave loaded history intact");
+  assert.equal(await viewport.getByText(/^Long catch-up \d+$/).count(),0,"Don't render disjoint pages as continuous history");
+  await jump.click();
+  await viewport.getByText("Long catch-up 180",{exact:true}).waitFor();
+  console.log("PASS multi-page catch-up preserves the reading anchor; very large gaps require an explicit jump");
   // A stale owner header cannot turn an account switch into a wrong-account send.
   await pa.getByRole("textbox",{name:"Message",exact:true}).fill("DO NOT LEAK");
   await contexts.get(a.id).clearCookies(); await contexts.get(a.id).addCookies([c.cookie]);

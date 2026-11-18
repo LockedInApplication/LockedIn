@@ -10,6 +10,25 @@ export function mergeLatestMessages(previous: ChatPage | null, latest: ChatPage)
 export function prependMessages(current: ChatPage, older: ChatPage): ChatPage {
   return { items: unique([...older.items,...current.items]), nextCursor: older.nextCursor };
 }
+export async function loadChatRefresh(previous: ChatPage | null, load: (before?: string) => Promise<ChatPage>, knownGap = false) {
+  const latest = await load();
+  const lastLoaded = previous?.items.at(-1);
+  if (!lastLoaded || !latest.items.length || latest.items.some(item => item.id === lastLoaded.id)) {
+    return { contiguous: latest, deferred: null };
+  }
+
+  let contiguous = latest;
+  const visited = new Set<string>();
+  while (!knownGap && contiguous.nextCursor && visited.size < 5 && !visited.has(contiguous.nextCursor)) {
+    const cursor = contiguous.nextCursor;
+    visited.add(cursor);
+    const older = await load(cursor);
+    if (!older.items.length) break;
+    contiguous = prependMessages(contiguous, older);
+    if (older.items.some(item => item.id === lastLoaded.id)) return { contiguous, deferred: null };
+  }
+  return { contiguous: null, deferred: latest };
+}
 // One mounted identity owns its requests and retry receipt. Never persisted.
 export class ChatSession {
   readonly controller = new AbortController();

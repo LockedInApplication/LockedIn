@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { JourneyApiError } from "@/features/journey/journey.client";
-import { ChatSession, mergeLatestMessages, prependMessages, type ChatMessage as Message, type ChatPage as Page } from "./chat-state";
+import { ChatSession, loadChatRefresh, mergeLatestMessages, prependMessages, type ChatMessage as Message, type ChatPage as Page } from "./chat-state";
 import { messagingRequest, type ChatRequest } from "./messaging.client";
 import { useChatRefresh } from "./use-chat-refresh";
 import MessageSafetyActions from "./MessageSafetyActions";
@@ -44,7 +44,8 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   const viewport = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
   const anchor = useRef<{ id: string; offset: number } | null>(null);
-  const lastMessage = useRef<string | undefined>(undefined);
+  const renderedPage = useRef<Page | null>(null);
+  const deferredLatest = useRef<Page | null>(null);
   const [newMessages, setNewMessages] = useState(false);
   const reportClose = useRef<HTMLButtonElement>(null);
   const reportOrigin = useRef<HTMLElement | null>(null);
@@ -71,6 +72,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   }, []);
 
   useLayoutEffect(() => {
+    renderedPage.current = page;
     const node = viewport.current;
     if (!node) return;
     if (followLatest.current) node.scrollTop = node.scrollHeight;
@@ -84,6 +86,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
 
   const hideChat = useCallback(() => {
     ended.current = true;
+    deferredLatest.current = null;
     setClosed(true);
     setPage(null);
     setDraft("");
@@ -103,14 +106,20 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       if (running) { queued = true; return; }
       running = true;
       try {
-        const latest = await currentSession.load();
+        const result = await loadChatRefresh(renderedPage.current, cursor => currentSession.load(cursor), !!deferredLatest.current);
         if (!signal.aborted && !ended.current) {
-          rememberPosition();
-          const latestId = latest.items.at(-1)?.id;
-          if (!followLatest.current && lastMessage.current && latestId !== lastMessage.current) setNewMessages(true);
-          lastMessage.current = latestId;
-          setPage(previous => mergeLatestMessages(previous, latest));
           setSyncError("");
+          if (result.deferred && !followLatest.current) {
+            deferredLatest.current = result.deferred;
+            setNewMessages(true);
+            return;
+          }
+          deferredLatest.current = null;
+          const latest = result.contiguous ?? result.deferred!;
+          rememberPosition();
+          const lastLoaded = renderedPage.current?.items.at(-1)?.id;
+          if (!followLatest.current && lastLoaded && latest.items.at(-1)?.id !== lastLoaded) setNewMessages(true);
+          setPage(previous => mergeLatestMessages(previous, latest));
         }
       } catch (error) {
         if (signal.aborted || ended.current) return;
@@ -181,6 +190,15 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
     }
   }
 
+  function jumpToLatest() {
+    followLatest.current = true;
+    setNewMessages(false);
+    const deferred = deferredLatest.current;
+    deferredLatest.current = null;
+    if (deferred) setPage(deferred);
+    else if (viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight;
+  }
+
   return <section className={`${styles.card} ${chatStyles.chat}`} aria-label={ariaLabel}>
     <h2>Messages</h2>{profileAction}
     {closed ? <p role="status">This chat is no longer available.</p> : <>
@@ -188,11 +206,11 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       {!page && !syncError ? <p role="status">Loading messages…</p> : null}
       {syncError ? <p role="alert">{syncError} <button type="button" onClick={() => refresh.current?.()}>Retry</button></p> : null}
       {page ? <div ref={viewport} className={chatStyles.viewport} role="region" aria-label="Scrollable conversation" tabIndex={0}
-        onScroll={event => { const node = event.currentTarget; followLatest.current = node.scrollHeight - node.scrollTop - node.clientHeight < 64; if (followLatest.current) setNewMessages(false); }}>
+        onScroll={event => { const node = event.currentTarget; followLatest.current = !deferredLatest.current && node.scrollHeight - node.scrollTop - node.clientHeight < 64; if (followLatest.current) setNewMessages(false); }}>
       {page?.nextCursor ? <button type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load older messages"}</button> : null}
       <ChatTranscript items={page.items} partnerName={partner.publicName} busy={busy} onReport={setReport} openingContext={openingContext}/>
       </div> : null}
-      {newMessages ? <button className={chatStyles.newMessages} type="button" onClick={() => { followLatest.current = true; setNewMessages(false); if (viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight; }}>New messages · Jump to latest ↓</button> : null}
+      {newMessages ? <button className={chatStyles.newMessages} type="button" onClick={jumpToLatest}>New messages · Jump to latest ↓</button> : null}
       {report ? <div role="region" aria-label="Report selected message">
         <button ref={reportClose} type="button" onClick={() => { setReport(null); reportOrigin.current?.focus(); }}>Close message report</button>
         {renderReport ? renderReport(report, () => { hideChat(); onAccessEnded(); }) : <MessageSafetyActions key={report.id} userId={userId} conversationId={conversationId} message={report} onBlocked={() => { hideChat(); onAccessEnded(); }}/>}

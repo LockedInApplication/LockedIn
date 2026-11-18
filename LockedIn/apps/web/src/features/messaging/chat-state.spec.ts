@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ChatSession, mergeLatestMessages, prependMessages } from "./chat-state";
+import { ChatSession, loadChatRefresh, mergeLatestMessages, prependMessages } from "./chat-state";
 const message = (id: string) => ({ id, sequence: id, author: "partner" as const, text: `Text ${id}`, createdAt: "2026-11-17T00:00:00.000Z" });
 afterEach(() => vi.unstubAllGlobals());
 describe("shared chat state and request ownership", () => {
@@ -7,6 +7,26 @@ describe("shared chat state and request ownership", () => {
     expect(mergeLatestMessages({ items: [message("1"),message("2")], nextCursor: "1" },{ items: [message("2"),message("3")], nextCursor: null })).toEqual({ items: [message("1"),message("2"),message("3")], nextCursor: "1" });
     expect(prependMessages({ items: [message("2"),message("3")], nextCursor: "2" },{ items: [message("1"),message("2")], nextCursor: null }).items.map(m => m.id)).toEqual(["1","2","3"]);
     expect(mergeLatestMessages({ items: [message("1")], nextCursor: null },{ items: [message("8")], nextCursor: "8" }).items.map(m => m.id)).toEqual(["8"]);
+  });
+  it("fills a multi-page refresh gap before extending the mounted history", async () => {
+    const page = (ids: string[], nextCursor: string | null) => ({ items: ids.map(message), nextCursor });
+    const previous = page(["1", "3", "5"], null);
+    const load = vi.fn(async (before?: string) => before === "12" ? page(["8", "10"], "8") : before === "8" ? page(["3", "5", "7"], "3") : page(["12", "14"], "12"));
+    const refresh = await loadChatRefresh(previous, load);
+    expect(load.mock.calls).toEqual([[], ["12"], ["8"]]);
+    expect(refresh.deferred).toBeNull();
+    expect(mergeLatestMessages(previous, refresh.contiguous!)).toEqual(page(["1", "3", "5", "7", "8", "10", "12", "14"], null));
+  });
+  it("bounds large catch-ups without discarding or splicing across visible history", async () => {
+    const previous = { items: [message("1")], nextCursor: null };
+    const load = vi.fn(async (before?: string) => {
+      const id = String(before ? Number(before) - 1 : 100);
+      return { items: [message(id)], nextCursor: id };
+    });
+    const refresh = await loadChatRefresh(previous, load);
+    expect(load.mock.calls.length).toBeGreaterThan(1);
+    expect(load.mock.calls.length).toBeLessThanOrEqual(6);
+    expect(refresh).toEqual({ contiguous: null, deferred: { items: [message("100")], nextCursor: "100" } });
   });
   it("reuses the receipt on an unchanged retry and never forwards a stale account response", async () => {
     const requests: RequestInit[] = []; let fail = true;

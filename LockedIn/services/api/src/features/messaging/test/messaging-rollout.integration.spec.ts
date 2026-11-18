@@ -1,0 +1,42 @@
+import { randomUUID } from "node:crypto";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { connectionFixtures } from "../../discovery/test/discovery-connection.fixtures.js";
+import { createPerson } from "../../discovery/test/discovery.fixtures.js";
+vi.mock("../../../lib/email.js", () => ({ sendEmail: async () => {}, sendPasswordResetEmail: async () => {} }));
+vi.mock("../../journey-notifications/journey-email.service.js", () => ({ sendJourneyEmailSafely: async () => {} }));
+describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("expand, associate and capability rollback rehearsal", () => {
+  let app: Awaited<ReturnType<typeof import("../../../app.js").buildServer>>, f: ReturnType<typeof connectionFixtures>;
+  const oldEnv = { ...process.env };
+  beforeAll(async () => { process.env.DISCOVERY_CHAT_ENABLED = "true"; process.env.SHARED_MESSAGING_ENABLED = "false"; app = await (await import("../../../app.js")).buildServer(); await app.listen({port:0,host:"127.0.0.1"}); f=connectionFixtures(app); });
+  afterAll(async () => { process.env=oldEnv; await app?.close(); await (await import("../../../lib/prisma.js")).prisma.$disconnect(); });
+  it("keeps one receipt through old writes/backfill/new endpoints and detects unsafe associations read-only", async () => {
+    const { prisma } = await import("../../../lib/prisma.js"), module = await import("../messaging-backfill.service.js");
+    const a=await f.person(), b=await f.person(), sent=await f.send(a,b), id=sent.json().value.id as string;
+    await f.request(b,"POST",`/api/discovery/connections/${id}/accept`,{});
+    const old = await prisma.discoveryMessage.create({data:{connectionId:id,senderId:a.id,requestId:randomUUID(),text:"Old binary receipt"}});
+    const report = await prisma.discoveryReport.create({data:{reporterId:b.id,reportedUserId:a.id,connectionId:id,reason:"SPAM",sourceType:"MESSAGE",sourceId:old.id,evidence:{text:old.text}}});
+    const c=await createPerson(), d=await createPerson(), rel=await prisma.relationship.create({data:{members:{create:[c,d].map(u=>({userId:u.id}))}}});
+    let cursor: string | undefined;
+    do { const result=await prisma.$transaction(tx=>module.backfillMessaging(tx,{afterId:cursor,limit:50})); cursor=result.nextCursor??undefined; } while(cursor);
+    const before=await prisma.discoveryMessage.findUniqueOrThrow({where:{id:old.id}});
+    process.env.SHARED_MESSAGING_ENABLED="true";
+    const neutral=(actor: typeof a,method:"GET"|"POST",payload?:object)=>app.inject({method,url:`/api/messaging/conversations/${id}/messages`,headers:{cookie:actor.cookie,origin:"http://localhost:3001","x-messaging-owner":actor.id},...(payload?{payload}:{})});
+    const input={text:old.text,requestId:old.requestId};
+    expect((await neutral(a,"POST",input)).json().value.id).toBe(old.id);
+    expect((await f.request(a,"POST",`/api/discovery/connections/${id}/messages`,input)).json().value.id).toBe(old.id);
+    expect(await prisma.discoveryMessage.count({where:{connectionId:id}})).toBe(1);
+    expect(await prisma.discoveryMessage.findUniqueOrThrow({where:{id:old.id}})).toEqual(before);
+    expect(await prisma.discoveryReport.findUniqueOrThrow({where:{id:report.id}})).toEqual(report);
+    expect(await prisma.chatConversation.findUniqueOrThrow({where:{relationshipId:rel.id}})).toMatchObject({accessMode:"RELATIONSHIP"});
+    expect(await module.checkMessaging(prisma)).toMatchObject({unassociatedMessages:0,invalidMessageAssociations:0,invalidConversations:0,activeRelationshipsWithoutChat:0});
+    // The checker must report corruption, not repair or expose message text.
+    await prisma.discoveryMessage.update({where:{id:old.id},data:{conversationId:rel.id}});
+    expect((await module.checkMessaging(prisma)).invalidMessageAssociations).toBe(1);
+    expect((await prisma.discoveryMessage.findUniqueOrThrow({where:{id:old.id}})).conversationId).toBe(rel.id);
+    await prisma.discoveryMessage.update({where:{id:old.id},data:{conversationId:id}});
+    process.env.SHARED_MESSAGING_ENABLED="false";
+    expect((await neutral(a,"GET")).statusCode).toBe(404);
+    await prisma.discoveryMessage.create({data:{connectionId:id,senderId:a.id,requestId:randomUUID(),text:"Rollback old writer"}});
+    expect((await f.request(a,"GET",`/api/discovery/connections/${id}/messages`)).json().value.items).toHaveLength(2);
+  });
+});

@@ -30,3 +30,22 @@ export async function backfillMessaging(tx: Prisma.TransactionClient, options: {
   }
   return { nextCursor: rows.length === options.limit ? rows.at(-1)!.cursor : null, associated, created };
 }
+
+export async function checkMessaging(tx: Prisma.TransactionClient) {
+  const [counts] = await tx.$queryRaw<{ conversations: bigint; unassociatedMessages: bigint; invalidMessageAssociations: bigint; invalidConversations: bigint; activeRelationshipsWithoutChat: bigint }[]>`
+    SELECT
+      (SELECT count(*) FROM "ChatConversation") AS conversations,
+      (SELECT count(*) FROM "DiscoveryMessage" WHERE "conversationId" IS NULL) AS "unassociatedMessages",
+      (SELECT count(*) FROM "DiscoveryMessage" m LEFT JOIN "ChatConversation" c ON c.id=m."conversationId"
+       WHERE m."conversationId" IS NOT NULL AND (c.id IS NULL OR m."senderId" NOT IN (c."userLowId",c."userHighId") OR m."connectionId" IS DISTINCT FROM c."discoveryConnectionId")) AS "invalidMessageAssociations",
+      (SELECT count(*) FROM "ChatConversation" c LEFT JOIN "DiscoveryConnection" d ON d.id=c."discoveryConnectionId" LEFT JOIN "Relationship" r ON r.id=c."relationshipId" LEFT JOIN "RelationshipInvite" i ON i.id=c."directInvitationId"
+       WHERE c."userLowId">=c."userHighId"
+       OR (c."discoveryConnectionId" IS NOT NULL AND (d.id IS NULL OR c."userLowId"<>d."userLowId" OR c."userHighId"<>d."userHighId" OR (d."closedAt" IS NOT NULL AND c."closedAt" IS NULL)))
+       OR (c."relationshipId" IS NOT NULL AND (r.id IS NULL OR (SELECT count(*) FROM "RelationshipMember" rm WHERE rm."relationshipId"=r.id)<>2 OR (SELECT count(*) FROM "RelationshipMember" rm WHERE rm."relationshipId"=r.id AND rm."userId" IN (c."userLowId",c."userHighId"))<>2))
+       OR (c."accessMode"='DISCOVERY' AND (c.origin<>'DISCOVERY' OR d.id IS NULL OR (c."relationshipId" IS NOT NULL AND (d."lockedInAt" IS NULL OR d."relationshipId" IS DISTINCT FROM c."relationshipId"))))
+       OR (c."accessMode"='RELATIONSHIP' AND (r.id IS NULL OR d."lockedInAt" IS NOT NULL OR (r.status<>'ACTIVE' AND c."closedAt" IS NULL)))
+       OR (c."directInvitationId" IS NOT NULL AND (i.id IS NULL OR i.status<>'ACCEPTED' OR i."inviterId" NOT IN (c."userLowId",c."userHighId") OR i."inviteeId" NOT IN (c."userLowId",c."userHighId") OR i."inviterId"=i."inviteeId"))) AS "invalidConversations",
+      (SELECT count(*) FROM "Relationship" r WHERE r.status='ACTIVE' AND (SELECT count(*) FROM "RelationshipMember" rm WHERE rm."relationshipId"=r.id)=2 AND NOT EXISTS (SELECT 1 FROM "ChatConversation" c WHERE c."relationshipId"=r.id)) AS "activeRelationshipsWithoutChat"`;
+  if (!counts) throw Error("Integrity counts unavailable");
+  return { conversations: Number(counts.conversations), unassociatedMessages: Number(counts.unassociatedMessages), invalidMessageAssociations: Number(counts.invalidMessageAssociations), invalidConversations: Number(counts.invalidConversations), activeRelationshipsWithoutChat: Number(counts.activeRelationshipsWithoutChat) };
+}

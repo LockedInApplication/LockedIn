@@ -80,13 +80,16 @@ try {
   console.log("Historical fixture snapshot preserved exactly.");
   const files = process.env.DISCOVERY_TEST_FILES?.split(",").filter(Boolean) ?? ["api/src"];
   const migrationTest = "api/src/features/messaging/test/messaging-migration.integration.spec.ts";
+  const rolloutTest = "api/src/features/messaging/test/messaging-rollout.integration.spec.ts";
   // The backfill deliberately scans all sources. Do not run it against other
   // test files' concurrently mutating fixtures in this shared disposable DB.
   if (!process.env.DISCOVERY_TEST_FILES) {
     execFileSync("npm", ["test", "--", migrationTest], { cwd: services, env: childEnv, stdio: "inherit" });
+    execFileSync("npm", ["test", "--", rolloutTest], { cwd: services, env: childEnv, stdio: "inherit" });
   }
-  execFileSync("npm", ["test", "--", ...files, ...(!process.env.DISCOVERY_TEST_FILES ? ["--exclude", migrationTest] : [])], { cwd: services, env: childEnv, stdio: "inherit" });
+  execFileSync("npm", ["test", "--", ...files, ...(!process.env.DISCOVERY_TEST_FILES ? ["--exclude", migrationTest,"--exclude",rolloutTest] : [])], { cwd: services, env: childEnv, stdio: "inherit" });
   if(process.argv.includes("--browser")) execFileSync(process.execPath,["--import","tsx",path.join(services,"scripts/verify-discovery-browser.mjs")],{cwd:services,env:childEnv,stdio:"inherit"});
+  if(process.argv.includes("--messaging-browser")) execFileSync(process.execPath,["--import","tsx",path.join(services,"scripts/verify-shared-messaging-browser.mjs")],{cwd:services,env:childEnv,stdio:"inherit"});
 } finally {
   await database?.end();
   if (created) await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);

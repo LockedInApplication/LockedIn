@@ -1,6 +1,6 @@
 # Shared messaging for Discovery and invited partners
 
-Status: proposed; awaiting user approval before implementation.
+Status: approved by user; native implementation selected.
 
 ## Intent and agreed behavior
 

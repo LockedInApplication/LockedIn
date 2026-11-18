@@ -15,7 +15,7 @@ export async function getDiscoveryCapabilities(context: DiscoveryContext): Promi
   const canChat = isDiscoveryAccountAllowed(config, context.userId) && context.emailVerified && !profile?.suspendedAt;
   return {
     canDiscover: canChat && !discoveryLockedIn,
-    canChat, discoveryLockedIn,
+    canChat, canManageProfile: canChat, discoveryLockedIn,
     canModerate: context.emailVerified && config.moderatorUserIds.includes(context.userId),
     hasHistory: connection !== null,
     canReflect: true,

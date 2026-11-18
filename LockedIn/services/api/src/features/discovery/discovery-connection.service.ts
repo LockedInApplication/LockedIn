@@ -62,8 +62,12 @@ export async function sendDiscoveryInvitation(actorId: string, input: z.infer<ty
       return connectionValue(tx, replay, actorId);
     }
     const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
-    if (await isDiscoveryLockedIn(tx, actorId) || await isDiscoveryLockedIn(tx, target.ownerId)) return unavailable;
-    if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor)) return denied;
+    if (!await isDiscoveryAdmitted(tx, actorId, actor)) return denied;
+    if (await isDiscoveryLockedIn(tx, actorId)) return unavailable;
+    if (!hasDiscoveryPublication(actor)) return denied;
+    // A hidden target must not reveal why it is unavailable, even to stale
+    // tabs, blocked callers or callers holding a previously public profile ID.
+    if (await isDiscoveryLockedIn(tx, target.ownerId)) return missing;
     const partner = await tx.discoveryProfile.findUnique({ where: { id: data.targetProfileId } });
     if (!partner || !await isDiscoveryAdmitted(tx, target.ownerId, partner) || !hasDiscoveryPublication(partner) || !intentionsMatch(actor.publishedIntention, partner.publishedIntention) || await invitationBlockBetween(tx, actorId, target.ownerId) || !await distancePairEligible(tx, actor.id, partner.id)) return missing;
     let replyQuestion = profilePrompt;

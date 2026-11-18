@@ -33,6 +33,6 @@ export async function registerDiscoveryRoutes(server: FastifyInstance, options: 
     const user = await requireUser(request, reply);
     if (!user) return;
     const capabilities = await getDiscoveryCapabilities({ userId: user.id, emailVerified: user.emailVerified });
-    return { ownerId: user.id, value: { ...capabilities, chatEnabled: discoveryChatEnabled(), photos: photoCapabilities(), areas: capabilities.canDiscover ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
+    return { ownerId: user.id, value: { ...capabilities, chatEnabled: discoveryChatEnabled(), photos: photoCapabilities(), areas: capabilities.canManageProfile ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
   });
 }

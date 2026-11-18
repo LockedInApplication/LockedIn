@@ -10,6 +10,7 @@ import { lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryBlockSchema, discoveryReportSchema } from "./discovery.schemas.js";
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import { findVisibleDiscoveryProfile } from "./discovery-candidates.service.js";
+import { findConnectedProfile } from "./discovery-connected-profile.service.js";
 import { getPhotoConfig } from "./photos/photo.config.js";
 import { intentionsMatch } from "./discovery-matching.js";
 const missing = { ok: false as const, status: 404, error: "This content is not available." };
@@ -18,7 +19,10 @@ const invalid = { ok: false as const, status: 400, error: "Please check your saf
 async function visibleProfile(tx: Prisma.TransactionClient, actorId: string, id: string) {
   const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
   const profile = await tx.discoveryProfile.findUnique({ where: { id } });
-  if (!actor || !profile || actorId === profile.ownerId || !await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || !await isDiscoveryAdmitted(tx, profile.ownerId, profile) || !hasDiscoveryPublication(profile) || !intentionsMatch(actor.publishedIntention, profile.publishedIntention) || await invitationBlockBetween(tx, actorId, profile.ownerId)) return null;
+  if (!actor || !profile || actorId === profile.ownerId || !await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || !await isDiscoveryAdmitted(tx, profile.ownerId, profile) || !hasDiscoveryPublication(profile) || !intentionsMatch(actor.publishedIntention, profile.publishedIntention) || await invitationBlockBetween(tx, actorId, profile.ownerId)) {
+    const connected=await findConnectedProfile(tx,actorId,id);
+    return connected ? { targetId: connected.ownerId, label: publicDiscoveryProfile(connected.id,connected.publishedSnapshot)!.publicName, evidence: publicDiscoveryProfile(connected.id,connected.publishedSnapshot)! } : null;
+  }
   return { targetId: profile.ownerId, label: publicDiscoveryProfile(profile.id, profile.publishedSnapshot)!.publicName, evidence: publicDiscoveryProfile(profile.id, profile.publishedSnapshot)! };
 }
 async function visibleConnection(tx: Prisma.TransactionClient, actorId: string, id: string) {
@@ -76,7 +80,7 @@ async function reportSource(tx: Prisma.TransactionClient, actorId: string, sourc
     if (!config.enabled || !config.configured) return null;
     const photo = await tx.discoveryPhoto.findFirst({ where: { id: sourceId, deletedAt: null, revokedAt: null, destroyedAt: null, state: "APPROVED", scanCompleted: true, assetId: { not: null } } });
     if (!photo || !photo.assetVersion) return null;
-    const profile = await findVisibleDiscoveryProfile(tx, actorId, photo.profileId);
+    const profile = await findVisibleDiscoveryProfile(tx, actorId, photo.profileId) ?? await findConnectedProfile(tx, actorId, photo.profileId);
     const publicFields = profile && publicDiscoveryProfile(profile.id, profile.publishedSnapshot);
     if (!profile || !publicFields?.photoIds?.includes(photo.id)) return null;
     return { targetId: profile.ownerId, label: publicFields.publicName, connectionId: null, photoId: photo.id, photoVersion: photo.assetVersion, evidence: { publicName: publicFields.publicName, publicationVersion: profile.publicationVersion } };

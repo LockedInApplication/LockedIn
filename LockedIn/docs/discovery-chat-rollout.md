@@ -41,6 +41,13 @@ Selecting a chat partner's name opens their current published profile in a
 read-only dialog. Chat remains mounted so unsent text and history survive returning.
 The connection-scoped profile route and photo checks require an accepted connection
 or active explicit lock-in and honor blocks, withdrawn publication and revocations.
+Blocking or moderator suspension records durable Discovery contact closure even
+for the promoted pair: unblocking/restoration does not reopen its chat or profile.
+This does not end the shared space or lift the mutual Discovery pause. Profile
+and approved-photo reports use the same connected authorization as viewing, with
+server-captured public evidence. Owners can still preview and edit their own
+publication while locked in; its published fields remain visible to existing
+connections. Resuming Discovery stays disabled until the shared space ends.
 The dialog refreshes on focus/visibility and every 15 seconds while visible;
 profile data already viewed cannot be remotely erased from someone's memory.
 
@@ -56,6 +63,20 @@ tests and web unit/type/build checks. Local browser access was unavailable in th
 Codex session: keyboard focus return, mobile layout and end-to-end unsent-text
 preservation still need a real-browser release check. No production migration or
 deployment was performed for this change.
+
+Browser release gate (still pending):
+
+- With disposable accounts, type an unsent message, open the partner's name,
+  close the profile with Back and Escape, and verify text, scroll position and
+  keyboard focus survive. Check 393px mobile and desktop widths.
+- Confirm lock-in separately from both accounts. Verify both profiles disappear
+  from Discovery, new invitations fail, and both the pair's chat and another
+  already-accepted conversation can still send and load messages.
+- Verify owner profile preview/editing and disabled Resume, plus the connected
+  profile/photo report picker. Revoke a photo or block contact while a profile
+  is open and verify unavailable states on refresh.
+- Reverse a block or moderator suspension: the old Discovery chat/profile must
+  stay closed while its shared space and Discovery pause remain unchanged.
 
 ## Delivery and recovery
 

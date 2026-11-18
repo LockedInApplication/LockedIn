@@ -19,7 +19,8 @@ export default function DiscoveryPhotoEditor({ profile, install }: { profile: Ow
   const pickerErrorId = useId();
   const input = useRef<HTMLInputElement>(null), preview = useRef<HTMLImageElement>(null), running = useRef(false);
   const requests = useRef(new Map<string, string>());
-  const enabled = me.canDiscover && !!me.photos?.enabled && !!me.photos.configured;
+  const canManage=me.canManageProfile??me.canDiscover;
+  const enabled = canManage && !!me.photos?.enabled && !!me.photos.configured;
   const visible = enabled || !!profile.draft?.photoIds?.length || !!profile.published?.photoIds?.length;
   const load = useCallback((signal: AbortSignal) => discoveryRequest<OwnPhotos>(userId, "/api/discovery/photos", { signal }), [userId]);
   const resource = useDiscoveryResource(userId, visible ? `photos:${profile.revision}:${profile.publicationVersion}` : "", load);
@@ -96,7 +97,7 @@ export default function DiscoveryPhotoEditor({ profile, install }: { profile: Ow
         <strong>{index === 0 ? "Main photo" : index > 0 ? `Photo ${index + 1}` : "Only in your published profile"}</strong>
         {photo.src && photo.state !== "REJECTED" ? <DiscoveryPhotoImage id={photo.id} className={styles.photo} alt="Your Discovery photo"/> : null}
         <p>{status}</p>
-        {index >= 0 && me.canDiscover ? <div className={styles.actions}>
+        {index >= 0 && canManage ? <div className={styles.actions}>
           {enabled ? <><button type="button" disabled={busy || dirty || index === 0} onClick={() => move(index, index - 1)}>Move earlier</button>
           <button type="button" disabled={busy || dirty || index === order.length - 1} onClick={() => move(index, index + 1)}>Move later</button></> : null}
           <button type="button" disabled={busy || dirty} onClick={() => void reorder(order.filter(id => id !== photo.id))}>Remove from draft</button>

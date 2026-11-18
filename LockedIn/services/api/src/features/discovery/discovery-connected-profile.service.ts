@@ -14,6 +14,7 @@ export async function findConnectedProfile(tx: Prisma.TransactionClient, actorId
   if (!partner || partner.ownerId === actorId) return null;
   const connection = await tx.discoveryConnection.findFirst({ where: {
     ...(connectionId ? { id: connectionId } : {}),
+    closedAt: null,
     AND: [
       { OR: [{ userLowId: actorId, userHighId: partner.ownerId }, { userLowId: partner.ownerId, userHighId: actorId }] },
       { OR: [{ state: 'ACCEPTED' }, activeLockIn] },

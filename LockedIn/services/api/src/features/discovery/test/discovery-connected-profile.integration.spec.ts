@@ -39,6 +39,52 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== 'true')('connection-scoped
     expect((await f.request(a,'GET',profile)).json().value.photos??[]).toHaveLength(0);
     await f.request(b,'POST','/api/discovery/blocks',{connectionId:id});expect((await f.request(a,'GET',profile)).statusCode).toBe(404);
   });
+  it.each(['block','suspend'] as const)('never reopens locked-in contact after %s is reversed, without ending the shared space',async restriction=>{
+    const {prisma}=await import('../../../lib/prisma.js'),{getPhotoAccess}=await import('../photos/photo-access.service.js');
+    const {a,b,id,url,profile}=await pair(),moderator=await f.person();
+    Object.assign(process.env,{DISCOVERY_CHAT_ENABLED:'true',DISCOVERY_PHOTOS_ENABLED:'true',CLOUDINARY_CLOUD_NAME:'synthetic',CLOUDINARY_API_KEY:'synthetic',CLOUDINARY_API_SECRET:'synthetic'});
+    await f.request(b,'POST',`${url}/accept`,{});
+    const photo=await prisma.discoveryPhoto.create({data:{ownerId:b.id,profileId:b.profileId,requestId:randomUUID(),payloadHash:'a'.repeat(64),state:'APPROVED',scanCompleted:true,width:600,height:800,assetId:randomUUID(),publicId:randomUUID(),assetVersion:1}});
+    await prisma.discoveryProfile.update({where:{ownerId:b.id},data:{publishedSnapshot:{...publicDraft,photoIds:[photo.id]}}});
+    const ready={ready:true,consentVersion:1,exclusiveConsent:true};await f.request(a,'POST',`${url}/readiness`,ready);
+    const promoted=await f.request(b,'POST',`${url}/readiness`,ready);expect(promoted.statusCode).toBe(200);
+    const relationshipId=promoted.json().value.promotedRelationshipId;
+    expect((await f.request(a,'POST',`${url}/messages`,{text:'Preserve this message',requestId:randomUUID()})).statusCode).toBe(200);
+    expect((await f.request(a,'GET',profile)).statusCode).toBe(200);
+    if(restriction==='block'){
+      const block=await f.request(a,'POST','/api/discovery/blocks',{connectionId:id});expect(block.statusCode).toBe(200);
+      expect((await f.request(a,'DELETE',`/api/discovery/blocks/${block.json().value.id}`,{})).statusCode).toBe(200);
+    }else{
+      const report=await f.request(b,'POST','/api/discovery/reports',{sourceType:'INVITATION',sourceId:id,reason:'HARASSMENT',requestId:randomUUID()});expect(report.statusCode).toBe(200);
+      process.env.DISCOVERY_MODERATOR_USER_IDS=moderator.id;
+      expect((await f.request(moderator,'POST',`/api/discovery/moderation/reports/${report.json().value.id}/review`,{action:'SUSPEND',requestId:randomUUID()})).statusCode).toBe(200);
+      expect((await f.request(moderator,'POST',`/api/discovery/moderation/profiles/${a.profileId}/restore`,{requestId:randomUUID()})).statusCode).toBe(200);
+    }
+    for(const person of [a,b]){
+      expect((await f.request(person,'GET',`${url}/messages`)).statusCode).toBe(404);
+      expect((await f.request(person,'POST',`${url}/messages`,{text:'Must not send',requestId:randomUUID()})).statusCode).toBe(404);
+      expect((await f.request(person,'GET',profile)).statusCode).toBe(404);
+      expect((await f.request(person,'GET','/api/discovery/me')).json().value.discoveryLockedIn).toBe(true);
+    }
+    expect(await getPhotoAccess(a.id,photo.id,'ordinary')).toBeNull();
+    expect((await prisma.relationship.findUniqueOrThrow({where:{id:relationshipId}})).status).toBe('ACTIVE');
+    expect(await prisma.discoveryMessage.count({where:{connectionId:id}})).toBe(1);
+  });
+  it('lets connected participants report the published profile and approved photos while locked in',async()=>{
+    const {prisma}=await import('../../../lib/prisma.js');const {a,b,other,url}=await pair();
+    Object.assign(process.env,{DISCOVERY_PHOTOS_ENABLED:'true',CLOUDINARY_CLOUD_NAME:'synthetic',CLOUDINARY_API_KEY:'synthetic',CLOUDINARY_API_SECRET:'synthetic'});
+    await f.request(b,'POST',`${url}/accept`,{});
+    const photo=await prisma.discoveryPhoto.create({data:{ownerId:b.id,profileId:b.profileId,requestId:randomUUID(),payloadHash:'a'.repeat(64),state:'APPROVED',scanCompleted:true,width:600,height:800,assetId:randomUUID(),publicId:randomUUID(),assetVersion:1}});
+    await prisma.discoveryProfile.update({where:{ownerId:b.id},data:{publishedSnapshot:{...publicDraft,photoIds:[photo.id]},draft:{revision:2,profile:{...publicDraft,bio:'PRIVATE DRAFT'}}}});
+    const ready={ready:true,consentVersion:1,exclusiveConsent:true};await f.request(a,'POST',`${url}/readiness`,ready);await f.request(b,'POST',`${url}/readiness`,ready);
+    for(const [sourceType,sourceId] of [['PROFILE',b.profileId],['PHOTO',photo.id]]){
+      const body={sourceType,sourceId,reason:'HARASSMENT',requestId:randomUUID()};
+      expect((await f.request(other,'POST','/api/discovery/reports',body)).statusCode).toBe(404);
+      const receipt=await f.request(a,'POST','/api/discovery/reports',body);expect(receipt.statusCode).toBe(200);
+      const report=await prisma.discoveryReport.findUniqueOrThrow({where:{id:receipt.json().value.id}});
+      expect(report.reportedUserId).toBe(b.id);expect(JSON.stringify(report.evidence)).not.toContain('PRIVATE DRAFT');
+    }
+  });
   it('denies suspended, unverified, unpublished and closed partners instead of exposing saved drafts',async()=>{
     const {prisma}=await import('../../../lib/prisma.js');const {a,b,id,url,profile}=await pair();await f.request(b,'POST',`${url}/accept`,{});
     await prisma.discoveryProfile.update({where:{ownerId:b.id},data:{suspendedAt:new Date()}});expect((await f.request(a,'GET',profile)).statusCode).toBe(404);

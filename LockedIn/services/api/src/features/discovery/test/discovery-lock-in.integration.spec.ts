@@ -36,13 +36,19 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== 'true')('explicit mutual l
     expect(results[0]!.json().value.promotedRelationshipId).toBe(results[1]!.json().value.promotedRelationshipId);
     expect(results[0]!.json().value.lockedIn).toBe(true);
     for(const person of [a,b]) {
+      expect((await f.request(person,'GET','/api/discovery/me')).json().value).toMatchObject({canManageProfile:true,areas:[{id:'pilot-city',label:'Pilot city'}]});
       expect((await f.request(person,'GET','/api/discovery/me')).json().value).toMatchObject({canDiscover:false,canChat:true,discoveryLockedIn:true});
       expect((await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:person.id}})).pausedAt).toBeInstanceOf(Date);
       expect((await f.request(person,'POST','/api/discovery/profile/visibility',{paused:false})).statusCode).toBe(403);
       expect((await f.request(person,'GET','/api/discovery/candidates?areaId=pilot-city')).statusCode).toBe(403);
     }
     expect((await f.send(a,d)).statusCode).toBe(409);
-    expect((await f.send(d,b)).statusCode).toBe(409);
+    expect((await f.send(d,b)).statusCode).toBe(404);
+    await prisma.invitationBlock.create({data:{blockerId:b.id,blockedId:d.id,safePublicLabel:'Hidden contact'}});
+    expect((await f.send(d,b)).statusCode).toBe(404);
+    await prisma.user.update({where:{id:d.id},data:{emailVerified:false}});
+    expect((await f.send(d,b)).statusCode).toBe(403);
+    await prisma.user.update({where:{id:d.id},data:{emailVerified:true}});
     expect((await f.request(a,'POST',`${pendingUrl}/accept`,{})).statusCode).toBe(409);
     for(const target of [url,otherUrl]) {
       expect((await f.request(a,'POST',`${target}/messages`,{text:'Chat still works',requestId:randomUUID()})).statusCode).toBe(200);

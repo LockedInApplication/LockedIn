@@ -28,11 +28,11 @@ export default function FirstHelloPreview() {
   const example = previews[choice];
 
   return (
-    <section id="preview" className={`${styles.wrap} ${styles.preview}`} aria-labelledby="preview-title">
+    <section id="preview" className={`${styles.wrap} ${styles.preview} ${styles.reveal}`} aria-labelledby="preview-title">
       <div className={styles.previewCopy}>
         <p className={styles.kicker}>Try it · No account needed</p>
         <h2 id="preview-title">A Sunday you’d <em>happily repeat.</em></h2>
-        <p>Pick an answer to see how a small detail can open up a real conversation.</p>
+        <p>Pick the Sunday you’d want, and see what someone might say back.</p>
         <fieldset className={styles.choices}>
           <legend>What sounds like you?</legend>
           {Object.entries(previews).map(([key, value]) => (
@@ -50,7 +50,7 @@ export default function FirstHelloPreview() {
           <div><strong>A first hello</strong><span>LockedIn · Example</span></div>
           <span className={styles.demoBadge}>Demo</span>
         </div>
-        <div className={styles.sampleBody} aria-live="polite" aria-atomic="true">
+        <div aria-live="polite" aria-atomic="true"><div key={choice} className={styles.sampleBody}>
           <div className={styles.answer}>
             <span>Profile prompt</span>
             <strong>A Sunday I’d happily repeat…</strong>
@@ -60,7 +60,7 @@ export default function FirstHelloPreview() {
             <span>One way to reply</span>
             <p>{example.opener}</p>
           </div>
-        </div>
+        </div></div>
       </div>
     </section>
   );

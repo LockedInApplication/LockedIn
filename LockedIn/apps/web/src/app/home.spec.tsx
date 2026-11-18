@@ -24,3 +24,8 @@ it("renders a labeled, private-by-design demo with no submission form", () => {
   expect(html).toContain("Nothing is sent or saved.");
   expect(html).not.toContain("<form");
 });
+
+it("offers a native control for pausing homepage motion", () => {
+  const html = renderToStaticMarkup(<Home />);
+  expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*aria-label="Pause homepage motion"/);
+});

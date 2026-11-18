@@ -22,7 +22,13 @@ export default function Home() {
             <a href="#preview">Try it</a>
             <a href="#trust">Privacy</a>
           </div>
-          <Link href="/journey" className={styles.navAction}>Open LockedIn <span aria-hidden="true">↗</span></Link>
+          <div className={styles.navTools}>
+            <label className={styles.motionControl} title="Pause or resume homepage animations">
+              <input type="checkbox" aria-label="Pause homepage motion" />
+              <span className={styles.motionIcon} aria-hidden="true" />
+            </label>
+            <Link href="/journey" className={styles.navAction}>Open LockedIn <span aria-hidden="true">↗</span></Link>
+          </div>
         </nav>
       </header>
 
@@ -30,8 +36,8 @@ export default function Home() {
         <section className={`${styles.wrap} ${styles.hero}`} aria-labelledby="hero-title">
           <div className={styles.heroCopy}>
             <p className={styles.kicker}><span className={styles.dot} /> Dating with intention</p>
-            <h1 id="hero-title">A better hello.<br /><em>A closer us.</em></h1>
-            <p className={styles.intro}>Meet someone new or invite someone you already know. Start a real conversation, then decide together what comes next.</p>
+            <h1 id="hero-title"><span>A better hello.</span>{" "}<em>A closer us.</em></h1>
+            <p className={styles.intro}>Reply to something that made you smile. Or invite someone you already know and pick up where you left off.</p>
             <div className={styles.actions}>
               <Link href="/signup" className={styles.primary}>Get started <span aria-hidden="true">↗</span></Link>
               <a href="#preview" className={styles.secondary}>Try a first hello <span aria-hidden="true">↓</span></a>
@@ -39,15 +45,17 @@ export default function Home() {
             <p className={styles.heroNote}>Private by default. Built for two people choosing together.</p>
           </div>
           <figure className={styles.heroImage}>
-            <Image src="/lockedin-coffee-hello.webp" alt="Two people sharing a laugh over coffee on a sunlit terrace" fill preload unoptimized sizes="(max-width: 760px) 100vw, 45vw" />
+            <div className={styles.photoFrame}>
+              <Image className={styles.photo} src="/lockedin-coffee-hello.webp" alt="Two people sharing a laugh over coffee on a sunlit terrace" fill preload unoptimized sizes="(max-width: 760px) 100vw, 45vw" />
+            </div>
             <figcaption>
-              <span>01 / THE FIRST HELLO</span>
-              <strong>Good things start small.</strong>
+              <span>Somewhere over coffee</span>
+              <strong>“Should we get another?”</strong>
             </figcaption>
           </figure>
         </section>
 
-        <section id="how-it-works" className={`${styles.wrap} ${styles.process}`} aria-labelledby="process-title">
+        <section id="how-it-works" className={`${styles.wrap} ${styles.process} ${styles.reveal}`} aria-labelledby="process-title">
           <div className={styles.sectionHead}>
             <p className={styles.kicker}>How it works</p>
             <h2 id="process-title">From first hello to <em>what’s next.</em></h2>
@@ -63,7 +71,7 @@ export default function Home() {
 
         <FirstHelloPreview />
 
-        <section id="trust" className={`${styles.wrap} ${styles.trust}`} aria-labelledby="trust-title">
+        <section id="trust" className={`${styles.wrap} ${styles.trust} ${styles.reveal}`} aria-labelledby="trust-title">
           <div>
             <p className={styles.kicker}>On your terms</p>
             <h2 id="trust-title">Closeness without <em>the pressure.</em></h2>

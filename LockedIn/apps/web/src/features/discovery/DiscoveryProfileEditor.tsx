@@ -5,7 +5,7 @@ import {avatarChoices} from "@/features/profile/ProfileAvatar";
 import styles from "./discovery.module.scss";
 import DiscoveryProfileExtras from "./DiscoveryProfileExtras";
 import DiscoveryProfileCard from "./DiscoveryProfileCard";
-export default function DiscoveryProfileEditor({initial,areas,onDirty,onSave,onPublish,externallyBusy=false}:{initial:OwnDiscoveryProfile;areas:{id:string;label:string}[];onDirty:(dirty:boolean)=>void;onSave:(draft:DiscoveryProfileInput)=>Promise<void>;onPublish:()=>Promise<void>;externallyBusy?:boolean}) {
+export default function DiscoveryProfileEditor({initial,areas,onDirty,onSave,onPublish,externallyBusy=false,localDiscovery=false}:{initial:OwnDiscoveryProfile;areas:{id:string;label:string}[];onDirty:(dirty:boolean)=>void;onSave:(draft:DiscoveryProfileInput)=>Promise<void>;onPublish:()=>Promise<void>;externallyBusy?:boolean;localDiscovery?:boolean}) {
   const [draft,setDraft]=useState<DiscoveryProfileInput>(initial.draft??{publicName:"",avatarPreset:"leaf",bio:"",intention:"LONG_TERM",interests:[],pace:null,areaId:areas[0]?.id??""});
   const [interests,setInterests]=useState(draft.interests.join(", ")),[adult,setAdult]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const dirty=JSON.stringify(draft)!==JSON.stringify(initial.draft??{publicName:"",avatarPreset:"leaf",bio:"",intention:"LONG_TERM",interests:[],pace:null,areaId:areas[0]?.id??""}) || interests!==draft.interests.join(", ");
@@ -20,7 +20,7 @@ export default function DiscoveryProfileEditor({initial,areas,onDirty,onSave,onP
     <label>Interests, separated by commas<input value={interests} maxLength={158} onChange={event=>{setInterests(event.target.value);onDirty(true);}}/><small>Up to five; 30 characters each.</small></label>
     <label>Communication pace (optional)<input value={draft.pace??""} maxLength={240} onChange={event=>edit({pace:event.target.value||null})}/></label>
     <DiscoveryProfileExtras draft={draft} edit={edit}/>
-    <label>Discovery city<select required value={draft.areaId} onChange={event=>edit({areaId:event.target.value})}>{areas.map(area=><option key={area.id} value={area.id}>{area.label}</option>)}</select><small>People see only this selected city, not your precise location.</small></label>
+    <label>{localDiscovery?"Profile city":"Discovery city"}<select required value={draft.areaId} onChange={event=>edit({areaId:event.target.value})}>{areas.map(area=><option key={area.id} value={area.id}>{area.label}</option>)}</select><small>{localDiscovery?"This doesn’t change where you appear in Discover. Local Discovery uses a separate location check and never shows your precise location.":"People see only this selected city, not your precise location."}</small></label>
     {error?<p role="alert" className={`${styles.notice} ${styles.error}`}>{error}</p>:null}
     <button disabled={busy || !draft.publicName.trim() || !draft.areaId} type="submit">Save private draft</button></fieldset>
   </form><section className={`${styles.card} ${styles.form}`} aria-label="Review and publish"><h2>Review and publish</h2><p className={styles.muted}>Draft preview. Only approved photos can be published.</p>

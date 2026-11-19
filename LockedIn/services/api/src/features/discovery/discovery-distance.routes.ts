@@ -11,6 +11,7 @@ import { requireDiscoveryMutation } from "./discovery.http.js";
 import { emptyDiscoverySchema } from "./discovery.schemas.js";
 import { hasDiscoveryPublication, isDiscoveryAdmitted } from "./discovery-profile.service.js";
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
+import { discoveryLocationRequired, locationRequired } from "./discovery-location.js";
 
 const endpoint = "/api/discovery/distance-preferences";
 const searchSchema = z.strictObject({ query: z.string().trim().min(3).max(160).refine(text => !/[;\r\n]/u.test(text) && text.split(/\s+/u).length <= 20) });
@@ -48,12 +49,14 @@ export function registerDiscoveryDistanceRoutes(server: FastifyInstance, geocode
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply); if (!user) return;
     if (!emptyDiscoverySchema.safeParse(request.query).success) return sendError(reply, 400, "Please check your Discovery request.");
+    if (discoveryLocationRequired()) return { ownerId: user.id, value: view(null, false) };
     const profile = await prisma.discoveryProfile.findUnique({ where: { ownerId: user.id }, select: { distancePreference: { select: { areaLabel: true, maxDistanceMiles: true } } } });
     return { ownerId: user.id, value: view(profile?.distancePreference ?? null, !!geocode) };
   });
   server.post(`${endpoint}/locations`, { config: { discoveryValidation: { body: searchSchema, params: emptyDiscoverySchema } } }, async (request, reply) => {
     const context = await requireDiscoveryMutation(request, reply); if (!context) return;
     const { userId } = context;
+    if (discoveryLocationRequired()) return respondDiscovery(reply, userId, locationRequired);
     const { query } = searchSchema.parse(request.body);
     if (!geocode) return respondDiscovery(reply, userId, offline);
     const quota = await prisma.$transaction(async tx => {
@@ -78,6 +81,7 @@ export function registerDiscoveryDistanceRoutes(server: FastifyInstance, geocode
   server.put(endpoint, { config: { discoveryValidation: { body: saveSchema, params: emptyDiscoverySchema } } }, async (request, reply) => {
     const context = await requireDiscoveryMutation(request, reply); if (!context) return;
     const { userId } = context;
+    if (discoveryLocationRequired()) return respondDiscovery(reply, userId, locationRequired);
     const { locationToken, maxDistanceMiles } = saveSchema.parse(request.body);
     if (locationToken && !geocode) return respondDiscovery(reply, userId, offline);
     const location = locationToken ? decodeLocation(locationToken, userId) : null;

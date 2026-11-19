@@ -16,6 +16,9 @@ import { registerPhotoMediaRoutes } from "./photos/photo-media.routes.js";
 import { registerPhotoModerationRoutes } from "./photos/photo-moderation.routes.js";
 import { registerDiscoveryDistanceRoutes } from "./discovery-distance.routes.js";
 import { getDiscoveryGeocoder, type DiscoveryGeocoder } from "./discovery-geocoding.js";
+import { registerDiscoveryLocationRoutes } from "./discovery-location.routes.js";
+import { currentDiscoveryLocation, discoveryLocationRequired, noLocation } from "./discovery-location.js";
+import { prisma } from "../../lib/prisma.js";
 
 export async function registerDiscoveryRoutes(server: FastifyInstance, options: { photoProvider?: PhotoProvider; discoveryGeocoder?: DiscoveryGeocoder } = {}): Promise<void> {
   const provider = options.photoProvider ?? getPhotoProvider();
@@ -28,11 +31,18 @@ export async function registerDiscoveryRoutes(server: FastifyInstance, options: 
   await registerDiscoveryResponseRoutes(server);
   await registerDiscoverySafetyRoutes(server);
   registerDiscoveryDistanceRoutes(server, options.discoveryGeocoder ?? getDiscoveryGeocoder());
+  registerDiscoveryLocationRoutes(server);
   server.get("/api/discovery/me", async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply);
     if (!user) return;
     const capabilities = await getDiscoveryCapabilities({ userId: user.id, emailVerified: user.emailVerified });
-    return { ownerId: user.id, value: { ...capabilities, chatEnabled: discoveryChatEnabled(), photos: photoCapabilities(), areas: capabilities.canManageProfile ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
+    let location;
+    if (discoveryLocationRequired() && capabilities.canDiscover) {
+      const profile = await prisma.discoveryProfile.findUnique({ where: { ownerId: user.id }, select: { id: true } });
+      const check = profile && await currentDiscoveryLocation(prisma, profile.id);
+      location = check ? { required: true, areaId: check.areaId, expiresAt: check.expiresAt.toISOString() } : noLocation;
+    }
+    return { ownerId: user.id, value: { ...capabilities, ...(location ? { location } : {}), chatEnabled: discoveryChatEnabled(), photos: photoCapabilities(), areas: capabilities.canManageProfile ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
   });
 }

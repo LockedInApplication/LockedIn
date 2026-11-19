@@ -12,7 +12,7 @@ import type { Prisma } from "../../../generated/prisma/client.js";
 import { enrichPublishedPhotos } from "./photos/photo-cards.service.js";
 import type { PhotoCard } from "./photos/photo.types.js";
 import { compareDiscoveryRank, compatibleIntentions, dayMs, rankCandidate, recommendation, type DiscoveryRank } from "./discovery-matching.js";
-import { distancePairEligible } from "./discovery-distance.js";
+import { currentDiscoveryLocation, discoveryLocationRequired, discoverySearchPairEligible, locationRequired } from "./discovery-location.js";
 import { distanceCandidateIds, distanceSearchBatchSize } from "./discovery-distance-search.js";
 import { activeLockIn, isDiscoveryLockedIn } from './discovery-lock-in.js';
 type VisibleProfile = Omit<PublicDiscoveryProfile, "photoIds"> & { photos?: PhotoCard[]; recommendation?: ReturnType<typeof recommendation> };
@@ -82,7 +82,7 @@ export async function findVisibleDiscoveryProfile(tx: Prisma.TransactionClient, 
   const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
   if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || await isDiscoveryLockedIn(tx, actorId)) return null;
   const profile = await tx.discoveryProfile.findFirst({ where: { ...visibleWhere(actorId, actor.publishedIntention!), id: profileId, publishedAreaId: { in: getDiscoveryConfig().areas.map(area => area.id) } } });
-  return hasDiscoveryPublication(profile) && await distancePairEligible(tx, actor.id, profile.id) ? profile : null;
+  return hasDiscoveryPublication(profile) && await discoverySearchPairEligible(tx, actor.id, profile.id) ? profile : null;
 }
 
 export async function listDiscoveryCandidates(actorId: string, areaId: string | null, cursor?: string): Promise<DiscoveryResult<{ items: VisibleProfile[]; nextCursor: string | null }>> {
@@ -91,13 +91,17 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
     await lockInvitationUsers(tx, [actorId]);
     const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId }, include: { distancePreference: true } });
     if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || await isDiscoveryLockedIn(tx, actorId)) return denied;
-    const distance = actor.distancePreference;
-    if (areaId === null ? !distance : !!distance) {
+    const now = new Date();
+    const gate = discoveryLocationRequired();
+    const location = gate ? await currentDiscoveryLocation(tx, actor.id, now) : null;
+    if (gate && (!location || areaId !== location.areaId)) return locationRequired;
+    const distance = gate ? null : actor.distancePreference;
+    if (!gate && (areaId === null ? !distance : !!distance)) {
       return { ok: false, status: 409, error: "Your Discovery preferences changed. Refresh your search." };
     }
     const intention = actor.publishedIntention!;
     const today = Math.floor(Date.now() / dayMs);
-    const scope = scopeFor(actorId, distance ? `distance:${distance.revision}` : `city:${areaId}`, actor.publicationVersion);
+    const scope = scopeFor(actorId, location ? `local:${location.areaId}:${location.expiresAt.toISOString()}` : distance ? `distance:${distance.revision}` : `city:${areaId}`, actor.publicationVersion);
     const before = cursor === undefined ? undefined : decodeCursor(cursor, scope, today);
     if (before === null) return invalid;
     const quota = await consumeDiscoveryQuota(tx, actorId, "candidates"); if (!quota.ok) return quota;
@@ -106,20 +110,26 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
       await tx.discoveryProfile.update({ where: { id: actor.id }, data: { lastDiscoveryActiveOn: activity, updatedAt: actor.updatedAt } });
     }
     const config = getDiscoveryConfig();
-    const where: Prisma.DiscoveryProfileWhereInput = { ...visibleWhere(actorId, intention), ...(distance
+    const where: Prisma.DiscoveryProfileWhereInput = { ...visibleWhere(actorId, intention), ...(location
+      ? { locationCheck: { is: { areaId: location.areaId, expiresAt: { gt: now } } }, publishedAreaId: { in: config.areas.map(area => area.id) } }
+      : distance
       ? { publishedAreaId: { in: config.areas.map(area => area.id) } }
       : { publishedAreaId: areaId, distancePreference: null }) };
+    const visible = (row: Parameters<typeof safeProfile>[0]) => {
+      const person = safeProfile(row);
+      return person && location ? { ...person, areaId: location.areaId } : person;
+    };
     const day = before?.day ?? today;
     // Rank the whole eligible pilot cohort or fall back to ID keysets. Never
     // rank a truncated cohort that leaves the rest of the city undiscoverable.
     if (!distance && (!before || before.rank)) {
       const profiles = await tx.discoveryProfile.findMany({ where, take: rankedLimit + 1, select: { ...publicSelect, lastDiscoveryActiveOn: true } });
       if (profiles.length <= rankedLimit) {
-        const viewer = publicDiscoveryProfile(actor.id, actor.publishedSnapshot)!;
+        const viewer = visible(actor)!;
         const anchor: DiscoveryRank | null = before?.rank ? { ...before.rank, id: before.id } : null;
         const secret = discoverySecret();
         const matches = profiles.flatMap(row => {
-          const person = safeProfile(row);
+          const person = visible(row);
           if (!person) return [];
           const rank = rankCandidate(viewer, person, row.lastDiscoveryActiveOn, day, secret);
           return anchor && compareDiscoveryRank(rank, anchor) <= 0 ? [] : [{ person, rank }];
@@ -143,7 +153,7 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
       const profiles = await tx.discoveryProfile.findMany({ where: ids ? { AND: [where, { id: { in: ids } }] } : scanBefore ? { AND: [where, { id: { lt: scanBefore } }] } : where, orderBy: { id: "desc" }, take: distanceSearchBatchSize, select: publicSelect });
       if (!ids && !profiles.length) { exhausted = true; break; }
       for (const profile of profiles) {
-        const safe = safeProfile(profile);
+        const safe = visible(profile);
         if (safe) items.push(safe);
         if (items.length === 13) break;
       }
@@ -163,12 +173,16 @@ export async function getVisibleDiscoveryProfile(actorId: string, profileId: str
   return prisma.$transaction(async tx => {
     await lockInvitationUsers(tx, [actorId]);
     const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
-    if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor)) return denied;
+    if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || (discoveryLocationRequired() && await isDiscoveryLockedIn(tx, actorId))) return denied;
+    const gate = discoveryLocationRequired();
+    const location = gate ? await currentDiscoveryLocation(tx, actor.id) : null;
+    if (gate && !location) return locationRequired;
     const quota = await consumeDiscoveryQuota(tx, actorId, "candidates"); if (!quota.ok) return quota;
     const profile = await tx.discoveryProfile.findFirst({ where: { ...visibleWhere(actorId, actor.publishedIntention!), id: profileId, publishedAreaId: { in: getDiscoveryConfig().areas.map(area => area.id) } }, select: publicSelect });
     const safe = safeProfile(profile);
-    if (!safe || !await distancePairEligible(tx, actor.id, safe.id)) return missing;
+    if (!safe || !await discoverySearchPairEligible(tx, actor.id, safe.id)) return missing;
     const viewer = publicDiscoveryProfile(actor.id, actor.publishedSnapshot)!;
-    return { ok: true, value: { ...(await enrichPublishedPhotos(tx, [safe]))[0]!, recommendation: recommendation(viewer, safe) } };
+    const visible = location ? { ...safe, areaId: location.areaId } : safe;
+    return { ok: true, value: { ...(await enrichPublishedPhotos(tx, [visible]))[0]!, recommendation: recommendation(location ? { ...viewer, areaId: location.areaId } : viewer, visible) } };
   });
 }

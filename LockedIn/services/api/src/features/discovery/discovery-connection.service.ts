@@ -9,7 +9,7 @@ import { discoveryInvitationSchema } from "./discovery.schemas.js";
 import { discoveryTopics } from "./discovery-topics.js";
 import { intentionsMatch, photoPrompts, profilePrompt, profilePromptKey, writtenPrompts } from "./discovery-matching.js";
 import { enrichPublishedPhotos } from "./photos/photo-cards.service.js";
-import { distancePairEligible } from "./discovery-distance.js";
+import { discoveryLocationRequired, discoverySearchPairEligible } from "./discovery-location.js";
 import { connectionAllowsChat, isDiscoveryLockedIn } from './discovery-lock-in.js';
 import { lockDiscoveryConnection, lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryConnectionView, effectiveDiscoveryState } from "./discovery-connection.view.js";
@@ -74,7 +74,7 @@ export async function sendDiscoveryInvitation(actorId: string, input: z.infer<ty
     // tabs, blocked callers or callers holding a previously public profile ID.
     if (await isDiscoveryLockedIn(tx, target.ownerId)) return missing;
     const partner = await tx.discoveryProfile.findUnique({ where: { id: data.targetProfileId } });
-    if (!partner || !await isDiscoveryAdmitted(tx, target.ownerId, partner) || !hasDiscoveryPublication(partner) || !intentionsMatch(actor.publishedIntention, partner.publishedIntention) || await invitationBlockBetween(tx, actorId, target.ownerId) || !await distancePairEligible(tx, actor.id, partner.id)) return missing;
+    if (!partner || !await isDiscoveryAdmitted(tx, target.ownerId, partner) || !hasDiscoveryPublication(partner) || !intentionsMatch(actor.publishedIntention, partner.publishedIntention) || await invitationBlockBetween(tx, actorId, target.ownerId) || !await discoverySearchPairEligible(tx, actor.id, partner.id)) return missing;
     const overlap = await samePairRelationshipConflict(tx, actorId, target.ownerId); if (overlap) return overlap;
     let replyQuestion = profilePrompt;
     if (data.topicKey === profilePromptKey) {
@@ -157,6 +157,10 @@ async function transition(actorId: string, id: string, action: "accept" | "decli
         return unavailable;
       }
       if (action === "accept" && (!await discoveryPairEligible(tx, row) || await isDiscoveryLockedIn(tx, row.userLowId) || await isDiscoveryLockedIn(tx, row.userHighId))) return unavailable;
+      if (action === "accept" && discoveryLocationRequired()) {
+        const profiles = await tx.discoveryProfile.findMany({ where: { ownerId: { in: [row.userLowId, row.userHighId] } }, select: { id: true } });
+        if (profiles.length !== 2 || !await discoverySearchPairEligible(tx, profiles[0]!.id, profiles[1]!.id)) return { ok: false as const, status: 403, error: "This invitation is not available for local Discovery right now." };
+      }
     }
     if (action === "withdraw" && (row.inviterId !== actorId || row.state !== "PENDING")) return unavailable;
     const quota = await consumeDiscoveryQuota(tx, actorId, "mutation"); if (!quota.ok) return quota;

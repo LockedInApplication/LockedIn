@@ -21,6 +21,7 @@ function ProfileEditor(){
   const published=own.value?.published;
   const viewing=!!published&&canManage&&!editing;
   const showPhotos=!!(me.photos?.enabled&&me.photos.configured);
+  const previewArea=me.location?.required?me.location.areaId:published?.areaId;
   return <><h1>{viewing?"My Discovery profile":"Edit Discovery profile"}</h1>{notice?<p role="status" className={styles.notice}>{notice}</p>:null}{own.error?<p role="alert">{own.error}<button onClick={own.retry}>Try again</button></p>:null}{!own.value&&!own.error?<p role="status">Loading your profile…</p>:null}{own.value?<>
     <div className={styles.actions}>
       {published?<span className={styles.status}>{own.value.paused?"Paused":"Published"}</span>:null}
@@ -29,10 +30,10 @@ function ProfileEditor(){
       {published?<button disabled={busy||dirty||(own.value.paused&&!me.canDiscover)} onClick={()=>void visibility(!own.value!.paused)}>{own.value.paused?"Resume visibility":"Pause discovery"}</button>:null}
     </div>
     {viewing&&published?<section className={styles.card} aria-label="Published Discovery profile">
-      <p className={styles.eyebrow}>{own.value.paused?"Hidden from Discovery. Existing connections can still see your published profile":"What others see in Discover"}</p>
-      <DiscoveryProfileCard key={own.value.publicationVersion} profile={published} area={me.areas.find(area=>area.id===published.areaId)?.label} photoIds={showPhotos?published.photoIds:undefined}/>
+      <p className={styles.eyebrow}>{own.value.paused?"Hidden from Discovery. Existing connections can still see your published profile":me.location?.required&&!previewArea?"Published · Confirm your area in Discover to appear locally":"What others see in Discover"}</p>
+      <DiscoveryProfileCard key={own.value.publicationVersion} profile={published} area={me.areas.find(area=>area.id===previewArea)?.label} photoIds={showPhotos?published.photoIds:undefined}/>
     </section>:<>
-    {canManage?<DiscoveryProfileEditor key={`${own.value.revision}:${own.value.publicationVersion}`} initial={own.value} areas={me.areas} onDirty={setDirty} onSave={save} onPublish={publish} externallyBusy={busy}/>:<section className={styles.card}><p>New discovery is unavailable for this account. You can still pause an existing publication. Existing connections may see its published information.</p></section>}
+    {canManage?<DiscoveryProfileEditor key={`${own.value.revision}:${own.value.publicationVersion}`} initial={own.value} areas={me.areas} onDirty={setDirty} onSave={save} onPublish={publish} externallyBusy={busy} localDiscovery={me.location?.required}/>:<section className={styles.card}><p>New discovery is unavailable for this account. You can still pause an existing publication. Existing connections may see its published information.</p></section>}
     <DiscoveryPhotoEditor profile={own.value} install={own.install}/>
     </>}
   </>:null}</>;

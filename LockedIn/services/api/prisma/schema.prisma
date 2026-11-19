@@ -242,9 +242,19 @@ model DiscoveryProfile {
   owner                     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   photos                    DiscoveryPhoto[]
   distancePreference        DiscoveryDistancePreference?
+  locationCheck             DiscoveryLocationCheck?
 
   @@index([publishedAreaId, publishedIntention])
   @@unique([id, ownerId])
+}
+
+model DiscoveryLocationCheck {
+  profileId String           @id
+  areaId    String
+  expiresAt DateTime
+  profile   DiscoveryProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([areaId, expiresAt])
 }
 
 model DiscoveryDistancePreference {

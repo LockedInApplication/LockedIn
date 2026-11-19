@@ -19,6 +19,7 @@ import { ensureDiscoveryConversation, samePairRelationshipConflict } from "../me
 import { conversationAllowsChat } from "../messaging/messaging-access.service.js";
 import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
 import { closeDiscoveryConversationUnderLock } from "../messaging/messaging-lifecycle.service.js";
+import { dateSpotsAvailable } from "../date-spots/date-spots-config.js";
 
 const week = 7 * 86400000;
 const missing = { ok: false as const, status: 404, error: "This connection is not available." };
@@ -47,8 +48,11 @@ export async function connectionValue(tx: Prisma.TransactionClient, row: Discove
   const occupied = await tx.relationship.findFirst({ where: { status: "ACTIVE", members: { some: { userId: { in: [row.userLowId, row.userHighId] } } } }, select: { id: true } });
   const eligible = await discoveryPairEligible(tx, row);
   const lockedIn = await isDiscoveryLockedIn(tx, row.userLowId) || await isDiscoveryLockedIn(tx, row.userHighId);
-  const chat = sharedMessagingEnabled() ? await tx.chatConversation.findUnique({ where: { discoveryConnectionId: row.id } }) : null;
-  return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligible && !lockedIn, linkedMembership, !occupied), canChat: chat?.accessMode === "RELATIONSHIP" ? await conversationAllowsChat(tx, chat) : eligible && await connectionAllowsChat(tx, row) } };
+  const dateSpots = dateSpotsAvailable();
+  const chat = sharedMessagingEnabled() || dateSpots ? await tx.chatConversation.findUnique({ where: { discoveryConnectionId: row.id } }) : null;
+  const canChat = chat?.accessMode === "RELATIONSHIP" ? await conversationAllowsChat(tx, chat) : eligible && await connectionAllowsChat(tx, row);
+  return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligible && !lockedIn, linkedMembership, !occupied), canChat,
+    ...(dateSpots && chat && canChat ? { dateSpotsConversationId: chat.id } : {}) } };
 }
 type ConnectionResult = DiscoveryResult<ReturnType<typeof discoveryConnectionView>>;
 

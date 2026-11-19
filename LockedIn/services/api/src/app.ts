@@ -10,6 +10,8 @@ import { registerDiscoveryRoutes } from "./features/discovery/discovery.routes.j
 import { registerMessagingRoutes } from "./features/messaging/messaging.routes.js";
 import type { PhotoProvider } from "./features/discovery/photos/photo.types.js";
 import type { DiscoveryGeocoder } from "./features/discovery/discovery-geocoding.js";
+import { registerDateSpotRoutes } from "./features/date-spots/date-spots.routes.js";
+import type { PlaceProvider } from "./features/date-spots/date-spots-provider.js";
 
 function serializeRequestForLog(request: FastifyRequest) {
   const path = request.url.split("?", 1)[0];
@@ -31,11 +33,13 @@ function serializeRequestForLog(request: FastifyRequest) {
 
 export async function buildServer({
   logStream,
+  dateSpotProvider,
   ...discoveryOptions
 }: {
   logStream?: Writable;
   photoProvider?: PhotoProvider;
   discoveryGeocoder?: DiscoveryGeocoder;
+  dateSpotProvider?: PlaceProvider;
 } = {}) {
   const server = Fastify({
     logger: {
@@ -58,6 +62,7 @@ export async function buildServer({
   server.register(registerProfileRoutes);
   server.register(registerDiscoveryRoutes, discoveryOptions);
   server.register(registerMessagingRoutes);
+  server.register(async scope => registerDateSpotRoutes(scope,dateSpotProvider));
 
   return server;
 }

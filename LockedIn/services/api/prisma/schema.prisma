@@ -128,6 +128,8 @@ model User {
   discoveryThrottles         DiscoveryThrottle[]
   chatConversationsLow       ChatConversation[] @relation("ChatLowUser")
   chatConversationsHigh      ChatConversation[] @relation("ChatHighUser")
+  dateSpotPreference         DateSpotPreference?
+  dateSpotRequests           DateSpotRequest[]
 
   @@map("user")
 }
@@ -427,9 +429,30 @@ model ChatConversation {
   directInvitation      RelationshipInvite? @relation(fields: [directInvitationId], references: [id], onDelete: SetNull)
   messages              DiscoveryMessage[]
   reports               DiscoveryReport[]
+  dateSpotRequest       DateSpotRequest?
 
   @@index([userLowId])
   @@index([userHighId])
+}
+
+model DateSpotPreference {
+  userId     String @id
+  areaId     String
+  interests  String[]
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DateSpotRequest {
+  conversationId String @id
+  id             String @unique @default(uuid())
+  initiatorId    String
+  startsWith     Json
+  joinsWith      Json?
+  expiresAt      DateTime
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  initiator      User @relation(fields: [initiatorId], references: [id], onDelete: Cascade)
+
+  @@index([initiatorId])
 }
 
 model DiscoveryMessage {
@@ -440,6 +463,7 @@ model DiscoveryMessage {
   senderId     String
   requestId    String
   text         String
+  dateSpotPlaceId String?
   createdAt    DateTime            @default(now())
   connection   DiscoveryConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   conversation ChatConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)

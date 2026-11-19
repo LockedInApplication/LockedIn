@@ -11,6 +11,7 @@ import { findConnectedProfile } from "../discovery/discovery-connected-profile.s
 import type { ChatResult } from "./messaging.types.js";
 import { z } from "zod";
 import { changeChatContact, reportMessage } from "./messaging-safety.service.js";
+import { dateSpotsAvailable } from "../date-spots/date-spots-config.js";
 
 const reportInput = z.strictObject({ messageId: z.string().uuid(), reason: z.enum(["HARASSMENT","IMPERSONATION","SPAM","OTHER"]), detail: z.string().max(1000).optional(), requestId: z.string().uuid(), blockAlso: z.boolean().optional() });
 
@@ -51,6 +52,7 @@ export async function registerMessagingRoutes(server: FastifyInstance) {
       const publicPartner = profile ? publicDiscoveryProfile(profile.id, profile.publishedSnapshot) : null;
       return { ok: true as const, value: {
         id: c.id, canChat, unavailableReason: canChat ? null : own.emailVerified ? "UNAVAILABLE" : "VERIFY_EMAIL",
+        ...(canChat && dateSpotsAvailable() ? { dateSpotsConversationId: c.id } : {}),
         partner: { publicName: canChat ? publicPartner?.publicName ?? partner.displayName ?? "Your partner" : "Your partner", avatarPreset: canChat ? publicPartner?.avatarPreset ?? partner.avatarPreset : "initials" },
         ...(source ? { opening: { questionText: source.questionText, hello: source.hello, author: source.inviterId === user.id ? "self" : "partner", publicName: source.senderPublicName, avatarPreset: source.senderAvatarPreset, connectionId: source.id } } : {}),
         ...(profile ? { profileConnectionId: source!.id } : {}),

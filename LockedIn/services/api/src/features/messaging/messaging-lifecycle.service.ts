@@ -26,10 +26,13 @@ export async function closeUnbackfilledRelationshipChatsUnderLock(tx: Prisma.Tra
 
 // Callers hold all affected account locks first; closure is monotonic.
 export async function blockPairConversationsUnderLock(tx: Prisma.TransactionClient, a: string, b: string) {
-  await tx.chatConversation.updateMany({ where: { closedAt: null, OR: [{ userLowId: a, userHighId: b }, { userLowId: b, userHighId: a }] }, data: { closedAt: new Date(), closureReason: "BLOCK" } });
+  const pair = { OR: [{ userLowId: a, userHighId: b }, { userLowId: b, userHighId: a }] };
+  await tx.chatConversation.updateMany({ where: { closedAt: null, ...pair }, data: { closedAt: new Date(), closureReason: "BLOCK" } });
+  await tx.dateSpotRequest.deleteMany({ where: { conversation: pair } });
 }
 export async function closeDiscoveryConversationUnderLock(tx: Prisma.TransactionClient, discoveryConnectionId: string) {
   await tx.chatConversation.updateMany({ where: { discoveryConnectionId, closedAt: null }, data: { closedAt: new Date(), closureReason: "CONTACT_CLOSED" } });
+  await tx.dateSpotRequest.deleteMany({ where: { conversation: { discoveryConnectionId } } });
 }
 export async function closeRelationshipConversationUnderLock(tx: Prisma.TransactionClient, relationshipId: string) {
   const c = await tx.chatConversation.findUnique({ where: { relationshipId } });
@@ -37,6 +40,7 @@ export async function closeRelationshipConversationUnderLock(tx: Prisma.Transact
   if (!c || c.accessMode !== "RELATIONSHIP") return;
   if (c.discoveryConnectionId) await tx.discoveryConnection.updateMany({ where: { id: c.discoveryConnectionId, closedAt: null }, data: { closedAt: new Date(), state: "CLOSED" } });
   await tx.chatConversation.updateMany({ where: { id: c.id, closedAt: null }, data: { closedAt: new Date(), closureReason: "RELATIONSHIP_ENDED" } });
+  await tx.dateSpotRequest.deleteMany({ where: { conversationId: c.id } });
 }
 export async function leaveMessagingRelationship(relationshipId: string, actorId: string) {
   const recipients = await prisma.$transaction(async tx => {

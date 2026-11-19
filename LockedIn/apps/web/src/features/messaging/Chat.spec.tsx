@@ -20,4 +20,12 @@ describe("reusable bounded conversation", () => {
     const html = renderToStaticMarkup(<MessageActions busy={false} onReport={() => {}}/>);
     expect(html).toContain("<summary"); expect(html).toContain("Report message"); expect(html).not.toMatch(/<details[^>]*\bopen/);
   });
+  it("keeps plain messages unlinked and opens details only for typed venue messages", () => {
+    const base = { createdAt:"2026-11-19T12:00:00Z", author:"partner" as const, text:"Suggested date spot: Gallery" };
+    const shared = { ...base,id:"venue",sequence:"1",dateSpot:true as const };
+    const text = { ...base,id:"text",sequence:"2" };
+    const html = renderToStaticMarkup(<ChatTranscript items={[shared,text]} partnerName="Sam" busy={false} onReport={() => {}} onViewPlace={() => {}}/>);
+    expect(html.match(/>View place<\/button>/g)).toHaveLength(1);
+    expect(renderToStaticMarkup(<ChatTranscript items={[shared]} partnerName="Sam" busy={false} onReport={() => {}}/>)).not.toContain("View place");
+  });
 });

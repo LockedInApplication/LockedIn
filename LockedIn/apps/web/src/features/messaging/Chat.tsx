@@ -7,26 +7,28 @@ import { messagingRequest, type ChatRequest } from "./messaging.client";
 import { useChatRefresh } from "./use-chat-refresh";
 import MessageSafetyActions from "./MessageSafetyActions";
 import MessageActions from "./MessageActions";
+import DateSpots from "./DateSpots";
 import type { ChatPartner } from "./messaging.types";
 import styles from "./chat.module.scss";
 import chatStyles from "./chat.module.scss";
 
-type ChatProps = { conversationId: string; userId: string; partner: ChatPartner; onAccessEnded: () => void; openingContext?: ReactNode; profileAction?: ReactNode; busy?: boolean; ariaLabel?: string; request?: ChatRequest; messagesPath?: string; renderReport?: (message: Message, onBlocked: () => void) => ReactNode };
+type ChatProps = { conversationId: string; userId: string; partner: ChatPartner; onAccessEnded: () => void; openingContext?: ReactNode; profileAction?: ReactNode; busy?: boolean; ariaLabel?: string; request?: ChatRequest; messagesPath?: string; renderReport?: (message: Message, onBlocked: () => void) => ReactNode; dateSpotsConversationId?: string };
 export default function Chat(props: ChatProps) {
   return <ChatBody key={props.userId + ":" + props.conversationId} {...props}/>;
 }
 
-export function ChatTranscript({items, partnerName, busy, onReport, openingContext}: {items: Message[]; partnerName: string; busy: boolean; onReport: (message: Message) => void; openingContext?: ReactNode}) {
+export function ChatTranscript({items, partnerName, busy, onReport, openingContext, onViewPlace}: {items: Message[]; partnerName: string; busy: boolean; onReport: (message: Message) => void; openingContext?: ReactNode; onViewPlace?: (id: string) => void}) {
   return <>{openingContext}{items.length ? <ol className={chatStyles.messages} role="log" aria-label="Conversation messages" aria-relevant="additions">{items.map(message => <li key={message.id} data-message-id={message.id} className={message.author === "self" ? chatStyles.mine : undefined}>
     <div className={chatStyles.messageMeta}><strong>{message.author === "self" ? "You" : partnerName}</strong>
     {message.author === "partner" ? <MessageActions busy={busy} onReport={() => onReport(message)}/> : null}</div>
-    <p>{message.text}</p><time className={chatStyles.timestamp} dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</time>
+    <p>{message.text}</p>{message.dateSpot && onViewPlace ? <button type="button" disabled={busy} onClick={() => onViewPlace(message.id)}>View place</button> : null}
+    <time className={chatStyles.timestamp} dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</time>
   </li>)}</ol> : <p>Send a message to keep the conversation going.</p>}</>;
 }
 
 const accessEnded = (error: unknown) => error instanceof JourneyApiError && [401, 403, 404].includes(error.status);
 
-function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, profileAction, busy = false, ariaLabel = "Chat", request = messagingRequest, messagesPath, renderReport }: ChatProps) {
+function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, profileAction, busy = false, ariaLabel = "Chat", request = messagingRequest, messagesPath, renderReport, dateSpotsConversationId }: ChatProps) {
   const path = messagesPath ?? `/api/messaging/conversations/${conversationId}/messages`;
   const [page, setPage] = useState<Page | null>(null);
   const [draft, setDraft] = useState("");
@@ -36,6 +38,8 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   const [syncError, setSyncError] = useState("");
   const [actionError, setActionError] = useState("");
   const [report, setReport] = useState<Message | null>(null);
+  const [sharedPlace, setSharedPlace] = useState<{ id: string } | null>(null);
+  const clearSharedPlace = useCallback(() => setSharedPlace(null), []);
   const refresh = useRef<(() => void) | null>(null);
   const lifecycle = useRef<AbortController | null>(null);
   const ended = useRef(false);
@@ -208,13 +212,16 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       {page ? <div ref={viewport} className={chatStyles.viewport} role="region" aria-label="Scrollable conversation" tabIndex={0}
         onScroll={event => { const node = event.currentTarget; followLatest.current = !deferredLatest.current && node.scrollHeight - node.scrollTop - node.clientHeight < 64; if (followLatest.current) setNewMessages(false); }}>
       {page?.nextCursor ? <button type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load older messages"}</button> : null}
-      <ChatTranscript items={page.items} partnerName={partner.publicName} busy={busy} onReport={setReport} openingContext={openingContext}/>
+      <ChatTranscript items={page.items} partnerName={partner.publicName} busy={busy} onReport={setReport} openingContext={openingContext}
+        onViewPlace={dateSpotsConversationId ? id => setSharedPlace({ id }) : undefined}/>
       </div> : null}
       {newMessages ? <button className={chatStyles.newMessages} type="button" onClick={jumpToLatest}>New messages · Jump to latest ↓</button> : null}
       {report ? <div role="region" aria-label="Report selected message">
         <button ref={reportClose} type="button" onClick={() => { setReport(null); reportOrigin.current?.focus(); }}>Close message report</button>
         {renderReport ? renderReport(report, () => { hideChat(); onAccessEnded(); }) : <MessageSafetyActions key={report.id} userId={userId} conversationId={conversationId} message={report} onBlocked={() => { hideChat(); onAccessEnded(); }}/>}
       </div> : null}
+      {page && dateSpotsConversationId ? <DateSpots key={dateSpotsConversationId} userId={userId} conversationId={dateSpotsConversationId}
+        shared={sharedPlace} clearShared={clearSharedPlace}/> : null}
       {page ? <form className={`${styles.form} ${chatStyles.composer}`} onSubmit={event => { event.preventDefault(); void send(); }}>
         <label>Message<textarea rows={2} maxLength={2000} value={draft} disabled={sending || busy} placeholder="Write a message…" onChange={event => setDraft(event.target.value)}/></label>
         <button className={styles.primary} type="submit" disabled={!draft.trim() || sending || busy}>{sending ? "Sending…" : "Send message"}</button>

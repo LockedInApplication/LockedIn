@@ -52,6 +52,7 @@ export async function changeChatContact(actorId: string, conversationId: string,
     if (!c.closedAt) {
       if (c.discoveryConnectionId) await closeDiscoverySourcesUnderLock(tx,{ id: c.discoveryConnectionId });
       await tx.chatConversation.updateMany({ where: { id: c.id, closedAt: null }, data: { closedAt: new Date(), closureReason: "CONTACT_CLOSED" } });
+      await tx.dateSpotRequest.deleteMany({ where: { conversationId: c.id } });
     }
     return { ok: true as const, value: { id: c.id } };
   });

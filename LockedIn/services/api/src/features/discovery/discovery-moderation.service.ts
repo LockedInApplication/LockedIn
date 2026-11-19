@@ -38,6 +38,7 @@ export async function reviewDiscoveryReport(moderatorId: string, reportId: strin
       await tx.discoveryConnection.updateMany({ where: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }], state: { in: ["PENDING", "ACCEPTED"] } }, data: { state: "CLOSED", closedAt: new Date(), lowReadinessVersion: null, highReadinessVersion: null, consentVersion: { increment: 1 } } });
       await tx.notification.updateMany({ where: { resolvedAt: null, discoveryConnection: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }], state: "CLOSED" } }, data: { resolvedAt: new Date() } });
       await tx.chatConversation.updateMany({ where: { closedAt: null, OR: [{ userLowId: report.reportedUserId },{ userHighId: report.reportedUserId }] }, data: { closedAt: new Date(), closureReason: "SUSPENSION" } });
+      await tx.dateSpotRequest.deleteMany({ where: { conversation: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }] } } });
     }
     await tx.discoveryModerationAudit.create({ data: { moderatorId, targetUserId: report.reportedUserId, reportId, action: parsed.data.action, requestId: parsed.data.requestId, reason: report.reason } });
     await tx.discoveryReport.update({ where: { id: reportId }, data: { resolvedAt: new Date() } });

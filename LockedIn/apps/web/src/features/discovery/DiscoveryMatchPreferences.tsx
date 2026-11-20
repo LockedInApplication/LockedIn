@@ -12,6 +12,9 @@ import styles from "./discovery.module.scss";
 const apiPath = "/api/discovery/match-preferences";
 const genders: Record<DiscoveryMatchGender, string> = { WOMAN: "Woman", MAN: "Man", NONBINARY: "Nonbinary", ANOTHER_GENDER: "Another gender" };
 const options = Object.entries(genders) as [DiscoveryMatchGender, string][];
+const youngestAdult = 18;
+const oldestSelectableAge = 120;
+const ageOptions = Array.from({ length: oldestSelectableAge - youngestAdult + 1 }, (_, index) => youngestAdult + index);
 
 export default function DiscoveryMatchPreferences({ onCancel, onSaved }: { onCancel?: () => void; onSaved: (value: DiscoveryMatchPreferencesView) => void }) {
   const { userId, me } = useDiscovery();
@@ -55,7 +58,9 @@ export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved }
   const request = useRef<AbortController | null>(null);
   useEffect(()=>()=>{request.current?.abort();},[]);
   const birthDateChanged = settings ? settings.birthDate !== birthDate : initial.requiresBirthDateConfirmation === true;
-  const validRange = minimum !== "" && maximum !== "" && Number(minimum) >= 18 && Number(maximum) <= 120 && Number(minimum) <= Number(maximum);
+  const minAge = Number(minimum);
+  const maxAge = Number(maximum);
+  const validRange = Number.isInteger(minAge) && Number.isInteger(maxAge) && minAge >= youngestAdult && maxAge <= oldestSelectableAge && minAge <= maxAge;
   const ready = !!birthDate && !!gender && meet.length > 0 && (ageChoice === "any" || ageChoice === "range" && validRange) && (!birthDateChanged || confirmed);
 
   async function update(method: "PUT" | "DELETE", body?: object) {
@@ -82,7 +87,7 @@ export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!ready) return;
-    void update("PUT", { revision: settings?.revision ?? null, birthDate, gender, meetGenders: meet, minAge: ageChoice === "any" ? 18 : Number(minimum), maxAge: ageChoice === "any" ? null : Number(maximum), ...(birthDateChanged && confirmed ? { confirmBirthDateChange: true } : {}) });
+    void update("PUT", { revision: settings?.revision ?? null, birthDate, gender, meetGenders: meet, minAge: ageChoice === "any" ? youngestAdult : minAge, maxAge: ageChoice === "any" ? null : maxAge, ...(birthDateChanged && confirmed ? { confirmBirthDateChange: true } : {}) });
   }
 
   return <section className={styles.card} aria-labelledby={heading}>
@@ -110,8 +115,14 @@ export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved }
             <label><input type="radio" name={`${heading}-age`} checked={ageChoice === "range"} onChange={()=>setAgeChoice("range")}/><span>Choose an age range</span></label>
           </div>
           {ageChoice === "range"?<div className={styles.matchAges}>
-            <label>Youngest age<input type="number" inputMode="numeric" min={18} max={120} required value={minimum} onChange={event=>setMinimum(event.target.value)}/></label>
-            <label>Oldest age<input type="number" inputMode="numeric" min={18} max={120} required value={maximum} onChange={event=>setMaximum(event.target.value)}/></label>
+            <label>Youngest age<select required value={minimum} onChange={event=>{
+              const next = event.target.value;
+              setMinimum(next);
+              if (maximum && maxAge < Number(next)) setMaximum("");
+            }}><option value="">Select age</option>{ageOptions.map(age=><option key={age} value={age}>{age}</option>)}</select></label>
+            <label>Oldest age<select required value={maximum} onChange={event=>setMaximum(event.target.value)}>
+              <option value="">Select age</option>{ageOptions.filter(age=>age >= minAge).map(age=><option key={age} value={age}>{age}</option>)}
+            </select></label>
           </div>:null}
         </fieldset>
       </fieldset>

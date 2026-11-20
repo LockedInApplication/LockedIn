@@ -27,6 +27,17 @@ it("offers removal without showing private fields when editing is unavailable", 
   expect(html).not.toContain("1995-11-16");
 });
 
+it("only offers adult ages and keeps the oldest age at or above the youngest", () => {
+  const html = renderToStaticMarkup(<MatchingEditor initial={settings} canEdit onSaved={()=>{}}/>);
+  const youngest = html.match(/Youngest age<select[^>]*>(.*?)<\/select>/)?.[1] ?? "";
+  const oldest = html.match(/Oldest age<select[^>]*>(.*?)<\/select>/)?.[1] ?? "";
+  const availableAges = (picker: string) => Array.from(picker.matchAll(/<option value="(\d+)"/g), match => Number(match[1]));
+  expect(availableAges(youngest)).toEqual(Array.from({ length: 103 }, (_, index) => index + 18));
+  expect(availableAges(oldest)).toEqual(Array.from({ length: 98 }, (_, index) => index + 23));
+  expect(youngest).toContain('value="23" selected=""');
+  expect(oldest).toContain('value="42" selected=""');
+});
+
 it("requests confirmation when enrolling again in the correction window", () => {
   const html = renderToStaticMarkup(<MatchingEditor initial={{ required: true, settings: null, requiresBirthDateConfirmation: true }} canEdit onSaved={()=>{}}/>);
   expect(html).toContain("Confirm this birthday (one correction every 30 days)");

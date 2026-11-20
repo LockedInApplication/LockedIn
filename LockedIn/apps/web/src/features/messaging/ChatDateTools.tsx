@@ -3,9 +3,9 @@ import DateSpots from "./DateSpots";
 import type { DatePlanView } from "./date-plans.types";
 import styles from "./chat.module.scss";
 
-export default function ChatDateTools({ userId, dateSpotsConversationId, activePlan, onCurrentPlan, sharedPlace, clearSharedPlace, children }: {
+export default function ChatDateTools({ userId, dateSpotsConversationId, activePlan, onCurrentPlan, sharedPlace, clearSharedPlace, onVenueAvailability, children }: {
   userId: string; dateSpotsConversationId?: string; activePlan: DatePlanView | null; onCurrentPlan: () => void;
-  sharedPlace: { id: string } | null; clearSharedPlace: () => void; children: ReactNode;
+  sharedPlace: { id: string } | null; clearSharedPlace: () => void; onVenueAvailability?: (available: boolean) => void; children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [incoming, setIncoming] = useState(false);
@@ -28,7 +28,7 @@ export default function ChatDateTools({ userId, dateSpotsConversationId, activeP
     }}>
       {open && activePlan && !sharedPlace ? <button type="button" onClick={onCurrentPlan}>View current date plan</button> : null}
       {dateSpotsConversationId ? <DateSpots key={dateSpotsConversationId} userId={userId} conversationId={dateSpotsConversationId}
-        open={open} shared={sharedPlace} clearShared={clearSharedPlace} onIncoming={setIncoming}/> : null}
+        open={open} shared={sharedPlace} clearShared={clearSharedPlace} onIncoming={setIncoming} onAvailabilityChange={onVenueAvailability}/> : null}
     </div>
   </div>;
 }

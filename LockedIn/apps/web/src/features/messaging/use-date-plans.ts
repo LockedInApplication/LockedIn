@@ -6,10 +6,11 @@ import { messagingRequest } from "./messaging.client";
 import { signalChatRefresh, useChatRefresh } from "./use-chat-refresh";
 import type { DatePlanAction, DatePlanReply, DatePlanView } from "./date-plans.types";
 
-export function useDatePlans(userId: string, conversationId?: string) {
+export function useDatePlans(userId: string, conversationId: string | undefined, beforePlanChange: () => void) {
   const path = conversationId ? "/api/messaging/conversations/" + conversationId + "/date-plans" : null;
   const key = userId + ":" + path;
   const [snapshot, setSnapshot] = useState<{ key: string; plan: DatePlanView | null }>();
+  const installed = useRef<typeof snapshot>(undefined);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [problem, setProblem] = useState<{ key: string; message: string }>();
   const lifetime = useRef<AbortController | null>(null);
@@ -28,22 +29,31 @@ export function useDatePlans(userId: string, conversationId?: string) {
     };
   }, [key]);
 
+  const install = useCallback((plan: DatePlanView | null) => {
+    const previous = installed.current;
+    if (previous?.key === key && previous.plan?.id === plan?.id && previous.plan?.revision === plan?.revision && previous.plan?.state === plan?.state) return;
+    beforePlanChange();
+    const next = { key, plan };
+    installed.current = next;
+    setSnapshot(next);
+  }, [beforePlanChange, key]);
+
   const refresh = useCallback(() => {
     if (!path || !lifetime.current || reading.current || writing.current) return;
     const controller = new AbortController();
     reading.current = controller;
     const { signal } = controller;
     void messagingRequest<{ activePlan: DatePlanView | null }>(userId, path, { signal }).then(result => {
-      if (!signal.aborted) setSnapshot({ key, plan: result.activePlan });
+      if (!signal.aborted) install(result.activePlan);
     }).catch(error => {
       if (signal.aborted) return;
       if (error instanceof JourneyApiError && [401, 403, 404, 409].includes(error.status)) {
-        setSnapshot({ key, plan: null });
+        install(null);
       }
     }).finally(() => {
       if (reading.current === controller) reading.current = null;
     });
-  }, [key, path, userId]);
+  }, [install, path, userId]);
   useChatRefresh({ userId, onRefresh: refresh });
 
   const act = useCallback(async (action: DatePlanAction) => {
@@ -60,14 +70,14 @@ export function useDatePlans(userId: string, conversationId?: string) {
       const reply = await messagingRequest<DatePlanReply>(userId, path, { method: "POST", body: JSON.stringify({ ...action, requestId: retry.current.requestId }), signal });
       if (signal.aborted) return null;
       retry.current = null;
-      setSnapshot({ key, plan: reply.activePlan });
+      install(reply.activePlan);
       signalChatRefresh(userId);
       return reply;
     } catch (error) {
       if (!signal.aborted) {
         if (error instanceof JourneyApiError && error.status === 409) {
           retry.current = null;
-          setSnapshot({ key, plan: null });
+          install(null);
           signalChatRefresh(userId);
         }
         setProblem({ key, message: error instanceof Error ? error.message : "Could not update the date plan. Try again." });
@@ -77,7 +87,7 @@ export function useDatePlans(userId: string, conversationId?: string) {
       if (writing.current === controller) writing.current = null;
       if (!signal.aborted) { setBusyKey(null); refresh(); }
     }
-  }, [key, path, refresh, userId]);
+  }, [install, key, path, refresh, userId]);
 
   const exportCalendar = useCallback(async (planId: string) => {
     const signal = lifetime.current?.signal;

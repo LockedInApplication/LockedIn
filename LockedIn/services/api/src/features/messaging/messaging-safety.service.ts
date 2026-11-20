@@ -1,7 +1,7 @@
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { chatMissing, lockConversation } from "./messaging-access.service.js";
-import { messageScope } from "./messaging-message.service.js";
+import { messageScope, messageView } from "./messaging-message.service.js";
 import { blockContactUnderLock, closeDiscoverySourcesUnderLock } from "../invitations/invitation-restrictions.service.js";
 import { consumeDiscoveryQuota } from "../discovery/discovery-throttle.service.js";
 import { ensureDiscoveryConversation } from "./messaging-conversation.service.js";
@@ -19,7 +19,12 @@ export async function reportMessage(actorId: string, input: { conversationId: st
     const quota = await consumeDiscoveryQuota(tx,actorId,"report"); if (!quota.ok) return quota;
     const partner = await tx.user.findUniqueOrThrow({ where: { id: partnerId }, select: { displayName: true } });
     const label = partner.displayName ?? "Your partner";
-    const report = await tx.discoveryReport.create({ data: { reporterId: actorId, reportedUserId: partnerId, connectionId: c.discoveryConnectionId, conversationId: c.id, reason: input.reason, details: input.detail, requestId: input.requestId, sourceType: "MESSAGE", sourceId: message.id, evidence: { text: message.text, sentAt: message.createdAt.toISOString(), publicName: label } } });
+    const event = messageView(message, actorId).datePlanEvent;
+    const evidence = {
+      text: message.text, sentAt: message.createdAt.toISOString(), publicName: label,
+      ...(event ? { datePlan: { action: event.action, venueName: event.venueName, startsAt: event.startsAt, timeZone: event.timeZone } } : {}),
+    };
+    const report = await tx.discoveryReport.create({ data: { reporterId: actorId, reportedUserId: partnerId, connectionId: c.discoveryConnectionId, conversationId: c.id, reason: input.reason, details: input.detail, requestId: input.requestId, sourceType: "MESSAGE", sourceId: message.id, evidence } });
     if (input.blockAlso) await blockContactUnderLock(tx,actorId,partnerId,label);
     return { ok: true as const, value: { id: report.id, received: true } };
   });

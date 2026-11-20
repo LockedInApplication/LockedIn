@@ -55,8 +55,8 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   const [actionError, setActionError] = useState("");
   const [report, setReport] = useState<Message | null>(null);
   const [sharedPlace, setSharedPlace] = useState<{ id: string } | null>(null);
+  const [spotsOutage, setSpotsOutage] = useState(false);
   const [datePanel, setDatePanel] = useState<DatePanel | null>(null);
-  const datePlans = useDatePlans(userId, closed ? undefined : datePlansConversationId);
   const sharedOrigin = useRef<HTMLElement | null>(null);
   const dateOrigin = useRef<HTMLElement | null>(null);
   const chatRoot = useRef<HTMLElement>(null);
@@ -64,7 +64,8 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
     const origin = sharedOrigin.current;
     sharedOrigin.current = null;
     setSharedPlace(null);
-    origin?.focus({ preventScroll: true });
+    if (origin?.isConnected) origin.focus({ preventScroll: true });
+    else if (origin) chatRoot.current?.querySelector<HTMLElement>("[data-date-toggle]")?.focus({ preventScroll: true });
   }, []);
   const refresh = useRef<(() => void) | null>(null);
   const lifecycle = useRef<AbortController | null>(null);
@@ -122,6 +123,14 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
     const visible = Array.from(node.querySelectorAll<HTMLElement>('[data-message-id]')).find(item => item.getBoundingClientRect().bottom > top);
     anchor.current = visible ? { id: visible.dataset.messageId!, offset: visible.getBoundingClientRect().top - top } : null;
   }, []);
+  const datePlans = useDatePlans(userId, closed ? undefined : datePlansConversationId, rememberPosition);
+  const lastSpotOutage = useRef(false);
+  const updateVenueAvailability = useCallback((available: boolean) => {
+    if (lastSpotOutage.current === !available) return;
+    lastSpotOutage.current = !available;
+    rememberPosition();
+    setSpotsOutage(!available);
+  }, [rememberPosition]);
 
   useLayoutEffect(() => {
     renderedPage.current = page;
@@ -134,7 +143,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       if (item) node.scrollTop += item.getBoundingClientRect().top - node.getBoundingClientRect().top - saved.offset;
     }
     anchor.current = null;
-  }, [page]);
+  }, [page, datePlans.activePlan, spotsOutage]);
 
   const hideChat = useCallback(() => {
     ended.current = true;
@@ -301,7 +310,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
         onScroll={event => { const node = event.currentTarget; followLatest.current = !deferredLatest.current && atLatest(node); if (followLatest.current) setNewMessages(false); checkRead(); }}>
       {page?.nextCursor ? <button type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load older messages"}</button> : null}
       <ChatTranscript items={page.items} partnerName={partner.publicName} busy={busy} onReport={setReport} openingContext={openingContext}
-        onViewPlace={dateSpotsConversationId ? (id, origin) => { sharedOrigin.current = origin; setSharedPlace({ id }); } : undefined}
+        onViewPlace={dateSpotsConversationId && !spotsOutage ? (id, origin) => { sharedOrigin.current = origin; setSharedPlace({ id }); } : undefined}
         onSuggestTime={datePlansConversationId ? (message, origin) => openDate(currentDate ? { kind: "current" } : { kind: "propose", source: message }, origin) : undefined}
         activeDate={!!currentDate} renderDateEvent={datePlansConversationId ? renderDateEvent : undefined}/>
       </div> : null}
@@ -311,7 +320,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
         {renderReport ? renderReport(report, () => { hideChat(); onAccessEnded(); }) : <MessageSafetyActions key={report.id} userId={userId} conversationId={conversationId} message={report} onBlocked={() => { hideChat(); onAccessEnded(); }}/>}
       </div> : null}
       {page ? <ChatDateTools userId={userId} dateSpotsConversationId={dateSpotsConversationId} activePlan={currentDate}
-        sharedPlace={sharedPlace} clearSharedPlace={clearSharedPlace} onCurrentPlan={() => openDate({ kind: "current" })}>
+        sharedPlace={sharedPlace} clearSharedPlace={clearSharedPlace} onVenueAvailability={updateVenueAvailability} onCurrentPlan={() => openDate({ kind: "current" })}>
         <form className={`${styles.form} ${chatStyles.composer}`} onSubmit={event => { event.preventDefault(); void send(); }}>
         <label>Message<textarea rows={2} maxLength={2000} value={draft} disabled={sending || busy} placeholder="Write a message…" onChange={event => setDraft(event.target.value)}/></label>
         <button className={styles.primary} type="submit" disabled={!draft.trim() || sending || busy}>{sending ? "Sending…" : "Send message"}</button>

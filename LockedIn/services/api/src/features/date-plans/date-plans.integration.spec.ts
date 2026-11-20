@@ -194,4 +194,22 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("date planning thr
     expect(value(await unread(b))).toEqual({ count: 1, items: [{ conversationId: id, discoveryConnectionId: null }] });
     expect(value(await unread(a))).toEqual({ count: 0, items: [] });
   });
+
+  it("reports only the visible details of the selected historical proposal in both chat types", async () => {
+    for (const discovery of [false, true]) {
+      const { a, b, id, propose, action, f } = await fixture(discovery);
+      const selected = time();
+      const { activePlan, message } = value(await action(b, propose(selected)));
+      value(await action(a, change("counter", activePlan, { time: time(5) })));
+      const report = { reason: "OTHER", requestId: randomUUID() };
+      const result = discovery
+        ? await f.request(a, "POST", "/api/discovery/reports", { ...report, sourceType: "MESSAGE", sourceId: message.id })
+        : await request(a, chat(id) + "/reports", { ...report, messageId: message.id });
+      const { evidence } = await prisma.discoveryReport.findUniqueOrThrow({ where: { id: value(result).id } });
+      expect(evidence).toMatchObject({ text: "Suggested a date time.", datePlan: {
+        action: "propose", venueName: venue.name, startsAt: selected.startsAt, timeZone: selected.timeZone,
+      } });
+      expect(JSON.stringify(evidence)).not.toMatch(/fingerprint|sourceMessageId|revision|Private starting area/);
+    }
+  });
 });

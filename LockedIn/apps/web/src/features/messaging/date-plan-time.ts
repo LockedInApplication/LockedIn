@@ -1,4 +1,5 @@
 import type { DatePlanTimeInput } from "./date-plans.types";
+import type { ChatMessage } from "./messaging.types";
 
 const WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -21,4 +22,18 @@ const parts = (date: Date, zone: string) => Object.fromEntries(new Intl.DateTime
 export function getDateFields(date: Date, zone: string) {
   const { year, month, day, hour, minute } = parts(date, zone);
   return { date: [year, month, day].join("-"), time: hour + ":" + minute };
+}
+
+export function formatDatePlanTime(startsAt: string, timeZone?: string) {
+  return new Date(startsAt).toLocaleString(undefined, {
+    timeZone, weekday: "short", month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit", timeZoneName: "short",
+  });
+}
+
+export function messageReportPreview(message: ChatMessage) {
+  const event = message.datePlanEvent;
+  if (!event) return message.text;
+  const venue = event.venueName.length > 120 ? event.venueName.slice(0, 119) + "…" : event.venueName;
+  return [message.text, venue, formatDatePlanTime(event.startsAt)].join(" · ");
 }

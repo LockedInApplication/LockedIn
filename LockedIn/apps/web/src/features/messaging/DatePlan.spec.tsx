@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ChatTranscript } from "./Chat";
 import ChatDateTools from "./ChatDateTools";
 import DatePlanCard from "./DatePlanCard";
+import MessageSafetyActions from "./MessageSafetyActions";
 import { datePlanTimeInput } from "./date-plan-time";
 import type { DatePlanEvent, DatePlanView } from "./date-plans.types";
 
@@ -58,5 +59,13 @@ describe("date planning in chat", () => {
     expect(html).toContain(startsAt);
     expect(html).toContain("Original time zone: Example/Unavailable");
     expect(html).toContain(">Confirm</button>");
+  });
+
+  it("identifies the selected date plan in the report preview", () => {
+    const html = renderToStaticMarkup(<MessageSafetyActions userId="a" conversationId="conversation" onBlocked={noop}
+      message={{ id: "proposal", author: "partner", createdAt: startsAt, sequence: "1", text: "Suggested a date time.", datePlanEvent: event }}/>);
+    expect(html).toContain("Test Gallery");
+    expect(html).toContain("2026");
+    expect(html).not.toContain(">Confirm</button>");
   });
 });

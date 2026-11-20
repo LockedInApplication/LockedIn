@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { JourneyApiError } from "@/lib/journey";
 import { messagingRequest } from "./messaging.client";
 import { signalChatRefresh, useChatRefresh } from "./use-chat-refresh";
 import DateSpotVenue, { PlaceCredits } from "./DateSpotVenue";
@@ -12,9 +13,9 @@ type Reply = Suggestions | { status: "request"; request: DateRequest | null } | 
   | { status: "shared" | "forgotten" };
 type Detail = { venue: VenueDetails; spot?: Spot } | null;
 
-export default function DateSpots({ userId, conversationId, open, shared, clearShared, onIncoming }: {
+export default function DateSpots({ userId, conversationId, open, shared, clearShared, onIncoming, onAvailabilityChange }: {
   userId: string; conversationId: string; open: boolean; shared: { id: string } | null; clearShared: () => void;
-  onIncoming: (incoming: boolean) => void;
+  onIncoming: (incoming: boolean) => void; onAvailabilityChange?: (available: boolean) => void;
 }) {
   const path = `/api/messaging/conversations/${conversationId}/date-spots`;
   const [state, setState] = useState<DateSpotState | null>(null);
@@ -26,6 +27,7 @@ export default function DateSpots({ userId, conversationId, open, shared, clearS
   const [results, setResults] = useState<Suggestions | null>(null);
   const [detail, setDetail] = useState<Detail>(null);
   const [error, setError] = useState("");
+  const [failedLookup, setFailedLookup] = useState<DateAction | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const active = useRef<AbortController | null>(null);
@@ -43,6 +45,7 @@ export default function DateSpots({ userId, conversationId, open, shared, clearS
     active.current = controller;
     return () => { controller.abort(); active.current = null; reading.current = false; actionRunning.current = false; };
   },[]);
+  useEffect(() => { onAvailabilityChange?.(true); }, [onAvailabilityChange]);
 
   const refresh = useCallback(() => {
     const signal = active.current?.signal;
@@ -60,21 +63,31 @@ export default function DateSpots({ userId, conversationId, open, shared, clearS
     if (!signal || actionRunning.current) return null;
     actionRunning.current = true;
     generation.current++;
+    const lookup = payload.action === "solo" || payload.action === "mutual" || payload.action === "details" || payload.action === "sharedDetails";
     setBusy(true); setError(""); setNote("");
     try {
       const value = await messagingRequest<Reply>(userId,path,{ method:"POST", body:JSON.stringify(payload), signal });
       if (signal.aborted) return null;
+      if (lookup) { setFailedLookup(null); onAvailabilityChange?.(true); }
       if (value.status === "request") setState(current => current ? { ...current, request:value.request } : current);
       if (value.status === "suggestions") setResults(value);
       if (value.status === "forgotten") setState(current => current ? { ...current, remembered:false, areaId:null } : current);
       return value;
     } catch (failure) {
-      if (!signal.aborted) setError(failure instanceof Error ? failure.message : "Could not open date spots. Try again.");
+      if (!signal.aborted) {
+        if (lookup && failure instanceof JourneyApiError && failure.status === 503) {
+          setFailedLookup(payload);
+          onAvailabilityChange?.(false);
+        } else {
+          if (lookup) { setFailedLookup(null); onAvailabilityChange?.(true); }
+          setError(failure instanceof Error ? failure.message : "Could not open date spots. Try again.");
+        }
+      }
       return null;
     } finally {
       if (!signal.aborted) { actionRunning.current = false; setBusy(false); }
     }
-  },[path,userId]);
+  },[path,userId,onAvailabilityChange]);
 
   const request = state?.request;
   const mutualReady = request?.state === "ready" ? request.id : null;
@@ -135,11 +148,28 @@ export default function DateSpots({ userId, conversationId, open, shared, clearS
       shareId.current = null; setDetail(null); setMode(null); setResults(null); setNote("Place shared in chat."); signalChatRefresh(userId);
     }
   };
+  const retryPlaceLookup = async () => {
+    if (!failedLookup) return;
+    const payload = failedLookup;
+    const ticket = payload.action === "details" ? payload.ticket : null;
+    const value = await run(payload);
+    if (value?.status === "details") setDetail({ venue: value.venue, spot: results?.items.find(spot => spot.ticket === ticket) });
+    if (value?.status === "suggestions") setForm(null);
+  };
   function closeDetail() { setDetail(null); clearShared(); setError(""); }
   const areaLabel = state?.areas.find(area => area.areaId === state.areaId)?.label;
   const incoming = request?.state === "pending" && request.from === "partner";
   useEffect(() => { onIncoming(incoming); }, [onIncoming, incoming]);
   if (!open && !shared) return null;
+  if (failedLookup) return <div className={styles.planner} aria-label="Date spots">
+    <section className={styles.panel}>
+      <p role="status">Place search and details are temporarily unavailable.</p>
+      <div className={styles.actions}>
+        <button type="button" disabled={busy} onClick={() => void retryPlaceLookup()}>{busy ? "Retrying…" : "Retry place lookup"}</button>
+        {shared ? <button type="button" onClick={closeDetail}>← Back to chat</button> : null}
+      </div>
+    </section>
+  </div>;
 
   return <div className={styles.planner} aria-label="Date spots">
     {!shared ? <>

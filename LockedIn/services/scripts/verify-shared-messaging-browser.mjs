@@ -21,6 +21,7 @@ const services=path.resolve(path.dirname(fileURLToPath(import.meta.url)),".."), 
 const artifacts=mkdtempSync(path.join(tmpdir(),"lockedin-shared-chat-browser-")), log=openSync(path.join(artifacts,"preview.log"),"a");
 console.log(`Shared chat browser artifacts: ${artifacts}`);
 let prisma, api, build, preview, browser;
+let venueProviderOffline = false;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 try {
   ({prisma}=await import("../api/src/lib/prisma.ts"));
@@ -35,8 +36,14 @@ try {
   process.env.DISCOVERY_PILOT_USER_IDS=users.map(u=>u.id).join(",");
   const [a,b,c,d,e,f]=users;
   api=await(await import("../api/src/app.ts")).buildServer({dateSpotProvider:{
-    search:async()=>[sampleVenue],
-    details:async id=>id===sampleVenue.id ? {name:sampleVenue.name,address:sampleVenue.address,mapsUrl:"https://www.openstreetmap.org/",website:null,hours:[],photos:[]} : null,
+    search:async()=>{
+      if (venueProviderOffline) throw Error("Synthetic venue provider unavailable");
+      return [sampleVenue];
+    },
+    details:async id=>{
+      if (venueProviderOffline) throw Error("Synthetic venue provider unavailable");
+      return id===sampleVenue.id ? {name:sampleVenue.name,address:sampleVenue.address,mapsUrl:"https://www.openstreetmap.org/",website:null,hours:[],photos:[]} : null;
+    },
   }}); await api.listen({port:apiPort,host:"127.0.0.1"});
   const env={...process.env,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",API_PROXY_URL:`http://127.0.0.1:${apiPort}`,NEXT_PUBLIC_API_URL:""};
   build=spawn(process.execPath,[path.join(web,"node_modules/next/dist/bin/next"),"build","--webpack"],{cwd:web,env,stdio:["ignore",log,log]});
@@ -122,14 +129,35 @@ try {
     const reply = card(second,"Suggested date time");
     await reply.waitFor();
     const scroll = first.getByRole("region",{name:"Scrollable conversation",exact:true});
-    await scroll.evaluate(el=>{el.scrollTop=0;el.dispatchEvent(new Event("scroll",{bubbles:true}));});
-    const readAnchor = await scroll.locator("[data-message-id]").first().evaluate(el=>({id:el.dataset.messageId,offset:el.getBoundingClientRect().top-el.closest("[role=region]").getBoundingClientRect().top}));
-    await button(reply,"Suggest another time").click();
-    await fillTime(second,"Suggest another time",4,"19");
     const counter = card(first,"Suggested another time");
-    await counter.waitFor({state:"attached"});
-    const offset = await scroll.locator('[data-message-id="'+readAnchor.id+'"]').evaluate(el=>el.getBoundingClientRect().top-el.closest("[role=region]").getBoundingClientRect().top);
-    assert(Math.abs(offset-readAnchor.offset)<5,"A quiet counter keeps the scroll anchor");
+    // The current plan can be above the viewer's reading position. Force the
+    // active-plan GET to resolve after the transcript refresh so the test
+    // detects scroll shifts caused by plan controls independently of new items.
+    await prisma.discoveryMessage.createMany({data:Array.from({length:16},(_,i)=>({
+      conversationId:id,connectionId:discovery?id:null,senderId:proposer.id,requestId:randomUUID(),text:"Date planning history "+i,
+    }))});
+    await first.evaluate(()=>window.dispatchEvent(new Event("focus")));
+    await scroll.getByText("Date planning history 15",{exact:true}).waitFor({state:"attached"});
+    const oldMessage = scroll.getByText("Date planning history 5",{exact:true});
+    await oldMessage.evaluate(el=>el.scrollIntoView({block:"center"}));
+    const relativeTop = el=>el.getBoundingClientRect().top-el.closest("[role=region]").getBoundingClientRect().top;
+    const readTop = await oldMessage.evaluate(relativeTop);
+    let releaseRefresh;
+    const waitForTranscript = new Promise(resolve=>{releaseRefresh=resolve;});
+    const waitForNewItems = async route=>{
+      if (route.request().method()==="GET") await waitForTranscript;
+      await route.continue();
+    };
+    await first.route("**"+endpoint,waitForNewItems);
+    try {
+      await button(reply,"Suggest another time").click();
+      await fillTime(second,"Suggest another time",4,"19");
+      await counter.waitFor({state:"attached"});
+    } finally { releaseRefresh(); }
+    await button(counter,"Confirm").waitFor({state:"attached"});
+    await first.unroute("**"+endpoint,waitForNewItems);
+    const offset = await oldMessage.evaluate(relativeTop);
+    assert(Math.abs(offset-readTop)<5,"An active-plan update above the viewport keeps the reading anchor");
     assert.equal(await composer(first).inputValue(),"Keep this unfinished message");
     assert.equal(await button(card(first,"Suggested date time"),"Confirm").count(),0);
     let confirmer = first;
@@ -170,6 +198,21 @@ try {
     await card(second,"Date canceled").waitFor();
     await button(card(second,"Date confirmed"),"Add to calendar").waitFor({state:"detached"});
     assert.equal(await composer(first).inputValue(),"Keep this unfinished message");
+    venueProviderOffline = true;
+    try {
+      await button(spot(first),"View place").click();
+      await first.getByText("Place search and details are temporarily unavailable.",{exact:true}).waitFor();
+      assert.equal(await button(first,"Find together").count(),0);
+      assert.equal(await button(spot(first),"View place").count(),0);
+      await button(spot(first),"Suggest a time").click();
+      await fillTime(first,"Suggest a time",5,"17");
+      await button(card(first,"Suggested date time").last(),"Withdraw").click();
+      await card(first,"Date suggestion withdrawn").waitFor();
+    } finally { venueProviderOffline = false; }
+    await button(first,"Retry place lookup").click();
+    await first.getByRole("region",{name:"Venue details",exact:true}).getByRole("heading",{name:sampleVenue.name,exact:true}).waitFor();
+    await button(first,"← Back").click();
+    await button(spot(first),"View place").waitFor();
     process.env.DATE_SPOTS_ENABLED = "false";
     try {
       await first.reload(); await composer(first).waitFor();
@@ -180,7 +223,7 @@ try {
       await button(oldSpot,"Suggest a time").click();
       await fillTime(first,"Suggest a time",6,"17");
       await button(card(first,"Suggested date time").last(),"Withdraw").click();
-      await card(first,"Date suggestion withdrawn").waitFor();
+      await card(first,"Date suggestion withdrawn").last().waitFor();
     } finally { process.env.DATE_SPOTS_ENABLED = "true"; }
     assert.equal(await button(first,"Refresh when ready").count(),0);
     console.log("PASS " + name + " date plans: composer, venue details, suggestion, unread, counter, confirmation, export, cancellation and planning with search off");

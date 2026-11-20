@@ -1,4 +1,5 @@
 import type { DatePlanDecision, DatePlanEvent, DatePlanView } from "./date-plans.types";
+import { formatDatePlanTime } from "./date-plan-time";
 import styles from "./chat.module.scss";
 
 const headings: Record<DatePlanEvent["action"], string> = {
@@ -13,23 +14,18 @@ export default function DatePlanCard({ event, activePlan, busy, onAction, onCoun
   onCalendar: (planId: string) => void;
 }) {
   const isCurrent = activePlan?.id === event.id && activePlan.revision === event.revision && activePlan.state === event.state;
-  const date = new Date(event.startsAt);
   const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const format = (zone: string) => date.toLocaleString(undefined, {
-    timeZone: zone, weekday: "short", month: "short", day: "numeric", year: "numeric",
-    hour: "numeric", minute: "2-digit", timeZoneName: "short",
-  });
   let original: string | undefined;
   if (event.timeZone !== localZone) {
     const zoneName = event.timeZone.replaceAll("_", " ");
-    try { original = "Proposed as " + format(event.timeZone) + " (" + zoneName + ")"; }
+    try { original = "Proposed as " + formatDatePlanTime(event.startsAt, event.timeZone) + " (" + zoneName + ")"; }
     catch { original = "Original time zone: " + zoneName + ". Showing your local time."; }
   }
 
   return <section className={styles.planCard} aria-label={headings[event.action]}>
     <strong className={styles.planStatus} data-state={event.state}>{headings[event.action]}</strong>
     <p className={styles.venueName}>{event.venueName}</p>
-    <time className={styles.planTime} dateTime={event.startsAt}>{format(localZone)}</time>
+    <time className={styles.planTime} dateTime={event.startsAt}>{formatDatePlanTime(event.startsAt)}</time>
     {original ? <p className={styles.muted}>{original}</p> : null}
     {isCurrent && activePlan.state === "pending" ? <>
       {activePlan.proposer === "self" ? <>

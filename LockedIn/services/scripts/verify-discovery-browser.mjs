@@ -77,11 +77,10 @@ try{
   async function verifyLegacyDiscovery(){
   if(reviewRuns("onboarding")){
     await pageA.goto(`${base}/journey`);
-    await pageA.getByRole("heading",{name:"Your shared space starts here.",exact:true}).waitFor();
+    await pageA.getByRole("heading",{name:"How would you like to connect?",exact:true}).waitFor();
     await checkDiscoveryLayout(pageA,{widths:[320,393,430],screenshotDir:artifacts,name:"onboarding"});
     const nav=pageA.getByRole("navigation",{name:"Main navigation",exact:true});
-    await nav.getByRole("link",{name:"Inbox",exact:true}).click();
-    await pageA.getByRole("button",{name:"Invite someone",exact:true}).click();
+    await pageA.getByRole("link",{name:"Invite someone you know",exact:true}).click();
     await pageA.getByLabel("Their email",{exact:true}).waitFor();
     await nav.getByRole("link",{name:"Discover",exact:true}).click();
     await pageA.getByRole("button",{name:"Set up my profile",exact:true}).waitFor();

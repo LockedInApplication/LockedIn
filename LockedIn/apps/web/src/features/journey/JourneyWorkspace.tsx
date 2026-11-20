@@ -297,10 +297,10 @@ export default function JourneyWorkspace() {
         ) : !overview.relationship ? (
           <section className={styles.primaryCard}>
             <span className={styles.eyebrow}>TOGETHER</span>
-            <h1>Your shared space starts here.</h1>
-            <p>This is where you’ll find your shared roadmap and check-ins once you both choose to build a space together. Your chats stay in Inbox.</p>
+            <h1>How would you like to connect?</h1>
+            <p>Send a private invite to someone you know, or use Discover to meet someone new. Your chats and invitations are in Inbox.</p>
             <div className={actionStyles.actions}>
-              <Link className={actionStyles.primary} href="/connections">Go to Inbox <span aria-hidden="true">→</span></Link>
+              <Link className={actionStyles.primary} href="/connections?compose=invite">Invite someone you know <span aria-hidden="true">→</span></Link>
               <Link href="/discover">Meet someone new <span aria-hidden="true">→</span></Link>
             </div>
           </section>

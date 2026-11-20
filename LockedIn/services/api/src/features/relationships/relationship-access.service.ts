@@ -18,6 +18,7 @@ export async function getActiveRelationship(userId: string) {
       members: { some: { userId } },
     },
     include: {
+      discoveryConnection: { select: { state: true, lockedInAt: true } },
       members: {
         include: {
           user: {

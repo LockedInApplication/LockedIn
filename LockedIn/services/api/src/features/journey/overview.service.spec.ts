@@ -18,6 +18,13 @@ import { buildJourneyOverview } from "./overview.service.js";
 
 const user = { id: "own", email: "evans@example.com", name: "Evans" };
 const createdAt = new Date("2026-11-14T12:00:00Z");
+const connectedSpace = {
+  id: "relationship-1", status: "ACTIVE", createdAt, updatedAt: createdAt,
+  members: [
+    { id: "member-own", relationshipId: "relationship-1", userId: user.id, user: { ...user, displayName: null } },
+    { id: "member-partner", relationshipId: "relationship-1", userId: "partner", user: { id: "partner", name: "Kwame", displayName: null, email: "kwame@example.com" } },
+  ],
+};
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -69,20 +76,26 @@ describe("buildJourneyOverview", () => {
   });
 
   it("preserves a connected space before the first session", async () => {
-    repository.relationship.findFirst.mockResolvedValue({
-      id: "relationship-1", status: "ACTIVE", createdAt, updatedAt: createdAt,
-      members: [
-        { id: "member-own", relationshipId: "relationship-1", userId: user.id, user: { ...user, displayName: null } },
-        { id: "member-partner", relationshipId: "relationship-1", userId: "partner", user: { id: "partner", name: "Kwame", displayName: null, email: "kwame@example.com" } },
-      ],
-    });
+    repository.relationship.findFirst.mockResolvedValue({ ...connectedSpace, discoveryConnection: null });
     const overview = await buildJourneyOverview(user.id);
-    expect(overview.relationship).toEqual({ id: "relationship-1", partner: { name: "Kwame", email: "kwame@example.com" } });
+    expect(overview.relationship).toEqual({ id: "relationship-1", isMutuallyLockedIn: false, partner: { name: "Kwame", email: "kwame@example.com" } });
     expect(overview.session).toBeNull();
     expect(overview.checkInHistory).toEqual([]);
     expect(overview.conversationSelection).toEqual({
       ownChoice: { submitted: false, packKey: null },
       partnerChoice: { submitted: false, packKey: null, name: "Kwame" },
     });
+  });
+
+  it.each([
+    { state: "PROMOTED", lockedInAt: createdAt, expected: true },
+    { state: "PROMOTED", lockedInAt: null, expected: false },
+    { state: "CLOSED", lockedInAt: createdAt, expected: false },
+  ])("reports $expected for $state with lock-in timestamp $lockedInAt", async ({ state, lockedInAt, expected }) => {
+    repository.relationship.findFirst.mockResolvedValue({ ...connectedSpace, discoveryConnection: { state, lockedInAt } });
+    const { relationship } = await buildJourneyOverview(user.id);
+    expect(relationship?.isMutuallyLockedIn).toBe(expected);
+    expect(relationship).not.toHaveProperty("discoveryConnection");
+    expect(relationship).not.toHaveProperty("lockedInAt");
   });
 });

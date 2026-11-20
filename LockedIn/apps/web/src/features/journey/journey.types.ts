@@ -45,6 +45,7 @@ export type JourneyOverview = {
   }>;
   relationship: {
     id: string;
+    isMutuallyLockedIn?: boolean;
     partner: { name: string; email: string; avatarPreset?:string };
   } | null;
   session: JourneySession | null;

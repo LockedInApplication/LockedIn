@@ -278,6 +278,9 @@ try {
     const nav = page => page.getByRole("navigation",{name:"Main navigation",exact:true});
     const tab = (page,label) => nav(page).getByRole("link",{name:new RegExp("^"+label+"(?:,|$)")});
     const composer = page => page.getByRole("textbox",{name:"Message",exact:true});
+    const lanternWelcome = page => page.getByText(/You two are locked in! Keep chatting/);
+    const lanternHelp = page => page.getByRole("button", { name: "Need a hand?", exact: true });
+    const dismissLantern = page => page.getByRole("button", { name: "Got it, dismiss Tiny Lantern", exact: true });
     const inviteAction = pa.getByRole("link",{name:"Invite someone you know",exact:true});
     const discoverAction = pa.getByRole("link",{name:"Meet someone new",exact:true});
     await pa.goto(base+"/journey");
@@ -339,9 +342,13 @@ try {
     await pb.waitForURL(base+"/journey?view=conversations");
     await pb.getByRole("heading",{name:"Explore topics",exact:true}).waitFor();
     await tab(pb,"Together").click();
+    await lanternHelp(pb).waitFor();
+    assert.equal(await lanternWelcome(pb).count(), 0, "A direct invite is not a mutual lock-in");
     await roadmap.click();
     await pb.waitForURL(base+"/journey?view=roadmap");
     const joined = await prisma.relationship.findFirstOrThrow({where:{members:{some:{userId:b.id}}}});
+    await lanternHelp(pb).click();
+    await pb.getByText("Suggest an idea. You don’t have to pick a day yet.", { exact: true }).waitFor();
     await pb.getByRole("button", { name:"Cook together", exact:true }).click();
     await pb.getByRole("button", { name:"Send suggestion", exact:true }).click();
     await pb.getByRole("heading", { name:"Waiting for a reply", exact:true }).waitFor();
@@ -405,6 +412,43 @@ try {
     await tab(pc,"Discover").click();
     await pc.getByRole("heading",{name:"Discovery is paused while you’re locked in.",exact:true}).waitFor();
     await tab(pc,"Together").click();
+    await lanternWelcome(pc).waitFor({ timeout: 5000 });
+    await pc.setViewportSize({ width: 320, height: 852 });
+    assert.equal(await pc.locator("[data-lantern-ornament]").evaluate(el => getComputedStyle(el).animationName), "none");
+    assert(await pc.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    assert.equal(await dismissLantern(pc).evaluate(el => el === document.activeElement), false);
+    await dismissLantern(pc).focus();
+    await pc.keyboard.press("Enter");
+    await lanternWelcome(pc).waitFor({ state: "hidden" });
+    assert(await lanternHelp(pc).evaluate(el => el === document.activeElement));
+    await pc.reload();
+    await lanternHelp(pc).waitFor();
+    assert.equal(await lanternWelcome(pc).count(), 0);
+    await pc.setViewportSize({ width: 393, height: 852 });
+
+    const sharedBrowser = contexts.get(c.id);
+    const switched = await sharedBrowser.newPage();
+    try {
+      await sharedBrowser.addCookies([d.cookie]);
+      await switched.goto(base + "/journey?view=roadmap");
+      await lanternHelp(switched).waitFor();
+      assert.equal(await lanternWelcome(switched).count(), 0, "Deep links do not open the welcome");
+      await lanternHelp(switched).focus();
+      await switched.keyboard.press("Enter");
+      await switched.getByText("Suggest an idea. You don’t have to pick a day yet.", { exact: true }).waitFor();
+      await tab(switched,"Together").click();
+      await lanternWelcome(switched).waitFor({ timeout: 5000 });
+    } finally {
+      await switched.close();
+      await sharedBrowser.addCookies([c.cookie]);
+    }
+    await pd.emulateMedia({ reducedMotion: "no-preference" });
+    await pd.goto(base + "/journey");
+    await lanternWelcome(pd).waitFor({ timeout: 5000 });
+    assert(await pd.locator("[data-lantern-ornament]").evaluate(el => {
+      const style = getComputedStyle(el);
+      return style.animationName !== "none" && style.animationIterationCount === "1";
+    }));
     await pc.getByRole("navigation",{name:"Together activities",exact:true}).getByRole("button",{name:"Our next steps",exact:true}).click();
     await pc.getByRole("button",{name:"Make time to talk",exact:true}).click();
     await pc.getByRole("button",{name:"Send suggestion",exact:true}).click();
@@ -414,6 +458,7 @@ try {
     await tab(pc,"Inbox").click();
     await pc.getByRole("button",{name:/Discovery Drew.*Locked in/}).click();
     await composer(pc).fill("Keep this draft while viewing a profile");
+    assert.equal(await lanternHelp(pc).count(), 0, "The guide stays out of chat");
     await pc.getByRole("button",{name:"View Discovery Drew’s profile",exact:true}).click();
     await pc.getByRole("dialog").getByRole("heading",{name:"Discovery Drew",exact:true}).waitFor();
     await pc.getByRole("button",{name:"← Back to chat",exact:true}).click();
@@ -430,7 +475,7 @@ try {
     await pe.getByRole("link",{name:"Continue to LockedIn",exact:true}).click();
     await pe.waitForURL(base+"/journey?view=roadmap");
     assert.deepEqual(errors,[]);
-    console.log("PASS navigation: mobile/desktop tabs, direct invite, Together destinations and post-reveal Roadmap handoff, unread Inbox, private reflection, locked-in Discovery pause, chat and profile return");
+    console.log("PASS navigation: Tiny Lantern greeting, contextual help, account isolation and reduced motion; mobile/desktop tabs, direct invite, Together destinations and post-reveal Roadmap handoff, unread Inbox, private reflection, locked-in Discovery pause, chat and profile return");
   } else {
   const invite=await prisma.relationshipInvite.create({data:{inviterId:a.id,inviteeId:b.id,expiresAt:new Date(Date.now()+60000)}});
   await pb.goto(`${base}/journey?invite=${invite.token}`,{waitUntil:"domcontentloaded"});

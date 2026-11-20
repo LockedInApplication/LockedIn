@@ -33,6 +33,7 @@ import {useJourneyHistoryGuard} from './use-journey-history-guard';
 import {useCompactWorkspace,useResponsiveActionRef} from './use-compact-workspace';
 import RelationshipMessages from "./components/RelationshipMessages";
 import TogetherDestinations from "./components/TogetherDestinations";
+import TinyLantern from "./components/TinyLantern";
 
 type Notice = { tone: "success" | "error"; message: string } | null;
 
@@ -282,6 +283,15 @@ export default function JourneyWorkspace() {
           </div>
         </section>:null}
 
+        {overview.relationship && !suggestionReference && (activeView === "home" || activeView === "roadmap" || activeView === "conversations") ? (
+          <TinyLantern
+            key={JSON.stringify([overview.user.id, overview.relationship.id, activeView])}
+            userId={overview.user.id}
+            relationshipId={overview.relationship.id}
+            isMutuallyLockedIn={overview.relationship.isMutuallyLockedIn === true}
+            view={activeView}
+          />
+        ) : null}
         {isHome ? <TogetherDestinations onNavigate={setActiveView} /> : null}
         {mobileHome ? nextAction : null}
         {suggestionReference?null:overview.relationship ? (

@@ -274,6 +274,80 @@ try {
     assert.deepEqual(reviewErrors,[]);
     console.log("PASS " + name + " date sheet: place photos, one invite, notifications, counter, confirmation, calendar, cancellation, provider outage, flag off, focus and draft");
   }
+  if (process.env.LOCKEDIN_BROWSER_SCENARIO === "navigation") {
+    const nav = page => page.getByRole("navigation",{name:"Main navigation",exact:true});
+    const tab = (page,label) => nav(page).getByRole("link",{name:new RegExp("^"+label+"(?:,|$)")});
+    const composer = page => page.getByRole("textbox",{name:"Message",exact:true});
+    await pa.goto(base+"/journey");
+    await pa.getByRole("heading",{name:"Your shared space starts here.",exact:true}).waitFor();
+    for (const width of [320,393,701,1280]) {
+      await pa.setViewportSize({width,height:852});
+      for (const label of ["Discover","Inbox","Together","Profile"]) assert.equal(await tab(pa,label).count(),1);
+      assert(await nav(pa).evaluate((el,mobile)=>{
+        const rect=el.getBoundingClientRect();
+        return document.documentElement.scrollWidth <= innerWidth+1 && (mobile ? Math.abs(rect.bottom-innerHeight)<2 : rect.top>=0 && rect.bottom<85);
+      },width<=700),"Tabs fit the intended position at width "+width);
+    }
+    await pa.setViewportSize({width:393,height:852});
+    await tab(pa,"Inbox").click();
+    await pa.getByRole("button",{name:"Invite someone",exact:true}).click();
+    await pa.getByLabel("Their email",{exact:true}).fill(b.id+"@example.test");
+    await tab(pa,"Discover").click();
+    await pa.getByRole("button",{name:"Keep editing",exact:true}).click();
+    assert.equal(await pa.getByLabel("Their email",{exact:true}).inputValue(),b.id+"@example.test");
+    await pa.getByRole("button",{name:"Send private invite",exact:true}).click();
+    await pa.getByRole("heading",{name:"Invitation ready",exact:true}).waitFor();
+    const privateLink = await pa.getByLabel("Private invitation link",{exact:true}).inputValue();
+    assert.equal(new URL(privateLink).pathname,"/journey");
+    await pb.goto(base+"/connections");
+    await pb.getByRole("button",{name:/Alex.*Invitation to review/}).click();
+    await pb.getByRole("button",{name:"Accept invitation",exact:true}).click();
+    await pb.getByText("You’re connected. Find your chat in Inbox, and your new shared space here in Together.",{exact:true}).waitFor();
+    await tab(pb,"Inbox").click();
+    await pb.getByRole("button",{name:/Alex.*shared-space conversation/}).click();
+    await composer(pb).fill("Hello from the direct invite");
+    await pb.getByRole("button",{name:"Send message",exact:true}).click();
+    await nav(pa).getByRole("link",{name:"Inbox, 1 unread conversation",exact:true}).waitFor();
+    await tab(pa,"Inbox").click();
+    await pa.getByRole("button",{name:/Sam.*New message/}).click();
+    await pa.getByText("Hello from the direct invite",{exact:true}).waitFor();
+    assert.equal(await tab(pa,"Inbox").getAttribute("aria-current"),"page");
+    await pa.getByRole("link",{name:"Inbox",exact:true}).waitFor();
+    await tab(pa,"Profile").click();
+    await pa.getByRole("button",{name:"Private reflection",exact:true}).click();
+    await pa.getByRole("textbox",{name:"Your private reflection",exact:true}).waitFor();
+    await pa.getByRole("button",{name:"← Profile",exact:true}).click();
+    await pa.getByRole("heading",{name:"Privacy & safety",exact:true}).waitFor();
+    assert.equal(await prisma.discoveryProfile.count({where:{ownerId:{in:[a.id,b.id]}}}),0);
+
+    for(const user of [c,d]) {
+      const profile={publicName:`Discovery ${user.label}`,avatarPreset:"leaf",bio:"Synthetic public introduction",intention:"LONG_TERM",interests:["Reading"],pace:null,areaId:"pilot-city"};
+      const published=await prisma.discoveryProfile.create({data:{ownerId:user.id,draft:{revision:1,profile},publishedSnapshot:profile,publishedAreaId:"pilot-city",publishedIntention:"LONG_TERM",publicationVersion:1,publicationConsentVersion:1,publicationConsentedAt:new Date(),adultAttestedAt:new Date(),publishedAt:new Date()}});
+      user.profileId=published.id;
+      assert.equal((await request(user,"PUT","/api/discovery/match-preferences",{birthDate:"1995-04-02",gender:"ANOTHER_GENDER",meetGenders:"all",minAge:18,maxAge:null,revision:null})).status,200);
+    }
+    const discovery = await request(c,"POST","/api/discovery/connections",{targetProfileId:d.profileId,topicKey:"support",hello:"Discovery opening",requestId:randomUUID()});
+    assert.equal(discovery.status,200);
+    const source=discovery.body.value.id;
+    assert.equal((await request(d,"POST",`/api/discovery/connections/${source}/accept`,{})).status,200);
+    const ready={ready:true,consentVersion:1,exclusiveConsent:true};
+    for(const user of [c,d]) assert.equal((await request(user,"POST",`/api/discovery/connections/${source}/readiness`,ready)).status,200);
+    await pc.goto(base+"/connections");
+    await pc.getByRole("button",{name:/Discovery Drew.*Locked in/}).waitFor();
+    assert.equal(await pc.getByRole("region",{name:"Conversations",exact:true}).getByRole("listitem").count(),1);
+    await tab(pc,"Discover").click();
+    await pc.getByRole("heading",{name:"Discovery is paused while you’re locked in.",exact:true}).waitFor();
+    await tab(pc,"Inbox").click();
+    await pc.getByRole("button",{name:/Discovery Drew.*Locked in/}).click();
+    await composer(pc).fill("Keep this draft while viewing a profile");
+    await pc.getByRole("button",{name:"View Discovery Drew’s profile",exact:true}).click();
+    await pc.getByRole("dialog").getByRole("heading",{name:"Discovery Drew",exact:true}).waitFor();
+    await pc.getByRole("button",{name:"← Back to chat",exact:true}).click();
+    assert.equal(await composer(pc).inputValue(),"Keep this draft while viewing a profile");
+    assert.equal(await pc.getByRole("button",{name:"Plan a date",exact:true}).count(),1);
+    assert.deepEqual(errors,[]);
+    console.log("PASS navigation: mobile/desktop tabs, direct invite with draft guard, unread Inbox, Profile and private reflection, locked-in Discovery pause, chat and profile return");
+  } else {
   const invite=await prisma.relationshipInvite.create({data:{inviterId:a.id,inviteeId:b.id,expiresAt:new Date(Date.now()+60000)}});
   await pb.goto(`${base}/journey?invite=${invite.token}`,{waitUntil:"domcontentloaded"});
   await pb.getByRole("button",{name:"Accept invitation",exact:true}).click();
@@ -375,7 +449,7 @@ try {
   await pa.getByRole("textbox",{name:"Message",exact:true}).fill("DO NOT LEAK");
   await contexts.get(a.id).clearCookies(); await contexts.get(a.id).addCookies([c.cookie]);
   await pa.evaluate(()=>window.dispatchEvent(new Event("focus")));
-  await pa.getByText("This chat is unavailable. Return to your shared space or try again.",{exact:true}).waitFor();
+  await pa.getByText("This chat is unavailable. Return to your Inbox or try again.",{exact:true}).waitFor();
   assert(!await pa.locator("main").innerText().then(t=>t.includes("DO NOT LEAK")||t.includes("History 34")));
   await contexts.get(a.id).clearCookies(); await contexts.get(a.id).addCookies([a.cookie]); await pa.reload(); await pa.getByRole("textbox",{name:"Message",exact:true}).waitFor();
   await prisma.user.update({where:{id:a.id},data:{emailVerified:false}});await pa.reload();await pa.getByRole("heading",{name:"Verify your email",exact:true}).waitFor();
@@ -410,6 +484,7 @@ try {
   await pc.getByRole("button",{name:"View Discovery Drew’s profile",exact:true}).click();await pc.getByRole("dialog").getByRole("heading",{name:"Discovery Drew",exact:true}).waitFor();await pc.getByRole("button",{name:"← Back to chat",exact:true}).click();
   await pc.screenshot({path:path.join(artifacts,"promoted-chat.png"),fullPage:true});
   assert.deepEqual(errors,[],"No browser runtime errors");console.log("PASS existing-space backfill, Discovery transcript/promotion and authorized public-profile dialog");
+  }
 } finally {
   await browser?.close();preview?.kill("SIGTERM");build?.kill("SIGTERM");await api?.close();await prisma?.$disconnect();closeSync(log);
 }

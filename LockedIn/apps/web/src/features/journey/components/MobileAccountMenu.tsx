@@ -5,40 +5,15 @@ import type { WorkspaceHeaderProps } from "./WorkspaceHeader";
 import styles from "../workspace-header.module.scss";
 export default function MobileAccountMenu({
   user,
-  onProfile,
-  onExplore,
-  exploreLabel,
-  onInvitations,
   onSignOut,
 }: Pick<
   WorkspaceHeaderProps,
-  "user" | "onProfile" | "onInvitations" | "onSignOut" | "onExplore" | "exploreLabel"
+  "user" | "onSignOut"
 >) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null),
     trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
-  useEffect(() => {
-    // CSS can hide the focused trigger before the media-query event fires.
-    let ownedFocus = false;
-    const focused = (event: FocusEvent) => {
-      ownedFocus = !!root.current?.contains(event.target as Node);
-    };
-    const desktop = window.matchMedia("(min-width: 701px)");
-    const resized = () => {
-      if (!desktop.matches) return;
-      if (ownedFocus || root.current?.contains(document.activeElement)) {
-        root.current?.closest("header")?.querySelector<HTMLElement>("a")?.focus();
-      }
-      setOpen(false);
-    };
-    desktop.addEventListener("change", resized);
-    document.addEventListener("focusin", focused);
-    return () => {
-      desktop.removeEventListener("change", resized);
-      document.removeEventListener("focusin", focused);
-    };
-  }, []);
   useEffect(() => {
     if (!open) return;
     const outside = (event: Event) => {
@@ -66,7 +41,7 @@ export default function MobileAccountMenu({
     void action();
   };
   return (
-    <div className={styles.mobile} ref={root}>
+    <div className={styles.account} ref={root}>
       <button
         type="button"
         ref={trigger}
@@ -89,17 +64,6 @@ export default function MobileAccountMenu({
           aria-label="Account options"
         >
           <p>{user?.name ?? "Your account"}</p>
-          {onExplore?<button type="button" onClick={()=>select(onExplore)}>{exploreLabel??"Explore people"}</button>:null}
-          {onProfile ? (
-            <button type="button" onClick={() => select(onProfile)}>
-              Profile &amp; settings
-            </button>
-          ) : null}
-          {onInvitations ? (
-            <button type="button" onClick={() => select(onInvitations)}>
-              Invitations
-            </button>
-          ) : null}
           <button type="button" onClick={() => select(onSignOut)}>
             Sign out
           </button>

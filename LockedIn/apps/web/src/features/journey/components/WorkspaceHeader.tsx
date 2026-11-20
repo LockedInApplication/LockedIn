@@ -3,84 +3,45 @@ import Link from "next/link";
 import BrandLogo from "@/components/brandLogo";
 import type { ReactNode } from "react";
 import styles from "@/app/journey/journey.module.scss";
-import invitationStyles from "@/features/invitations/invitation-management.module.scss";
-import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import MobileAccountMenu from "./MobileAccountMenu";
 import headerStyles from "../workspace-header.module.scss";
-import discoveryStyles from "@/features/discovery/discovery.module.scss";
+import { activeMemberTab, memberTabs } from "../member-navigation";
 
 export type WorkspaceHeaderProps = {
   onSignOut: () => Promise<void>;
+  onNavigate: (path: string) => unknown;
+  active: ReturnType<typeof activeMemberTab>;
   notifications?: ReactNode;
-  onInvitations?: () => void;
-  onProfile?: () => void;
-  onHome?: () => void;
-  onExplore?: () => void;
-  exploreLabel?: string;
+  unreadCount?: number;
   user?: { name: string; avatarPreset?: string };
 };
-export default function WorkspaceHeader({
-  onSignOut,
-  notifications,
-  onInvitations,
-  onProfile,
-  onHome,
-  onExplore,
-  exploreLabel = "Explore people",
-  user,
-}: WorkspaceHeaderProps) {
+
+export default function WorkspaceHeader({ onSignOut, onNavigate, active, notifications, unreadCount = 0, user }: WorkspaceHeaderProps) {
+  const navigate = (event: React.MouseEvent<HTMLAnchorElement>, path: string) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    void onNavigate(path);
+  };
+  const badge = unreadCount > 99 ? "99+" : unreadCount;
   return (
     <header className={`${styles.header} ${headerStyles.header}`}>
-      <Link href="/" className={styles.brand} aria-label="LockedIn home" onClick={event=>{if(onHome){event.preventDefault();onHome();}}}>
-        <span className={styles.brandMark}>
-          <BrandLogo />
-        </span>
-        <span>LockedIn</span>
+      <Link href="/journey" className={styles.brand} aria-label="LockedIn · Together" onClick={event => navigate(event, "/journey")}>
+        <span className={styles.brandMark}><BrandLogo /></span><span>LockedIn</span>
       </Link>
+      <nav className={headerStyles.tabs} aria-label="Main navigation">
+        {memberTabs.map(({ label, href, icon }) => {
+          const count = label === "Inbox" && unreadCount > 0 ? badge : null;
+          return <Link key={label} href={href} aria-current={active === label ? "page" : undefined}
+            aria-label={count ? `Inbox, ${count} unread ${unreadCount === 1 ? "conversation" : "conversations"}` : undefined}
+            onClick={event => navigate(event, href)}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icon}/></svg>
+            <span>{label}</span>{count ? <span className={headerStyles.badge} aria-hidden="true">{count}</span> : null}
+          </Link>;
+        })}
+      </nav>
       <div className={`${styles.headerActions} ${headerStyles.actions}`}>
-        <div className={headerStyles.desktop}>
-          {onExplore?<button type="button" className={discoveryStyles.explore} onClick={onExplore}>{exploreLabel}</button>:null}
-          {onProfile ? (
-            <button
-              type="button"
-              className={`${invitationStyles.headerButton} ${headerStyles.profileButton}`}
-              onClick={onProfile}
-            >
-              {user ? (
-                <ProfileAvatar name={user.name} preset={user.avatarPreset} />
-              ) : null}
-              <span>Profile &amp; settings</span>
-            </button>
-          ) : null}
-          {onInvitations ? (
-            <button
-              type="button"
-              className={invitationStyles.headerButton}
-              onClick={onInvitations}
-            >
-              Invitations
-            </button>
-          ) : null}
-        </div>
         {notifications}
-        <div className={headerStyles.desktop}>
-          <span className={styles.privacyPill}>Private by default</span>
-          <button
-            type="button"
-            className={styles.textButton}
-            onClick={onSignOut}
-          >
-            Sign out
-          </button>
-        </div>
-        <MobileAccountMenu
-          user={user}
-          onProfile={onProfile}
-          onExplore={onExplore}
-          exploreLabel={exploreLabel}
-          onInvitations={onInvitations}
-          onSignOut={onSignOut}
-        />
+        <MobileAccountMenu user={user} onSignOut={onSignOut}/>
       </div>
     </header>
   );

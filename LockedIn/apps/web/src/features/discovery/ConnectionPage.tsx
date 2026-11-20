@@ -44,7 +44,7 @@ function Starter({connection,setConnection,onRefresh}:{connection:DiscoveryConne
     catch(error){setNotice(error instanceof Error?error.message:"Contact blocked. Refresh to load its current history.");}
     onRefresh();
   };
-  return <><button disabled={busy} onClick={()=>void leave("/connections")}>← Connections</button>{notice?<p role="status" className={styles.notice}>{notice}</p>:null}
+  return <><button disabled={busy} onClick={()=>void leave("/connections")}>← Inbox</button>{notice?<p role="status" className={styles.notice}>{notice}</p>:null}
     {connection.state==="PENDING"?<section className={styles.card}><p className={styles.eyebrow}>{connection.inviter==="partner"?"Wants to connect":"Waiting for acceptance"}</p><h1>{connection.topic.text}</h1><p>From {connection.senderSnapshot.publicName}</p><p className={styles.quote}>{connection.hello}</p>{connection.inviter==="partner"?<>
       {!connection.canAccept?<p>This invitation can’t be accepted right now.</p>:null}
       <div className={styles.actions}>{connection.canAccept?<button className={styles.primary} disabled={busy} onClick={()=>void run(`${url}/accept`,{})}>Accept and chat</button>:null}<button disabled={busy} onClick={()=>void run(`${url}/decline`,{})}>Decline quietly</button></div>

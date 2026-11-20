@@ -53,8 +53,33 @@ try {
   assert.equal(await prisma.discoveryProfile.count({where:{ownerId:{in:[a.id,b.id]}}}),0);
   assert.equal(await prisma.discoveryMessage.count({where:{conversationId:id}}),0);
   assert.equal(await pb.getByRole("button",{name:/View .*profile/}).count(),0);
+  await pb.goto(`${base}/journey`);
+  await pb.getByRole("link",{name:"Messages →",exact:true}).waitFor();
   await pa.goto(`${base}/messages/${id}`); await pa.getByRole("textbox",{name:"Message",exact:true}).fill("Hello from Alex"); await pa.getByRole("button",{name:"Send message",exact:true}).click();
+  await pb.getByRole("button",{name:/Notifications, (?!0 unread)\d+ unread/}).click();
+  const unreadChat=pb.getByRole("list",{name:"Unread conversations",exact:true});
+  await unreadChat.getByRole("button",{name:"Open chat",exact:true}).click();
   await pb.getByText("Hello from Alex",{exact:true}).waitFor();
+  await pb.waitForFunction(async()=>((await (await fetch("/api/messaging/unread")).json()).value?.count ?? -1)===0);
+  assert.equal(await pb.getByRole("button",{name:"Refresh when ready",exact:true}).count(),0);
+  await pb.evaluate(()=>{Object.defineProperty(document,"visibilityState",{value:"hidden",configurable:true});document.dispatchEvent(new Event("visibilitychange"));});
+  assert.equal((await request(a,"POST",`${route}/messages`,{text:"Arrived in a hidden tab",requestId:randomUUID()})).status,200);
+  await pb.getByRole("button",{name:"Notifications, 1 unread",exact:true}).waitFor();
+  assert.equal(await pb.getByText("Arrived in a hidden tab",{exact:true}).count(),0);
+  assert.equal((await request(b,"GET","/api/messaging/unread")).body.value.count,1);
+  await pb.evaluate(()=>{Object.defineProperty(document,"visibilityState",{value:"visible",configurable:true});document.dispatchEvent(new Event("visibilitychange"));});
+  await pb.getByText("Arrived in a hidden tab",{exact:true}).waitFor();
+  await pb.waitForFunction(async()=>((await (await fetch("/api/messaging/unread")).json()).value?.count ?? -1)===0);
+  await pb.evaluate(()=>{Object.defineProperty(document,"visibilityState",{value:"hidden",configurable:true});document.dispatchEvent(new Event("visibilitychange"));});
+  assert.equal((await request(a,"POST",`${route}/messages`,{text:"Above a long reply",requestId:randomUUID()})).status,200);
+  const longReply=Array.from({length:35},(_,i)=>`Reply line ${i}`).join("\n");
+  assert.equal((await request(b,"POST",`${route}/messages`,{text:longReply,requestId:randomUUID()})).status,200);
+  await pb.evaluate(()=>{Object.defineProperty(document,"visibilityState",{value:"visible",configurable:true});document.dispatchEvent(new Event("visibilitychange"));});
+  const covered=pb.getByText("Above a long reply",{exact:true});
+  await covered.waitFor({state:"attached"});
+  assert.equal((await request(b,"GET","/api/messaging/unread")).body.value.count,1);
+  await covered.evaluate(el=>el.scrollIntoView({block:"center"}));
+  await pb.waitForFunction(async()=>((await (await fetch("/api/messaging/unread")).json()).value?.count ?? -1)===0);
   await pb.getByRole("textbox",{name:"Message",exact:true}).fill("Hello from Sam"); await pb.getByRole("button",{name:"Send message",exact:true}).click(); await pa.getByText("Hello from Sam",{exact:true}).waitFor();
   await pa.getByRole("textbox",{name:"Message",exact:true}).fill("Unsent local text");
   await pa.route(`**${route}`,r=>r.fulfill({status:500,json:{error:"Synthetic transient failure"}}));
@@ -81,7 +106,9 @@ try {
   assert(Math.abs(shifted-anchor.top)<5,"Older pagination retains visible anchor");
   assert.equal((await request(b,"POST",`${route}/messages`,{text:"New while reading history",requestId:randomUUID()})).status,200);
   await pa.getByRole("button",{name:"New messages · Jump to latest ↓",exact:true}).waitFor();
+  assert.equal((await request(a,"GET","/api/messaging/unread")).body.value.count,1);
   await pa.getByRole("button",{name:"New messages · Jump to latest ↓",exact:true}).click();
+  await pa.waitForFunction(async()=>((await (await fetch("/api/messaging/unread")).json()).value?.count ?? -1)===0);
   await viewport.evaluate(el=>{el.scrollTop=el.clientHeight;el.dispatchEvent(new Event("scroll",{bubbles:true}));});
   const reading = await viewport.evaluate(el=>{
     const top = el.getBoundingClientRect().top;
@@ -135,8 +162,10 @@ try {
   // Discovery keeps its original transcript and source policy after promotion.
   for(const u of [c,d]) {const draft={publicName:`Discovery ${u.label}`,avatarPreset:"leaf",bio:"Synthetic public introduction",intention:"LONG_TERM",interests:["Reading"],pace:null,areaId:"pilot-city"};const p=await prisma.discoveryProfile.create({data:{ownerId:u.id,draft:{revision:1,profile:draft},publishedSnapshot:draft,publishedAreaId:"pilot-city",publishedIntention:"LONG_TERM",publicationVersion:1,publicationConsentVersion:1,publicationConsentedAt:new Date(),adultAttestedAt:new Date(),publishedAt:new Date()}});u.profileId=p.id;}
   const sent=await request(c,"POST","/api/discovery/connections",{targetProfileId:d.profileId,topicKey:"support",hello:"Discovery opening",requestId:randomUUID()});assert.equal(sent.status,200);const source=sent.body.value.id;
+  await pc.goto(`${base}/connections/${source}`);await pc.getByText("Waiting for acceptance",{exact:true}).waitFor();
   assert.equal((await request(d,"POST",`/api/discovery/connections/${source}/accept`,{})).status,200);
-  await pc.goto(`${base}/connections/${source}`);await pc.getByRole("textbox",{name:"Message",exact:true}).fill("Discovery history survives");await pc.getByRole("button",{name:"Send message",exact:true}).click();await pc.getByText("Discovery history survives",{exact:true}).waitFor();
+  await pc.getByRole("textbox",{name:"Message",exact:true}).fill("Discovery history survives");await pc.getByRole("button",{name:"Send message",exact:true}).click();await pc.getByText("Discovery history survives",{exact:true}).waitFor();
+  assert.equal(await pc.getByText("Refresh when ready",{exact:true}).count(),0);
   const ready={ready:true,consentVersion:1,exclusiveConsent:true};assert.equal((await request(c,"POST",`/api/discovery/connections/${source}/readiness`,ready)).status,200);assert.equal((await request(d,"POST",`/api/discovery/connections/${source}/readiness`,ready)).status,200);
   await pc.goto(`${base}/messages/${source}`);await pc.getByText("Discovery history survives",{exact:true}).waitFor();await pc.getByRole("button",{name:"View Discovery Drew’s profile",exact:true}).click();await pc.getByRole("dialog").getByRole("heading",{name:"Discovery Drew",exact:true}).waitFor();await pc.getByRole("button",{name:"← Back to chat",exact:true}).click();
   await pc.screenshot({path:path.join(artifacts,"promoted-chat.png"),fullPage:true});

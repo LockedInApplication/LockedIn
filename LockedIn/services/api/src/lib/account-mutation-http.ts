@@ -16,4 +16,5 @@ export async function requireAccountMutationIdentity(request: FastifyRequest, re
 export const chatParams = z.strictObject({ id: z.string().uuid() });
 export const emptyChatInput = z.strictObject({});
 export const chatMessageInput = z.strictObject({ text: z.string().trim().min(1).max(2000).refine(v => !v.includes("\u0000")), requestId: z.string().uuid() });
-export const chatQuery = z.strictObject({ before: z.string().regex(/^[1-9][0-9]{0,18}$/).refine(v => v.length < 19 || v <= "9223372036854775807").optional() });
+export const chatSequence = z.string().regex(/^[1-9][0-9]{0,18}$/).refine(v => v.length < 19 || v <= "9223372036854775807");
+export const chatQuery = z.strictObject({ before: chatSequence.optional() });

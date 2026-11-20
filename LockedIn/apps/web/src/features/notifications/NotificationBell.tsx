@@ -16,6 +16,7 @@ export default function NotificationBell({ userId, onOpen, onActivity, onExpired
     const root = useRef<HTMLDivElement>(null);
     const button = useRef<HTMLButtonElement>(null);
     const notifications = useNotifications(userId, onActivity, onExpired,onStatusChange,onChatSync);
+    const unread = notifications.unreadCount + notifications.unreadChatCount;
     const close = () => { setOpen(false); button.current?.focus(); };
     useEffect(() => {
         if (!open)
@@ -32,12 +33,16 @@ export default function NotificationBell({ userId, onOpen, onActivity, onExpired
         return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
     }, [open]);
     return <div ref={root} className={inboxStyles.root} onBlurCapture={event=>{if(event.relatedTarget&&!root.current?.contains(event.relatedTarget as Node))setOpen(false);}}>
-    <button ref={button} type="button" className={inboxStyles.bell} aria-label={`Notifications, ${notifications.unreadCount} unread`} aria-expanded={open} aria-controls="notification-inbox" onClick={() => setOpen(value => !value)}>
+    <button ref={button} type="button" className={inboxStyles.bell} aria-label={`Notifications, ${unread > 99 ? "99+" : unread} unread`} aria-expanded={open} aria-controls="notification-inbox" onClick={() => setOpen(value => !value)}>
       <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M9 21h6"/></svg>
-      {notifications.unreadCount > 0 ? <span className={inboxStyles.badge} aria-hidden>{notifications.unreadCount > 99 ? "99+" : notifications.unreadCount}</span> : null}
+      {unread > 0 ? <span className={inboxStyles.badge} aria-hidden>{unread > 99 ? "99+" : unread}</span> : null}
     </button>
-    <span className={inboxStyles.srOnly} role="status" aria-live="polite">{notifications.unreadCount ? `${notifications.unreadCount} unread updates` : ""}</span>
-    {open ? <div id="notification-inbox"><NotificationPanel {...notifications} onClose={close} onRetry={notifications.retry} onMore={notifications.more} onOpen={async (item) => {
+    <span className={inboxStyles.srOnly} role="status" aria-live="polite">{notifications.chatAnnouncement || (notifications.unreadCount ? `${notifications.unreadCount} unread updates` : "")}</span>
+    {open ? <div id="notification-inbox"><NotificationPanel {...notifications} onClose={close} onRetry={notifications.retry} onMore={notifications.more}
+        onOpenChat={async chat => {
+            if (await onOpen({ id:chat.conversationId, kind:"UNREAD_CHAT", view:chat.discoveryConnectionId ? "discovery" : "messages",
+                entityId:chat.discoveryConnectionId ?? chat.conversationId, wordKey:null, title:"New message", message:"", createdAt:"", readAt:null, resolvedAt:null })) close();
+        }} onOpen={async (item) => {
                 if (await onOpen(item)) {
                     await notifications.markRead(item.id);
                     close();

@@ -1,5 +1,6 @@
 import type { ChatConversation, DiscoveryMessage, Prisma } from "../../../generated/prisma/client.js";
 import { consumeDiscoveryQuota } from "../discovery/discovery-throttle.service.js";
+import { inAppActivityAllowed } from "../notifications/notification-preferences.js";
 import type { ChatMessageView, ChatPage, ChatResult } from "./messaging.types.js";
 
 export const messageScope = (c: ChatConversation): Prisma.DiscoveryMessageWhereInput => ({ OR: [{ conversationId: c.id }, ...(c.discoveryConnectionId ? [{ conversationId: null, connectionId: c.discoveryConnectionId }] : [])] });
@@ -13,6 +14,8 @@ export async function sendMessage(tx: Prisma.TransactionClient, c: ChatConversat
   const prior = await tx.discoveryMessage.findFirst({ where: { ...messageScope(c), senderId: actorId, requestId: input.requestId } });
   if (prior) return prior.text !== input.text || prior.dateSpotPlaceId !== (input.dateSpotPlaceId ?? null) ? { ok: false, status: 409, error: "This message changed. Please try sending it again." } : { ok: true, value: messageView(prior, actorId) };
   const quota = await consumeDiscoveryQuota(tx, actorId, "chat"); if (!quota.ok) return quota;
-  const saved = await tx.discoveryMessage.create({ data: { conversationId: c.id, connectionId: c.discoveryConnectionId, senderId: actorId, ...input } });
+  const recipient = actorId === c.userLowId ? c.userHighId : c.userLowId;
+  const unreadAlertSuppressed = !await inAppActivityAllowed(tx, recipient);
+  const saved = await tx.discoveryMessage.create({ data: { conversationId: c.id, connectionId: c.discoveryConnectionId, senderId: actorId, unreadAlertSuppressed, ...input } });
   return { ok: true, value: messageView(saved, actorId), notify: [c.userLowId, c.userHighId] };
 }

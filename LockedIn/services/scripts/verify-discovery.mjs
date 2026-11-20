@@ -69,12 +69,22 @@ try {
   await database.query(`INSERT INTO "DiscoveryConnection" (id,"userLowId","userHighId","inviterId","questionKey","questionText",hello,"senderPublicName","senderAvatarPreset",state,"expiresAt","updatedAt") VALUES ('discovery-preserved-contact','discovery-preserved-a','discovery-preserved-b','discovery-preserved-a','support','Support?','Opening','Public alias','leaf','ACCEPTED',NOW()+INTERVAL '1 day',NOW());
     INSERT INTO "DiscoveryMessage" (id,"connectionId","senderId","requestId",text) VALUES ('discovery-preserved-message','discovery-preserved-contact','discovery-preserved-a','discovery-preserved-request','Historical chat');
     INSERT INTO "DiscoveryReport" (id,"reporterId","reportedUserId","connectionId",reason,"sourceType","sourceId",evidence) VALUES ('discovery-preserved-report','discovery-preserved-b','discovery-preserved-a','discovery-preserved-contact','SPAM','MESSAGE','discovery-preserved-message','{"text":"Historical chat"}');`);
-  const chatSnapshot = async () => (await database.query(`SELECT jsonb_build_object('messages',(SELECT jsonb_agg(to_jsonb(m)-'conversationId'-'dateSpotPlaceId' ORDER BY id) FROM "DiscoveryMessage" m),'reports',(SELECT jsonb_agg(to_jsonb(r)-'conversationId' ORDER BY id) FROM "DiscoveryReport" r)) AS snapshot`)).rows[0].snapshot;
+  const chatSnapshot = async () => (await database.query(`SELECT jsonb_build_object('messages',(SELECT jsonb_agg(to_jsonb(m)-'conversationId'-'dateSpotPlaceId'-'unreadAlertSuppressed' ORDER BY id) FROM "DiscoveryMessage" m),'reports',(SELECT jsonb_agg(to_jsonb(r)-'conversationId' ORDER BY id) FROM "DiscoveryReport" r)) AS snapshot`)).rows[0].snapshot;
   const chatBefore = await chatSnapshot();
   for (const entry of readdirSync(migrations)) {
-    if (entry >= "20261118002000_shared_messaging" && entry !== "migration_lock.toml") cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
+    if (entry >= "20261118002000_shared_messaging" && entry < "20261119004000_chat_read_state") cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
   }
   run(["migrate", "deploy", "--config", config]);
+  for (const entry of readdirSync(migrations)) {
+    if (entry >= "20261119004000_chat_read_state" && entry !== "migration_lock.toml") cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
+  }
+  run(["migrate", "deploy", "--config", config]);
+  const baseline = await database.query(`SELECT EXISTS (
+    SELECT 1 FROM "DiscoveryConnection" d JOIN "DiscoveryMessage" m ON m."connectionId" = d.id
+    WHERE m.id = 'discovery-preserved-message' AND m.sequence = d."legacyUnreadBaseline"
+      AND NOT EXISTS (SELECT 1 FROM "ChatConversation" c WHERE c."discoveryConnectionId" = d.id)
+  ) AS "legacyPreserved"`);
+  if (!baseline.rows[0].legacyPreserved) throw new Error("Unread migration did not baseline an unlinked legacy chat");
   if (JSON.stringify(chatBefore) !== JSON.stringify(await chatSnapshot())) throw new Error("Messaging expansion changed historical messages/reports");
   if (JSON.stringify(before) !== JSON.stringify(await snapshot())) throw new Error("Migration changed historical content/IDs/consent");
   console.log("Historical fixture snapshot preserved exactly.");

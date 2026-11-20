@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { notificationDestination } from "./notification.navigation";
+it("routes direct unread messages to their conversation, with encoded IDs", () => {
+    expect(notificationDestination({view:"messages",entityId:"a/b",wordKey:null})).toBe("/messages/a%2Fb");
+});
 describe("safe notification destinations", () => {
     it("opens the exact isolated discovery connection",()=>{
         expect(notificationDestination({view:"discovery",entityId:"connection-id",wordKey:null})).toBe("/connections/connection-id");

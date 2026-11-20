@@ -1,6 +1,14 @@
 import { messagingRequest, type ChatRequest } from "./messaging.client";
 import type { ChatMessage, ChatPage } from "./messaging.types";
 export type { ChatMessage, ChatPage } from "./messaging.types";
+export function readThroughSequence(items: ChatMessage[], visible: boolean, followingLatest: boolean, hasDeferred: boolean, shown: (message: ChatMessage) => boolean): string | null {
+  if (!visible || hasDeferred) return null;
+  // A long self-sent reply can cover the newest incoming bubble at the bottom.
+  // Let scrolling that bubble into view clear it without marking past it.
+  if (!followingLatest && items.at(-1)?.author !== "self") return null;
+  const latest = items.findLast(message => message.author === "partner");
+  return latest && shown(latest) ? latest.sequence : null;
+}
 const unique = (items: ChatMessage[]) => [...new Map(items.map(m => [m.id,m])).values()];
 export function mergeLatestMessages(previous: ChatPage | null, latest: ChatPage): ChatPage {
   if (!previous?.items.length || !latest.items.length) return { ...latest, items: unique(latest.items) };

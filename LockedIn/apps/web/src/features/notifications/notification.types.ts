@@ -17,3 +17,5 @@ export type NotificationInbox = {
     nextCursor: string | null;
 };
 export type ConnectionState = "connecting" | "live" | "reconnecting";
+export type UnreadChat = { conversationId: string; discoveryConnectionId: string | null };
+export type UnreadChats = { count: number; items: UnreadChat[] };

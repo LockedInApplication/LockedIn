@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { prisma } from "../../lib/prisma.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
-import { chatMessageInput, chatParams, chatQuery, emptyChatInput, requireAccountMutationIdentity } from "../../lib/account-mutation-http.js";
+import { chatMessageInput, chatParams, chatQuery, chatSequence, emptyChatInput, requireAccountMutationIdentity } from "../../lib/account-mutation-http.js";
 import { sharedMessagingEnabled } from "./messaging.config.js";
 import { chatMissing, conversationAllowsChat, lockConversation, openConversation } from "./messaging-access.service.js";
 import { listMessages, sendMessage } from "./messaging-message.service.js";
@@ -12,6 +12,7 @@ import type { ChatResult } from "./messaging.types.js";
 import { z } from "zod";
 import { changeChatContact, reportMessage } from "./messaging-safety.service.js";
 import { dateSpotsAvailable } from "../date-spots/date-spots-config.js";
+import { acknowledgeChat, listUnreadChats } from "./messaging-unread.service.js";
 
 const reportInput = z.strictObject({ messageId: z.string().uuid(), reason: z.enum(["HARASSMENT","IMPERSONATION","SPAM","OTHER"]), detail: z.string().max(1000).optional(), requestId: z.string().uuid(), blockAlso: z.boolean().optional() });
 
@@ -21,6 +22,20 @@ export function respondMessaging<T>(reply: FastifyReply, ownerId: string, result
 }
 export async function registerMessagingRoutes(server: FastifyInstance) {
   const base = "/api/messaging/conversations/:id";
+  server.get("/api/messaging/unread", async (request, reply) => {
+    reply.header("Cache-Control", "private, no-store");
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!emptyChatInput.safeParse(request.query).success) return sendError(reply, 400, "Invalid chat request.");
+    return respondMessaging(reply, user.id, { ok: true, value: await listUnreadChats(user.id) });
+  });
+  server.post(`${base}/read`, { bodyLimit: 1024 }, async (request, reply) => {
+    const actor = await requireAccountMutationIdentity(request, reply, "x-messaging-owner"); if (!actor) return;
+    const params = chatParams.safeParse(request.params), input = z.strictObject({ through: chatSequence }).safeParse(request.body);
+    if (!params.success || !input.success || !emptyChatInput.safeParse(request.query).success) return sendError(reply, 400, "Invalid chat request.");
+    const result = await prisma.$transaction(tx => acknowledgeChat(tx, params.data.id, actor.userId, BigInt(input.data.through)));
+    if (result.ok) notificationBroker.publish(actor.userId, false, "unread");
+    return respondMessaging(reply, actor.userId, result);
+  });
   for (const action of ["reports","block","close"] as const) server.post(`${base}/${action}`, { bodyLimit: 16_384 }, async (request,reply) => {
     const actor = await requireAccountMutationIdentity(request,reply,"x-messaging-owner"); if (!actor) return;
     if (!sharedMessagingEnabled()) return sendError(reply,404,chatMissing.error);

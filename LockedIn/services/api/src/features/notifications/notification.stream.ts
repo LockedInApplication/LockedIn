@@ -21,6 +21,7 @@ export function registerStream(server: FastifyInstance) {
         };
         const unsubscribe = notificationBroker.subscribe(userId, (activity, kind) => {
             if (kind === "chat") emit("discovery-chat-changed", {});
+            else if (kind === "unread") emit("unread-chats-changed", {});
             else emit("notifications-changed", { activity });
         });
         if (!unsubscribe)

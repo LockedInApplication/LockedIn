@@ -1,8 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ChatSession, loadChatRefresh, mergeLatestMessages, prependMessages } from "./chat-state";
+import { ChatSession, loadChatRefresh, mergeLatestMessages, prependMessages, readThroughSequence } from "./chat-state";
 const message = (id: string) => ({ id, sequence: id, author: "partner" as const, text: `Text ${id}`, createdAt: "2026-11-17T00:00:00.000Z" });
 afterEach(() => vi.unstubAllGlobals());
 describe("shared chat state and request ownership", () => {
+  it("acknowledges only a visible, current partner message", () => {
+    const partner = message("9007199254740994"), self = { ...message("9007199254740995"), author: "self" as const };
+    const messages = [partner, self];
+    const shown=()=>true;
+    expect(readThroughSequence(messages,true,true,false,shown)).toBe(partner.sequence);
+    expect(readThroughSequence(messages,false,true,false,shown)).toBeNull();
+    expect(readThroughSequence([self,partner],true,false,false,shown)).toBeNull();
+    expect(readThroughSequence(messages,true,false,false,shown)).toBe(partner.sequence);
+    expect(readThroughSequence(messages,true,true,true,shown)).toBeNull();
+    expect(readThroughSequence(messages,true,true,false,()=>false)).toBeNull();
+    expect(readThroughSequence([self],true,true,false,shown)).toBeNull();
+    expect(readThroughSequence([],true,true,false,shown)).toBeNull();
+  });
   it("keeps loaded history on overlapping refresh and removes duplicate messages", () => {
     expect(mergeLatestMessages({ items: [message("1"),message("2")], nextCursor: "1" },{ items: [message("2"),message("3")], nextCursor: null })).toEqual({ items: [message("1"),message("2"),message("3")], nextCursor: "1" });
     expect(prependMessages({ items: [message("2"),message("3")], nextCursor: "2" },{ items: [message("1"),message("2")], nextCursor: null }).items.map(m => m.id)).toEqual(["1","2","3"]);

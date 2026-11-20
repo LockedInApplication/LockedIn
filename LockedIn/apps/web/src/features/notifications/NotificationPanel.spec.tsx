@@ -19,4 +19,11 @@ describe("notification inbox", () => {
         expect(html).toContain("Try again");
         expect(html).not.toContain("You’re all caught up");
     });
+    it("shows one generic chat action even if an unread entry repeats", () => {
+        const item = { conversationId: "chat", discoveryConnectionId: null };
+        const html = renderToStaticMarkup(<NotificationPanel {...props} unreadChats={[item,item]} onOpenChat={() => {}}/>);
+        expect(html.match(/>New message</g)).toHaveLength(1);
+        expect(html).toContain("Open chat");
+        expect(html).not.toContain("You’re all caught up");
+    });
 });

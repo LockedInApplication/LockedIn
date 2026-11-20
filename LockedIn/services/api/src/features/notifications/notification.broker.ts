@@ -1,4 +1,4 @@
-type Listener = (activity: boolean, kind?: "chat") => void;
+type Listener = (activity: boolean, kind?: "chat" | "unread") => void;
 export class NotificationBroker {
     private listeners = new Map<string, Set<Listener>>();
     subscribe(userId: string, listener: Listener): (() => void) | null {
@@ -10,7 +10,7 @@ export class NotificationBroker {
         return () => { group.delete(listener); if (!group.size)
             this.listeners.delete(userId); };
     }
-    publish(userId: string, activity = true, kind?: "chat") {
+    publish(userId: string, activity = true, kind?: "chat" | "unread") {
         for (const listener of this.listeners.get(userId) ?? []) {
             // A disconnected socket must never turn a committed save into a failed request.
             try {

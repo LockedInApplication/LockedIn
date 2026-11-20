@@ -11,7 +11,7 @@ import SharedJourneyPath from "./components/SharedJourneyPath";
 import NextActionCard from "./components/NextActionCard";
 import { useWorkspaceNavigation, navigateWorkspaceUrl } from "./use-workspace-navigation";
 import { NotificationBell, notificationDestination, type NotificationItem } from "@/features/notifications";
-import notificationStyles from "@/features/notifications/notification.module.scss";
+import { useQuietRefresh } from "@/features/notifications/use-quiet-refresh";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BrandLogo from "@/components/brandLogo";
@@ -47,20 +47,42 @@ export default function JourneyWorkspace() {
   const router = useRouter();
   const [overview, setOverview] = useState<JourneyOverview | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusyState] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [inviteLink, setInviteLink] = useState("");
   const [activeView, navigateView, workspaceLocation] = useWorkspaceNavigation();
-  const [newActivity,setNewActivity]=useState(false);
   const [invitationRevision,setInvitationRevision]=useState(0);
   const dirty=useRef(false);
+  const editRevision=useRef(0);
+  const busyRef=useRef(false);
   const compactWorkspace=useCompactWorkspace();
   const discoveryOwner=overview?.user.id??"";
   const loadDiscovery=useCallback((signal:AbortSignal)=>discoveryRequest<DiscoveryMe>(discoveryOwner,"/api/discovery/me",{signal}),[discoveryOwner]);
   const discoveryAccess=useDiscoveryResource(discoveryOwner,"me",loadDiscovery);
+  const refreshDiscovery=discoveryAccess.retry;
+  const [quietRevision,setQuietRevision]=useState(0);
+  const [savedRefreshFailed,setSavedRefreshFailed]=useState(false);
+  const refreshAfterAction=useRef(false);
+  const onExpired=useCallback(()=>{
+    const returnTo=`${window.location.pathname}${window.location.search}${window.location.hash}`;
+    router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  },[router]);
+  const readQuietly=useCallback((signal:AbortSignal)=>journeyRequest<JourneyOverview>("/api/journey/overview",{signal,cache:"no-store"}),[]);
+  const applyQuietly=useCallback((data:JourneyOverview)=>{
+    refreshAfterAction.current=false;
+    setSavedRefreshFailed(false);
+    setOverview(data);setQuietRevision(value=>value+1);setInvitationRevision(value=>value+1);refreshDiscovery();
+  },[refreshDiscovery]);
+  const quietFailure=useCallback((error:unknown)=>{
+    if(error instanceof JourneyApiError && error.status===401)onExpired();
+    else if(refreshAfterAction.current)setSavedRefreshFailed(true);
+  },[onExpired]);
+  const {invalidate:requestQuietRefresh,setBlocked:blockQuietRefresh}=useQuietRefresh(readQuietly,applyQuietly,quietFailure);
+  const setDirty=useCallback((value:boolean)=>{if(value)editRevision.current++;dirty.current=value;blockQuietRefresh(value||busyRef.current);},[blockQuietRefresh]);
+  const setBusy=useCallback((value:boolean)=>{busyRef.current=value;blockQuietRefresh(value||dirty.current);setBusyState(value);},[blockQuietRefresh]);
   const explore=discoveryEntry(discoveryAccess.value);
   const actionRef=useResponsiveActionRef();
-  useJourneyHistoryGuard(dirty);
+  useJourneyHistoryGuard(dirty,setDirty);
   const targetQuery=new URL(workspaceLocation,"http://localhost").searchParams;
   const targetWord=targetQuery.get("word");
   const targetChapter=targetQuery.get("chapter");
@@ -69,25 +91,21 @@ export default function JourneyWorkspace() {
   const invitationBy=targetQuery.has("invitation")?"id":"token";
   const invitationManagerOpen=targetQuery.get("invitations")==="manage";
 
+  const hasOverview=overview!==null;
   useEffect(()=>{
+    if(!hasOverview)return;
     const hash=new URL(workspaceLocation,"http://localhost").hash.slice(1);
     if(!hash.startsWith("step-"))return;
     const element=document.getElementById(hash);
     element?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
     element?.focus({preventScroll:true});
-  },[workspaceLocation,overview]);
+  },[workspaceLocation,hasOverview]);
 
-  const onActivity=useCallback(()=>setNewActivity(true),[]);
-  const [quietRevision,setQuietRevision]=useState(0);
-  const onInvitationUpdate=useCallback((activity?:boolean)=>{setInvitationRevision(value=>value+1);if(activity===false)setQuietRevision(value=>value+1);},[]);
-  const onExpired=useCallback(()=>{
-    const returnTo=`${window.location.pathname}${window.location.search}${window.location.hash}`;
-    router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
-  },[router]);
+  const onInvitationUpdate=requestQuietRefresh;
 
   function confirmDiscard() {
     if(dirty.current && !window.confirm("You have unsaved answers. Leave them and load the latest activity?"))return false;
-    dirty.current=false;return true;
+    setDirty(false);return true;
   }
   function setActiveView(view:Parameters<typeof navigateView>[0]) {
     if(view!==activeView && !confirmDiscard())return;
@@ -118,24 +136,17 @@ export default function JourneyWorkspace() {
     void loadOverview();
   }, [loadOverview]);
 
-  useEffect(()=>{
-    if(!quietRevision||dirty.current||busy)return;
-    const controller=new AbortController();
-    void journeyRequest<JourneyOverview>("/api/journey/overview",{signal:controller.signal,cache:"no-store"}).then(data=>{
-      if(!controller.signal.aborted&&!dirty.current)setOverview(data);
-    }).catch(()=>{/* The normal refresh and retry controls remain available. */});
-    return()=>controller.abort();
-  },[quietRevision,busy]);
-
   const runAction = useCallback(
     async (action: () => Promise<unknown>, successMessage?: string) => {
+      const submitted=editRevision.current;
       setBusy(true);
       setNotice(null);
       try {
         await action();
-        dirty.current=false;
+        refreshAfterAction.current=true;
+        if(editRevision.current===submitted)setDirty(false);
         if (successMessage) setNotice({ tone: "success", message: successMessage });
-        await loadOverview();
+        requestQuietRefresh();
       } catch (error) {
         setNotice({
           tone: "error",
@@ -145,7 +156,7 @@ export default function JourneyWorkspace() {
         setBusy(false);
       }
     },
-    [loadOverview],
+    [requestQuietRefresh,setBusy,setDirty],
   );
 
   async function handleInvite(email: string) {
@@ -157,7 +168,7 @@ export default function JourneyWorkspace() {
         body: JSON.stringify({ email }),
       });
       const link = `${window.location.origin}/journey?invite=${result.token}`;
-      dirty.current=false;
+      setDirty(false);
       onInvitationUpdate();
       setInviteLink(link);
       await navigator.clipboard?.writeText(link).catch(() => undefined);
@@ -202,13 +213,12 @@ export default function JourneyWorkspace() {
   const progress = getProgress(overview);
   async function openNotification(item:NotificationItem) {
     if(busy || !confirmDiscard())return false;
-    if(item.view==="discovery") {
+    if(item.view==="discovery" || item.view==="messages") {
       router.push(notificationDestination(item));
       return true;
     }
     const fresh=await loadOverview();
     if(!fresh)return false;
-    setNewActivity(false);
     let destination=notificationDestination(item);
     if(item.view==="home" && item.kind!=="INVITATION_ACCEPTED" && fresh.session?.id!==item.entityId) {
       destination="/journey?view=chapters";
@@ -261,7 +271,7 @@ export default function JourneyWorkspace() {
     onExplore={explore?()=>{if(!busy&&confirmDiscard())router.push(explore.path);}:undefined} exploreLabel={explore?.label}
     user={overview.user} onProfile={()=>{if(confirmDiscard())router.push("/profile");}}
     onInvitations={invitationManagerOpen?undefined:()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey?invitations=manage");}}
-    notifications={<NotificationBell key={overview.user.id} userId={overview.user.id} onOpen={openNotification} onActivity={onActivity} onExpired={onExpired} onStatusChange={onInvitationUpdate}/>}/>;
+    notifications={<NotificationBell key={overview.user.id} userId={overview.user.id} onOpen={openNotification} onActivity={requestQuietRefresh} onExpired={onExpired} onStatusChange={onInvitationUpdate}/>}/>;
   const mobileHome=isHome&&compactWorkspace;
   const nextAction=<NextActionCard cardRef={actionRef} overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction}/>;
 
@@ -278,7 +288,7 @@ export default function JourneyWorkspace() {
         onHandled={async decision=>{
           const fresh=await loadOverview();
           if(!fresh)throw new Error("Your choice was saved, but your space could not reload. Please refresh.");
-          setNewActivity(false);navigateWorkspaceUrl("/journey");
+          navigateWorkspaceUrl("/journey");
           setNotice({tone:"success",message:decision==="accept"?"You are connected. Your answers remain private until the sharing steps you choose.":decision==="block"?"Invitation block saved. Only you can remove it in Invitations. Existing shared spaces are unchanged.":"Invitation declined. No shared space was created."});
         }}/>
     </main>
@@ -288,14 +298,7 @@ export default function JourneyWorkspace() {
     <div className={styles.page}>
       {header}
 
-      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${mobileHome?guidanceStyles.mobileHome:''}`} onChangeCapture={()=>{dirty.current=true;}}>
-        {newActivity?<aside className={notificationStyles.activity} aria-label="New shared activity">
-          <span>✦ There’s new activity. Your unfinished answers have been left untouched.</span>
-          <button type="button" disabled={busy} onClick={async()=>{
-            if(!confirmDiscard())return;
-            if(await loadOverview())setNewActivity(false);
-          }}>Refresh when ready</button>
-        </aside>:null}
+      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${mobileHome?guidanceStyles.mobileHome:''}`} onChangeCapture={()=>setDirty(true)}>
         {mobileHome?<><h1 className={guidanceStyles.greeting}>Hi, {overview.user.name?.trim().split(/\s+/)[0]||'there'}.</h1>{nextAction}</>:null}
         {activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""} ${showWelcome ? welcomeStyles.intro : ""}`}>
           {!mobileHome?<div>
@@ -323,6 +326,7 @@ export default function JourneyWorkspace() {
 
         {overview.relationship ? <RelationshipMessages messaging={overview.messaging}/> : null}
 
+        {savedRefreshFailed ? <p className={styles.notice} role="status">Your change was saved, but this view could not update. <button type="button" onClick={requestQuietRefresh}>Try updating the view</button></p> : null}
         {notice ? (
           <div className={`${styles.notice} ${notice.tone === "error" ? styles.noticeError : ""}`}>
             {notice.message}
@@ -330,7 +334,7 @@ export default function JourneyWorkspace() {
         ) : null}
 
         {suggestionReference ? (
-          <ConversationSuggestionView key={`${overview.user.id}:${suggestionReference}`} notificationId={suggestionReference} revision={`${quietRevision}:${invitationRevision}:${newActivity}`} busy={busy}
+          <ConversationSuggestionView key={`${overview.user.id}:${suggestionReference}`} notificationId={suggestionReference} revision={`${quietRevision}:${invitationRevision}`} busy={busy}
             onHome={()=>{if(confirmDiscard())navigateWorkspaceUrl('/journey');}}
             onBrowse={()=>{if(confirmDiscard())navigateWorkspaceUrl('/journey?view=conversations');}}
             onAccept={async()=>{await runAction(async()=>{const result=await journeyRequest<{started:boolean}>(`/api/journey/notifications/${encodeURIComponent(suggestionReference)}/conversation-suggestion`,{method:'POST'});if(result.started)navigateWorkspaceUrl('/journey');},'Your conversation choice was saved.');}}/>

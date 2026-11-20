@@ -10,9 +10,9 @@ import {connectionStatus} from "./connection-status";
 import styles from "./discovery.module.scss";
 export default function ConnectionsPage(){const query=useSearchParams();return <DiscoveryShell key={query.toString()}><Connections/></DiscoveryShell>;}
 function Connections(){
-  const {userId,me,leave,setDirty,setBusy}=useDiscovery(),router=useRouter(),query=useSearchParams(),profileId=query.get("profile"),[cursors,setCursors]=useState<(string|null)[]>([null]);
+  const {userId,me,leave,setDirty,setBusy,chatRevision}=useDiscovery(),router=useRouter(),query=useSearchParams(),profileId=query.get("profile"),[cursors,setCursors]=useState<(string|null)[]>([null]);
   const before=cursors.at(-1),load=useCallback((signal:AbortSignal)=>discoveryRequest<PageOf<DiscoveryConnectionView>>(userId,`/api/discovery/connections${before?`?before=${before}`:""}`,{signal}),[userId,before]);
-  const connections=useDiscoveryResource(userId,`connections:${before??""}`,load);
+  const connections=useDiscoveryResource(userId,`connections:${before??""}`,load,chatRevision);
   const loadProfile=useCallback((signal:AbortSignal)=>discoveryRequest<PublicDiscoveryProfile>(userId,`/api/discovery/profiles/${encodeURIComponent(profileId??"")}`,{signal}),[userId,profileId]);
   const profile=useDiscoveryResource(userId,profileId&&me.canDiscover?`invite:${profileId}`:"",loadProfile);
   return <>{profileId?<><button onClick={()=>void leave("/connections")}>← My connections</button>{profile.error||!me.canDiscover?<p role="status">This person is not available for a new invitation.</p>:profile.value?<StarterInvitation key={`${profile.value.id}:${query.get("reply")}:${query.get("photo")}`} userId={userId} profile={profile.value} reply={query.get("reply")} photo={query.get("photo")} topics={me.topics} onDirty={setDirty} onBusy={setBusy} onInvited={id=>{setDirty(false);router.push(`/connections/${encodeURIComponent(id)}`);}}/>:<p role="status">Opening invitation…</p>}</>:<><p className={styles.eyebrow}>Separate starters · up to three active</p><h1>Your connections.</h1><p>One waiting reply does not hold up your other starters.</p></>}

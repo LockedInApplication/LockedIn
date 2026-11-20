@@ -3,12 +3,12 @@ import { useEffect, type RefObject } from "react";
 const warning =
   "You have unsaved answers. Leave them and load the latest activity?";
 /** Block history traversal before Next or workspace subscribers unmount a draft. */
-export function useJourneyHistoryGuard(dirty: RefObject<boolean>) {
+export function useJourneyHistoryGuard(dirty: RefObject<boolean>, setDirty: (value: boolean) => void) {
   useEffect(() => {
     const approve = () => {
       if (!dirty.current) return true;
       if (!window.confirm(warning)) return false;
-      dirty.current = false;
+      setDirty(false);
       return true;
     };
     const unload = (event: BeforeUnloadEvent) => {
@@ -63,5 +63,5 @@ export function useJourneyHistoryGuard(dirty: RefObject<boolean>) {
       window.removeEventListener("beforeunload", unload);
       window.removeEventListener("journey-section-change", updateSource);
     };
-  }, [dirty]);
+  }, [dirty, setDirty]);
 }

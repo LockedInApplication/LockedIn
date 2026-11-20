@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { JourneyApiError } from "@/features/journey/journey.client";
-import { ChatSession, loadChatRefresh, mergeLatestMessages, prependMessages, type ChatMessage as Message, type ChatPage as Page } from "./chat-state";
+import { ChatSession, loadChatRefresh, mergeLatestMessages, prependMessages, readThroughSequence, type ChatMessage as Message, type ChatPage as Page } from "./chat-state";
 import { messagingRequest, type ChatRequest } from "./messaging.client";
 import { useChatRefresh } from "./use-chat-refresh";
+import { useChatRead } from "./use-chat-read";
 import MessageSafetyActions from "./MessageSafetyActions";
 import MessageActions from "./MessageActions";
 import DateSpots from "./DateSpots";
@@ -27,6 +28,7 @@ export function ChatTranscript({items, partnerName, busy, onReport, openingConte
 }
 
 const accessEnded = (error: unknown) => error instanceof JourneyApiError && [401, 403, 404].includes(error.status);
+const atLatest = (node: HTMLDivElement) => node.scrollHeight - node.scrollTop - node.clientHeight < 4;
 
 function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, profileAction, busy = false, ariaLabel = "Chat", request = messagingRequest, messagesPath, renderReport, dateSpotsConversationId }: ChatProps) {
   const path = messagesPath ?? `/api/messaging/conversations/${conversationId}/messages`;
@@ -54,14 +56,36 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   const reportClose = useRef<HTMLButtonElement>(null);
   const reportOrigin = useRef<HTMLElement | null>(null);
   const hasPage = page !== null;
+  const displayedSequence = useCallback(() => {
+    const node = viewport.current;
+    const dialog = document.querySelector("dialog[open]");
+    if (!node || ended.current || (dialog && !dialog.contains(node))) return null;
+    return readThroughSequence(renderedPage.current?.items ?? [], document.visibilityState === "visible", followLatest.current && atLatest(node), !!deferredLatest.current, message => {
+      const item = node.querySelector(`[data-message-id="${CSS.escape(message.id)}"]`);
+      if (!item) return false;
+      const bounds = node.getBoundingClientRect(), rect = item.getBoundingClientRect();
+      const screen = document.documentElement;
+      return Math.max(rect.top, bounds.top, 0) < Math.min(rect.bottom, bounds.bottom, screen.clientHeight)
+        && Math.max(rect.left, bounds.left, 0) < Math.min(rect.right, bounds.right, screen.clientWidth);
+    });
+  }, []);
+  const checkRead = useChatRead(userId,conversationId,displayedSequence);
+
+  useEffect(() => { checkRead(); },[page,checkRead]);
+  useEffect(() => {
+    window.addEventListener("scroll", checkRead, { passive:true });
+    window.addEventListener("resize", checkRead);
+    document.addEventListener("close",checkRead,true);
+    return () => { window.removeEventListener("scroll",checkRead); window.removeEventListener("resize",checkRead); document.removeEventListener("close",checkRead,true); };
+  },[checkRead]);
 
   useLayoutEffect(() => {
     const node = viewport.current;
     if (!node || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => { if (followLatest.current) node.scrollTop = node.scrollHeight; });
+    const observer = new ResizeObserver(() => { if (followLatest.current) { node.scrollTop = node.scrollHeight; checkRead(); } });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [hasPage]);
+  }, [hasPage,checkRead]);
 
   useLayoutEffect(() => {
     if (report) { reportOrigin.current = document.activeElement as HTMLElement | null; reportClose.current?.focus(); }
@@ -111,7 +135,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       running = true;
       try {
         const result = await loadChatRefresh(renderedPage.current, cursor => currentSession.load(cursor), !!deferredLatest.current);
-        if (!signal.aborted && !ended.current) {
+        if (!signal.aborted && !ended.current && document.visibilityState === "visible") {
           setSyncError("");
           if (result.deferred && !followLatest.current) {
             deferredLatest.current = result.deferred;
@@ -200,7 +224,10 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
     const deferred = deferredLatest.current;
     deferredLatest.current = null;
     if (deferred) setPage(deferred);
-    else if (viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight;
+    else if (viewport.current) {
+      viewport.current.scrollTop = viewport.current.scrollHeight;
+      checkRead();
+    }
   }
 
   return <section className={`${styles.card} ${chatStyles.chat}`} aria-label={ariaLabel}>
@@ -210,7 +237,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       {!page && !syncError ? <p role="status">Loading messages…</p> : null}
       {syncError ? <p role="alert">{syncError} <button type="button" onClick={() => refresh.current?.()}>Retry</button></p> : null}
       {page ? <div ref={viewport} className={chatStyles.viewport} role="region" aria-label="Scrollable conversation" tabIndex={0}
-        onScroll={event => { const node = event.currentTarget; followLatest.current = !deferredLatest.current && node.scrollHeight - node.scrollTop - node.clientHeight < 64; if (followLatest.current) setNewMessages(false); }}>
+        onScroll={event => { const node = event.currentTarget; followLatest.current = !deferredLatest.current && atLatest(node); if (followLatest.current) setNewMessages(false); checkRead(); }}>
       {page?.nextCursor ? <button type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load older messages"}</button> : null}
       <ChatTranscript items={page.items} partnerName={partner.publicName} busy={busy} onReport={setReport} openingContext={openingContext}
         onViewPlace={dateSpotsConversationId ? id => setSharedPlace({ id }) : undefined}/>

@@ -1,5 +1,6 @@
 "use client";
-import {useCallback,useState} from "react";
+import {useCallback,useLayoutEffect,useState} from "react";
+import {useQuietRefresh} from "@/features/notifications/use-quiet-refresh";
 import DiscoveryShell,{useDiscovery} from "./DiscoveryShell";
 import {discoveryRequest} from "./discovery.client";
 import {useDiscoveryResource} from "./use-discovery-resource";
@@ -13,14 +14,17 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import styles from "./discovery.module.scss";
 export default function ConnectionPage({connectionId}:{connectionId:string}){return <DiscoveryShell><Connection key={connectionId} id={connectionId}/></DiscoveryShell>;}
 function Connection({id}:{id:string}){
-  const {userId}=useDiscovery(),load=useCallback((signal:AbortSignal)=>discoveryRequest<DiscoveryConnectionView>(userId,`/api/discovery/connections/${id}`,{signal}),[userId,id]);
+  const {userId,chatRevision,dirty,busy}=useDiscovery(),load=useCallback((signal:AbortSignal)=>discoveryRequest<DiscoveryConnectionView>(userId,`/api/discovery/connections/${id}`,{signal}),[userId,id]);
   const resource=useDiscoveryResource(userId,id,load);
+  const {invalidate,setBlocked}=useQuietRefresh(load,resource.install);
+  useLayoutEffect(()=>{setBlocked(dirty||busy);},[dirty,busy,setBlocked]);
+  useLayoutEffect(()=>{if(chatRevision)invalidate();},[chatRevision,invalidate]);
   if(resource.error)return <section className={styles.card} role="alert"><h1>We could not open this starter.</h1><p>{resource.error}</p><button onClick={resource.retry}>Try again</button></section>;
   if(!resource.value)return <p role="status">Opening this conversation…</p>;
-  return <Starter key={`${userId}:${id}`} initial={resource.value} onRefresh={resource.retry}/>;
+  return <Starter key={`${userId}:${id}`} connection={resource.value} setConnection={resource.install} onRefresh={resource.retry}/>;
 }
-function Starter({initial,onRefresh}:{initial:DiscoveryConnectionView;onRefresh:()=>void}){
-  const {userId,me,refreshAccess,leave,setDirty,busy,setBusy,confirmLeave}=useDiscovery(),[connection,setConnection]=useState(initial),[notice,setNotice]=useState(""),[close,setClose]=useState(false),[profileOpen,setProfileOpen]=useState(false);
+function Starter({connection,setConnection,onRefresh}:{connection:DiscoveryConnectionView;setConnection:(value:DiscoveryConnectionView)=>void;onRefresh:()=>void}){
+  const {userId,me,refreshAccess,leave,setDirty,busy,setBusy,confirmLeave}=useDiscovery(),[notice,setNotice]=useState(""),[close,setClose]=useState(false),[profileOpen,setProfileOpen]=useState(false);
   const connected=connection.state==="ACCEPTED"||(connection.state==="PROMOTED"&&connection.lockedIn===true&&connection.canChat===true);
   const canChat=me.chatEnabled&&(me.canChat??me.canDiscover)&&(connection.canChat??connection.state==="ACCEPTED");
   const sharedSpaceEnded=connection.state==="PROMOTED"&&!!connection.promotedRelationshipId&&me.currentRelationshipId===null&&connection.canChat===false;
@@ -35,7 +39,7 @@ function Starter({initial,onRefresh}:{initial:DiscoveryConnectionView;onRefresh:
   const onBlocked=async()=>{
     setDirty(false);
     setProfileOpen(false);
-    setConnection(value=>({...value,state:value.state==="ACCEPTED"?"CLOSED":value.state,canChat:false,canAccept:false,canShare:false,canChooseBuild:false,canClose:false,readiness:{...value.readiness,mine:false,theirs:false}}));
+    setConnection({...connection,state:connection.state==="ACCEPTED"?"CLOSED":connection.state,canChat:false,canAccept:false,canShare:false,canChooseBuild:false,canClose:false,readiness:{...connection.readiness,mine:false,theirs:false}});
     try{setConnection(await discoveryRequest<DiscoveryConnectionView>(userId,url));refreshAccess();}
     catch(error){setNotice(error instanceof Error?error.message:"Contact blocked. Refresh to load its current history.");}
     onRefresh();

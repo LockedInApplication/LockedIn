@@ -1,4 +1,4 @@
-import type { ConnectionState, NotificationItem } from "./notification.types";
+import type { ConnectionState, NotificationItem, UnreadChat } from "./notification.types";
 import inboxStyles from "./notification.module.scss";
 type Props = {
     items: NotificationItem[];
@@ -10,8 +10,11 @@ type Props = {
     onMore: () => void;
     onOpen: (item: NotificationItem) => void;
     onClose: () => void;
+    unreadChats?: UnreadChat[];
+    onOpenChat?: (item: UnreadChat) => void;
 };
-export default function NotificationPanel({ items, loading, error, connection, nextCursor, onRetry, onMore, onOpen, onClose }: Props) {
+export default function NotificationPanel({ items, loading, error, connection, nextCursor, onRetry, onMore, onOpen, onClose, unreadChats = [], onOpenChat }: Props) {
+    const chats = [...new Map(unreadChats.map(chat => [chat.conversationId,chat])).values()];
     return <section className={inboxStyles.panel} aria-label="Notifications">
     <header className={inboxStyles.panelHeader}>
       <div><span className={inboxStyles.kicker}>A LITTLE HEADS-UP</span><h2>Your updates</h2></div>
@@ -19,8 +22,11 @@ export default function NotificationPanel({ items, loading, error, connection, n
     </header>
     {connection === "reconnecting" ? <p className={inboxStyles.connection} role="status">Reconnecting… Your saved updates are still here.</p> : null}
     {error ? <div className={inboxStyles.connection} role="alert"><p>{error}</p><button type="button" onClick={onRetry}>Try again</button></div> : null}
-    {loading && !items.length ? <p role="status" className={inboxStyles.empty}>Gathering your updates…</p> : null}
-    {!loading && !error && !items.length ? <div className={inboxStyles.empty}><span aria-hidden>✦</span><h3>You’re all caught up</h3><p>We’ll let you know when there’s something new to explore.</p></div> : null}
+    {loading && !items.length && !chats.length ? <p role="status" className={inboxStyles.empty}>Gathering your updates…</p> : null}
+    {!loading && !error && !items.length && !chats.length ? <div className={inboxStyles.empty}><span aria-hidden>✦</span><h3>You’re all caught up</h3><p>We’ll let you know when there’s something new to explore.</p></div> : null}
+    {chats.length ? <ul className={inboxStyles.list} aria-label="Unread conversations">{chats.map(chat => <li key={chat.conversationId} className={`${inboxStyles.item} ${inboxStyles.unread}`}>
+      <span className={inboxStyles.itemIcon} aria-hidden>✦</span><div><h3>New message</h3><button type="button" className={inboxStyles.openActivity} onClick={() => onOpenChat?.(chat)}>Open chat <span aria-hidden>↗</span></button></div>
+    </li>)}</ul> : null}
     <ul className={inboxStyles.list}>{items.map(item => <li key={item.id} className={`${inboxStyles.item} ${!item.readAt && !item.resolvedAt ? inboxStyles.unread : ""}`}>
       <span className={inboxStyles.itemIcon} aria-hidden>{item.resolvedAt ? "✓" : "✦"}</span>
       <div><h3>{item.title}</h3><p>{item.message}</p>

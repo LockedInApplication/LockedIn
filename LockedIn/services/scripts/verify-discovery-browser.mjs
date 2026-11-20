@@ -77,17 +77,13 @@ try{
   async function verifyLegacyDiscovery(){
   if(reviewRuns("onboarding")){
     await pageA.goto(`${base}/journey`);
-    await pageA.getByRole("heading",{name:"How would you like to start?",exact:true}).waitFor();
-    const welcome=pageA.getByRole("heading",{name:"Welcome to LockedIn.",exact:true});
-    const gap=await welcome.evaluate(heading=>{
-      const intro=heading.closest("section");
-      return intro.nextElementSibling.getBoundingClientRect().top-intro.getBoundingClientRect().bottom;
-    });
-    assert(gap>=24,"The onboarding cards should not touch on mobile");
+    await pageA.getByRole("heading",{name:"Your shared space starts here.",exact:true}).waitFor();
     await checkDiscoveryLayout(pageA,{widths:[320,393,430],screenshotDir:artifacts,name:"onboarding"});
-    await pageA.getByRole("button",{name:"Invite someone I know",exact:true}).click();
-    assert(await pageA.getByLabel("Partner's email",{exact:true}).evaluate(element=>element===document.activeElement));
-    await pageA.getByRole("button",{name:"Explore Discovery instead",exact:true}).click();
+    const nav=pageA.getByRole("navigation",{name:"Main navigation",exact:true});
+    await nav.getByRole("link",{name:"Inbox",exact:true}).click();
+    await pageA.getByRole("button",{name:"Invite someone",exact:true}).click();
+    await pageA.getByLabel("Their email",{exact:true}).waitFor();
+    await nav.getByRole("link",{name:"Discover",exact:true}).click();
     await pageA.getByRole("button",{name:"Set up my profile",exact:true}).waitFor();
     await pageA.getByRole("button",{name:"Set up my profile",exact:true}).click();
     await pageA.getByLabel("Public name",{exact:true}).waitFor();
@@ -255,7 +251,7 @@ try{
   const back=pageA.goBack({waitUntil:"commit",timeout:4000}).catch(()=>null);await pageA.getByRole("button",{name:"Keep editing",exact:true}).waitFor({timeout:3000});await pageA.getByRole("button",{name:"Keep editing",exact:true}).click();await back;assert.equal(await pageA.getByRole("textbox",{name:"Your private response",exact:true}).inputValue(),"UNFINISHED RESPONSE");
   await pageA.getByRole("button",{name:"Save privately",exact:true}).click();await pageA.getByText("Saved privately. Nothing was shared.").waitFor();
   if(reviewRuns("reports"))assert.equal((await request(a,"POST",`/api/discovery/connections/${connectionId}/share`,{draftRevision:2,requestId:randomUUID()})).status,200);
-  await pageA.getByRole("button",{name:"Your space",exact:true}).click();await pageA.getByRole("textbox",{name:"Your private reflection",exact:true}).fill("SOLO REFLECTION A");await pageA.getByRole("button",{name:"Save only for me",exact:true}).click();await pageA.getByText("Your saved reflection is private.").waitFor();assert(!JSON.stringify((await request(b,"GET",`/api/discovery/connections/${connectionId}`)).body).includes("SOLO REFLECTION A"));
+  await pageA.getByRole("link",{name:"Profile",exact:true}).click();await pageA.getByRole("button",{name:"Private reflection",exact:true}).click();await pageA.getByRole("textbox",{name:"Your private reflection",exact:true}).fill("SOLO REFLECTION A");await pageA.getByRole("button",{name:"Save only for me",exact:true}).click();await pageA.getByText("Your saved reflection is private.").waitFor();assert(!JSON.stringify((await request(b,"GET",`/api/discovery/connections/${connectionId}`)).body).includes("SOLO REFLECTION A"));
   await checkDiscoveryLayout(pageA,{screenshotDir:artifacts,name:"private-reflection"});
   const dInvite=await request(d,"POST","/api/discovery/connections",{targetProfileId:a.profileId,topicKey:"support",hello:"Existing space remains",requestId:randomUUID()});assert.equal(dInvite.status,200);const dId=dInvite.body.value.id;
   assert.equal((await request(a,"POST",`/api/discovery/connections/${dId}/accept`,{})).status,200);assert.equal((await request(d,"POST",`/api/discovery/connections/${dId}/readiness`,{ready:true,consentVersion:1})).status,409);assert.equal(JSON.stringify(await prisma.relationship.findUnique({where:{id:oldRelationship.id},include:{members:true}})),oldSnapshot);
@@ -399,7 +395,7 @@ try{
     console.log("PASS private mutual matching setup, verified metro, one-sided exclusion, pending safety actions, established chat, and settings removal without location or admission");
   }
   if(legacyConnectionId){
-  const fallback=await pageFor(c,true);await fallback.goto(`${base}/connections`);await fallback.getByRole("button",{name:"Your space",exact:true}).click();await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).fill("FALLBACK UNSAVED");const fallbackBack=fallback.goBack({waitUntil:"commit",timeout:4000}).catch(()=>null);await fallback.getByRole("button",{name:"Keep editing",exact:true}).click();await fallbackBack;assert.equal(await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).inputValue(),"FALLBACK UNSAVED");
+  const fallback=await pageFor(c,true);await fallback.goto(`${base}/profile`);await fallback.getByRole("button",{name:"Private reflection",exact:true}).click();await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).fill("FALLBACK UNSAVED");const fallbackBack=fallback.goBack({waitUntil:"commit",timeout:4000}).catch(()=>null);await fallback.getByRole("button",{name:"Keep editing",exact:true}).click();await fallbackBack;assert.equal(await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).inputValue(),"FALLBACK UNSAVED");
   // Account switch discards mounted state; old text is never installed for B.
   await contexts.get(a.id).context.clearCookies();await contexts.get(a.id).context.addCookies([b.cookie]);await pageA.goto(`${base}/your-space`);await pageA.getByRole("textbox",{name:"Your private reflection",exact:true}).waitFor();assert.equal(await pageA.getByRole("textbox",{name:"Your private reflection",exact:true}).inputValue(),"");
   process.env.DISCOVERY_ENABLED="false";

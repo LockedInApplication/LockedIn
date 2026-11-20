@@ -7,9 +7,9 @@ import type {PrivateReflectionView} from "./discovery.types";
 import styles from "./discovery.module.scss";
 export default function PrivateReflectionPage(){return <DiscoveryShell><Reflection/></DiscoveryShell>;}
 function Reflection(){
-  const {userId}=useDiscovery(),load=useCallback((signal:AbortSignal)=>discoveryRequest<PrivateReflectionView>(userId,"/api/discovery/reflection",{signal}),[userId]);
+  const {userId,leave,busy}=useDiscovery(),load=useCallback((signal:AbortSignal)=>discoveryRequest<PrivateReflectionView>(userId,"/api/discovery/reflection",{signal}),[userId]);
   const resource=useDiscoveryResource(userId,"reflection",load);
-  return <><p className={styles.eyebrow}>Only you · no waiting required</p><h1>A little space for yourself.</h1><p>What would you like to bring to a relationship? This reflection is never published or imported into a starter or shared journey.</p>{resource.error?<p role="alert">{resource.error}<button onClick={resource.retry}>Try again</button></p>:null}{!resource.value&&!resource.error?<p role="status">Loading your reflection…</p>:null}{resource.value?<ReflectionEditor key={`${userId}:${resource.value.revision}`} initial={resource.value} onSaved={resource.install}/>:null}</>;
+  return <><button disabled={busy} onClick={()=>void leave("/profile")}>← Profile</button><p className={styles.eyebrow}>Only you</p><h1>Private reflection</h1><p>What would you like to bring to a relationship? This reflection is never published or shared.</p>{resource.error?<p role="alert">{resource.error}<button onClick={resource.retry}>Try again</button></p>:null}{!resource.value&&!resource.error?<p role="status">Loading your reflection…</p>:null}{resource.value?<ReflectionEditor key={`${userId}:${resource.value.revision}`} initial={resource.value} onSaved={resource.install}/>:null}</>;
 }
 function ReflectionEditor({initial,onSaved}:{initial:PrivateReflectionView;onSaved:(value:PrivateReflectionView)=>void}){
   const {userId,setDirty,busy,setBusy}=useDiscovery(),[text,setText]=useState(initial.text),[notice,setNotice]=useState("");

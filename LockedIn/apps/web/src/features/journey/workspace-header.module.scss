@@ -1,104 +1,106 @@
-.desktop {
-  display: contents;
+.header {
+  gap: 12px;
+  padding-inline: max(16px, calc((100% - min(1280px, 91vw)) / 2));
 }
-.mobile {
-  display: none;
-}
-.actions {
+.header > a { flex-shrink: 0; min-height: 44px; }
+.actions { gap: 12px; position: relative; }
+.tabs { display: flex; align-items: center; gap: 6px; }
+.tabs a {
   position: relative;
-}
-.profileButton {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  color: var(--plum);
+  text-decoration: none;
+  font-weight: 650;
+  font-size: .9rem;
 }
-@media (min-width: 701px) {
-  .header {
-    // Match the centered main content: min(1280px, 91vw).
-    padding-inline: calc((100% - min(1280px, 91vw)) / 2);
+.tabs a:hover, .panel button:hover { background: #f1e9f7; }
+.tabs a[aria-current] { background: #e3eae1; color: #244a3d; }
+.badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  padding-inline: .25rem;
+  border-radius: 1em;
+  background: #4e345e;
+  color: white;
+  font-size: .7rem;
+  line-height: 1;
+}
+.account { position: relative; }
+.avatarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--plum);
+  > span:first-child { width: 40px; height: 40px; font-size: 16px; }
+}
+.tabs a:focus-visible, .avatarButton:focus-visible, .panel button:focus-visible {
+  outline: 3px solid var(--plum);
+  outline-offset: 2px;
+}
+.chevron { font-size: 14px; }
+.panel {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(240px, calc(100vw - 32px));
+  padding: 10px;
+  border: 1px solid var(--plum);
+  border-radius: 14px;
+  background: #fffdf8;
+  box-shadow: 0 10px 30px #20182f21;
+  p { margin: 4px 8px 10px; overflow-wrap: anywhere; font-size: .85rem; color: var(--stone-500); }
+  button {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px;
+    text-align: left;
+    font: inherit;
+    font-weight: 650;
+    background: none;
+    border: 0;
+    border-radius: 8px;
+    color: var(--plum);
+    cursor: pointer;
   }
+}
+@media (min-width: 701px) and (max-width: 850px) {
+  .tabs a { padding-inline: 7px; }
+  .tabs svg { width: 18px; height: 18px; }
 }
 @media (max-width: 700px) {
   .header {
-    min-height: 72px;
-    padding: 10px 16px;
-    gap: 12px;
+    min-height: 64px;
+    padding: 8px 16px;
+    background: #f5f0e7;
+    backdrop-filter: none;
   }
-  .header > a {
-    flex-shrink: 0;
-    min-height: 44px;
-  }
-  .actions {
-    gap: 12px;
-  }
-  .desktop {
-    display: none;
-  }
-  .mobile {
-    display: block;
-    position: relative;
-  }
-  .avatarButton {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .frame { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .tabs {
+    position: fixed;
+    inset: auto 0 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
-    min-width: 48px;
-    min-height: 48px;
-    padding: 0;
-    border: 0;
-    background: none;
-    cursor: pointer;
-    color: var(--plum);
-    > span:first-child {
-      width: 44px;
-      height: 44px;
-      font-size: 18px;
-    }
+    padding: 4px max(8px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    border-top: 1px solid #d1c6cf;
+    background: #fffcf7;
   }
-  .avatarButton:focus-visible,
-  .panel button:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
-  }
-  .chevron {
-    font-size: 14px;
-  }
-  .panel {
-    position: absolute;
-    z-index: 35;
-    top: calc(100% + 12px);
-    right: 0;
-    width: min(270px, calc(100vw - 32px));
-    padding: 10px;
-    border: 2px solid var(--ink);
-    border-radius: 18px;
-    background: #fffdf8;
-    box-shadow: 4px 5px 0 var(--plum);
-    p {
-      margin: 4px 8px 10px;
-      overflow-wrap: anywhere;
-      font-size: 0.85rem;
-      color: var(--stone-500);
-    }
-    button {
-      display: block;
-      width: 100%;
-      min-height: 48px;
-      padding: 12px;
-      text-align: left;
-      font: inherit;
-      font-size: 0.95rem;
-      font-weight: 650;
-      background: none;
-      border: 0;
-      border-radius: 10px;
-      color: var(--plum);
-      cursor: pointer;
-    }
-    button:hover {
-      background: #f1e9f7;
-    }
-  }
+  .tabs a { flex-direction: column; gap: 2px; padding: 4px 0; min-height: 50px; font-size: .75rem; }
+  .badge { position: absolute; top: 0; left: calc(50% + 7px); }
 }

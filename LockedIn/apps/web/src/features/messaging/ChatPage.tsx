@@ -3,8 +3,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/utils/authCLient";
-import WorkspaceHeader from "@/features/journey/components/WorkspaceHeader";
-import { NotificationBell, notificationDestination } from "@/features/notifications";
+import MemberChrome from "@/features/journey/components/MemberChrome";
+import { notificationDestination } from "@/features/notifications";
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import { ConnectedProfileView } from "@/features/discovery/ConnectedProfile";
 import Chat from "./Chat";
@@ -29,7 +29,7 @@ function AccountChat({ userId,name,conversationId }: { userId: string; name: str
   useEffect(() => {
     const controller = new AbortController();
     void messagingRequest<ConversationMetadata>(userId,`/api/messaging/conversations/${conversationId}`,{ signal: controller.signal }).then(value => { if (!controller.signal.aborted) { setMetadata(value); setError(""); } }).catch(e => { if (!controller.signal.aborted) {
-      if (e instanceof JourneyApiError && [401,403,404,409].includes(e.status)) { setMetadata(null); setError("This chat is unavailable. Return to your shared space or try again."); }
+      if (e instanceof JourneyApiError && [401,403,404,409].includes(e.status)) { setMetadata(null); setError("This chat is unavailable. Return to your Inbox or try again."); }
       else setError("Could not refresh chat availability. Your unfinished message has not changed.");
     } });
     return () => controller.abort();
@@ -37,13 +37,12 @@ function AccountChat({ userId,name,conversationId }: { userId: string; name: str
   useChatRefresh({userId,onRefresh:retry});
   const ended = useCallback(() => { setMetadata(m => m ? { ...m,canChat:false,unavailableReason:"UNAVAILABLE" } : m); },[]);
   const signOut = async () => { const result = await authClient.signOut(); if (result.error) { setError("Could not sign out. Try again."); return; } router.replace("/login"); };
-  return <div className={styles.page}>
-    <WorkspaceHeader user={{name}} onHome={() => router.push("/journey")} onProfile={() => router.push("/profile")} onInvitations={() => router.push("/journey?invitations=manage")} onSignOut={signOut}
-      notifications={<NotificationBell userId={userId} onOpen={async item => { router.push(notificationDestination(item)); return true; }} onActivity={retry} onExpired={expired}/>}/>
-    <main className={styles.main}><Link href="/journey">← Shared space</Link>
+  return <MemberChrome className={styles.page} user={{name}} userId={userId} onNavigate={path => router.push(path)} onSignOut={signOut}
+    onOpenNotification={async item => { router.push(notificationDestination(item)); return true; }} onActivity={retry} onExpired={expired}>
+    <main className={styles.main}><Link href="/connections">← Inbox</Link>
       <ChatPageBody userId={userId} metadata={metadata} error={error} retry={retry} onAccessEnded={ended}/>
     </main>
-  </div>;
+  </MemberChrome>;
 }
 export function ChatPageBody({userId,metadata,error,retry,onAccessEnded}:{userId:string;metadata:ConversationMetadata|null;error:string;retry:()=>void;onAccessEnded:()=>void}) {
   return <>{error ? <section role="alert"><p>{error}</p><button onClick={retry}>Try again</button></section> : null}{metadata ? <ConversationContent userId={userId} metadata={metadata} onAccessEnded={onAccessEnded}/> : !error ? <p role="status">Loading conversation…</p> : null}</>;

@@ -2,15 +2,14 @@
 
 import { RoadmapView } from "@/features/roadmap";
 import EmptyWorkspace from "@/features/journey/components/EmptyWorkspace";
-import { ConnectionStage,InvitationReview,InvitationManager,SentInvitations } from "@/features/invitations";
-import WorkspaceHeader from "./components/WorkspaceHeader";
+import { InvitationReview, InvitationManager } from "@/features/invitations";
+import MemberChrome from "./components/MemberChrome";
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import WorkspaceNav from "./components/WorkspaceNav";
-import ProgressRail from "./components/ProgressRail";
 import SharedJourneyPath from "./components/SharedJourneyPath";
 import NextActionCard from "./components/NextActionCard";
 import { useWorkspaceNavigation, navigateWorkspaceUrl } from "./use-workspace-navigation";
-import { NotificationBell, notificationDestination, type NotificationItem } from "@/features/notifications";
+import { notificationDestination, type NotificationItem } from "@/features/notifications";
 import { useQuietRefresh } from "@/features/notifications/use-quiet-refresh";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,20 +23,12 @@ import {
   JourneyOverview,
   journeyRequest,
 } from "@/lib/journey";
-import {
-  getProgress,
-} from "@/features/journey/journey.utils";
 import styles from "@/app/journey/journey.module.scss";
 import guidanceStyles from "./next-action.module.scss";
-import welcomeStyles from "./journey-welcome.module.scss";
 import ConversationSuggestionView from "../conversations/ConversationSuggestionView";
 import conversationStyles from "../conversations/conversation-library.module.scss";
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
 import {useCompactWorkspace,useResponsiveActionRef} from './use-compact-workspace';
-import {discoveryRequest} from "@/features/discovery/discovery.client";
-import {discoveryEntry} from "@/features/discovery/discovery-navigation";
-import {useDiscoveryResource} from "@/features/discovery/use-discovery-resource";
-import type {DiscoveryMe} from "@/features/discovery/discovery.types";
 import RelationshipMessages from "./components/RelationshipMessages";
 
 type Notice = { tone: "success" | "error"; message: string } | null;
@@ -49,17 +40,12 @@ export default function JourneyWorkspace() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusyState] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-  const [inviteLink, setInviteLink] = useState("");
   const [activeView, navigateView, workspaceLocation] = useWorkspaceNavigation();
   const [invitationRevision,setInvitationRevision]=useState(0);
   const dirty=useRef(false);
   const editRevision=useRef(0);
   const busyRef=useRef(false);
   const compactWorkspace=useCompactWorkspace();
-  const discoveryOwner=overview?.user.id??"";
-  const loadDiscovery=useCallback((signal:AbortSignal)=>discoveryRequest<DiscoveryMe>(discoveryOwner,"/api/discovery/me",{signal}),[discoveryOwner]);
-  const discoveryAccess=useDiscoveryResource(discoveryOwner,"me",loadDiscovery);
-  const refreshDiscovery=discoveryAccess.retry;
   const [quietRevision,setQuietRevision]=useState(0);
   const [savedRefreshFailed,setSavedRefreshFailed]=useState(false);
   const refreshAfterAction=useRef(false);
@@ -71,8 +57,8 @@ export default function JourneyWorkspace() {
   const applyQuietly=useCallback((data:JourneyOverview)=>{
     refreshAfterAction.current=false;
     setSavedRefreshFailed(false);
-    setOverview(data);setQuietRevision(value=>value+1);setInvitationRevision(value=>value+1);refreshDiscovery();
-  },[refreshDiscovery]);
+    setOverview(data);setQuietRevision(value=>value+1);setInvitationRevision(value=>value+1);
+  },[]);
   const quietFailure=useCallback((error:unknown)=>{
     if(error instanceof JourneyApiError && error.status===401)onExpired();
     else if(refreshAfterAction.current)setSavedRefreshFailed(true);
@@ -80,7 +66,6 @@ export default function JourneyWorkspace() {
   const {invalidate:requestQuietRefresh,setBlocked:blockQuietRefresh}=useQuietRefresh(readQuietly,applyQuietly,quietFailure);
   const setDirty=useCallback((value:boolean)=>{if(value)editRevision.current++;dirty.current=value;blockQuietRefresh(value||busyRef.current);},[blockQuietRefresh]);
   const setBusy=useCallback((value:boolean)=>{busyRef.current=value;blockQuietRefresh(value||dirty.current);setBusyState(value);},[blockQuietRefresh]);
-  const explore=discoveryEntry(discoveryAccess.value);
   const actionRef=useResponsiveActionRef();
   useJourneyHistoryGuard(dirty,setDirty);
   const targetQuery=new URL(workspaceLocation,"http://localhost").searchParams;
@@ -159,35 +144,8 @@ export default function JourneyWorkspace() {
     [requestQuietRefresh,setBusy,setDirty],
   );
 
-  async function handleInvite(email: string) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      const result = await journeyRequest<{ token: string }>("/api/journey/invites", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
-      const link = `${window.location.origin}/journey?invite=${result.token}`;
-      setDirty(false);
-      onInvitationUpdate();
-      setInviteLink(link);
-      await navigator.clipboard?.writeText(link).catch(() => undefined);
-      setNotice({
-        tone: "success",
-        message: "Invitation created. The private link is ready to share with your partner.",
-      });
-    } catch (error) {
-      setNotice({
-        tone: "error",
-        message: error instanceof Error ? error.message : "Unable to create the invitation.",
-      });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function signOut() {
-    if(!confirmDiscard())return;
+    if(busy || !confirmDiscard())return;
     await authClient.signOut();
     router.push("/login");
   }
@@ -210,7 +168,6 @@ export default function JourneyWorkspace() {
     );
   }
 
-  const progress = getProgress(overview);
   async function openNotification(item:NotificationItem) {
     if(busy || !confirmDiscard())return false;
     if(item.view==="discovery" || item.view==="messages") {
@@ -239,8 +196,6 @@ export default function JourneyWorkspace() {
     return true;
   }
   const isHome = Boolean(overview.relationship && activeView === "home");
-  const canChooseStart = !overview.relationship && !!discoveryAccess.value?.canDiscover && !discoveryAccess.value.hasHistory;
-  const showWelcome = canChooseStart && !overview.pendingInvites.length;
   const focusCurrentAction = () => {
     const element = document.getElementById("current-action");
     element?.scrollIntoView({
@@ -267,45 +222,46 @@ export default function JourneyWorkspace() {
     );
   };
 
-  const header=<WorkspaceHeader onSignOut={signOut}
-    onExplore={explore?()=>{if(!busy&&confirmDiscard())router.push(explore.path);}:undefined} exploreLabel={explore?.label}
-    user={overview.user} onProfile={()=>{if(confirmDiscard())router.push("/profile");}}
-    onInvitations={invitationManagerOpen?undefined:()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey?invitations=manage");}}
-    notifications={<NotificationBell key={overview.user.id} userId={overview.user.id} onOpen={openNotification} onActivity={requestQuietRefresh} onExpired={onExpired} onStatusChange={onInvitationUpdate}/>}/>;
+  const chrome = { className: styles.page, userId: overview.user.id, user: overview.user, onSignOut: signOut,
+    invitationView: invitationManagerOpen || !!invitationReference,
+    onNavigate: (path: string) => { if (!busy && confirmDiscard()) {
+      if (path === "/journey") navigateWorkspaceUrl(path);
+      else router.push(path);
+    } },
+    onOpenNotification: openNotification, onActivity: requestQuietRefresh, onExpired, onStatusChange: onInvitationUpdate };
   const mobileHome=isHome&&compactWorkspace;
   const nextAction=<NextActionCard cardRef={actionRef} overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction}/>;
 
-  if(invitationManagerOpen)return <div className={styles.page}>{header}<main className={styles.main}>
-    <InvitationManager key={overview.user.id} revision={invitationRevision} onClose={()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey");}}/>
-  </main></div>;
+  if(invitationManagerOpen)return <MemberChrome key={overview.user.id} {...chrome}><main className={styles.main}>
+    <InvitationManager key={overview.user.id} revision={invitationRevision} onClose={()=>router.push("/connections")}/>
+  </main></MemberChrome>;
 
   // Review is exclusive: no journey forms can acquire unsaved input behind it.
-  if(invitationReference)return <div className={styles.page}>
-    {header}
+  if(invitationReference)return <MemberChrome key={overview.user.id} {...chrome}>
     <main className={styles.main}>
       <InvitationReview key={`${invitationBy}:${invitationReference}`} reference={invitationReference} by={invitationBy}
-        onClose={()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey");}}
+        onClose={()=>router.push("/connections")}
         onHandled={async decision=>{
           const fresh=await loadOverview();
           if(!fresh)throw new Error("Your choice was saved, but your space could not reload. Please refresh.");
-          navigateWorkspaceUrl("/journey");
-          setNotice({tone:"success",message:decision==="accept"?"You are connected. Your answers remain private until the sharing steps you choose.":decision==="block"?"Invitation block saved. Only you can remove it in Invitations. Existing shared spaces are unchanged.":"Invitation declined. No shared space was created."});
+          if (decision === "accept") {
+            navigateWorkspaceUrl("/journey");
+            setNotice({tone:"success",message:"You’re connected. Find your chat in Inbox, and your new shared space here in Together."});
+          } else router.push("/connections");
         }}/>
     </main>
-  </div>;
+  </MemberChrome>;
 
   return (
-    <div className={styles.page}>
-      {header}
-
+    <MemberChrome key={overview.user.id} {...chrome}>
       <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${mobileHome?guidanceStyles.mobileHome:''}`} onChangeCapture={()=>setDirty(true)}>
         {mobileHome?<><h1 className={guidanceStyles.greeting}>Hi, {overview.user.name?.trim().split(/\s+/)[0]||'there'}.</h1>{nextAction}</>:null}
-        {activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""} ${showWelcome ? welcomeStyles.intro : ""}`}>
+        {overview.relationship && activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
           {!mobileHome?<div>
-            <span className={styles.eyebrow}>{showWelcome ? "GETTING STARTED" : "YOUR SHARED ROADMAP"}</span>
-            <h1>{showWelcome ? "Welcome to LockedIn." : isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>
+            <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
+            <h1>{isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>
             <p>
-              {showWelcome ? "Start with someone you know or explore at your own pace." : isHome ? "Pick up where you left off, one step at a time." : "Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept."}
+              {isHome ? "Pick up where you left off, one step at a time." : "Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept."}
             </p>
           </div>:null}
           <div className={styles.memberCard}>
@@ -320,8 +276,6 @@ export default function JourneyWorkspace() {
 
         {suggestionReference?null:overview.relationship ? (
           <WorkspaceNav active={activeView} onChange={setActiveView} compact={activeView==='conversations'} />
-        ) : !showWelcome ? (
-          <ProgressRail current={progress} />
         ) : null}
 
         {overview.relationship ? <RelationshipMessages messaging={overview.messaging}/> : null}
@@ -339,19 +293,13 @@ export default function JourneyWorkspace() {
             onBrowse={()=>{if(confirmDiscard())navigateWorkspaceUrl('/journey?view=conversations');}}
             onAccept={async()=>{await runAction(async()=>{const result=await journeyRequest<{started:boolean}>(`/api/journey/notifications/${encodeURIComponent(suggestionReference)}/conversation-suggestion`,{method:'POST'});if(result.started)navigateWorkspaceUrl('/journey');},'Your conversation choice was saved.');}}/>
         ) : !overview.relationship ? (
-          <>
-          <ConnectionStage
-            key={overview.user.id}
-            pendingInvites={overview.pendingInvites}
-            inviteLink={inviteLink}
-            busy={busy}
-            onInvite={handleInvite}
-            onExplore={canChooseStart ? () => { if (!busy && confirmDiscard()) router.push("/discover"); } : undefined}
-            onReview={id=>{if(confirmDiscard())navigateWorkspaceUrl(`/journey?invitation=${encodeURIComponent(id)}`);}}
-          />
-          <SentInvitations key={overview.user.id} revision={invitationRevision}
-            onViewAll={()=>{if(confirmDiscard())navigateWorkspaceUrl("/journey?invitations=manage");}}/>
-          </>
+          <section className={styles.primaryCard}>
+            <span className={styles.eyebrow}>TOGETHER</span>
+            <h1>Your shared space starts here.</h1>
+            <p>This is where you’ll find your shared roadmap and check-ins once you both choose to build a space together. Your chats stay in Inbox.</p>
+            <button type="button" onClick={()=>router.push("/connections")}>Go to Inbox</button>{" "}
+            <button type="button" onClick={()=>router.push("/discover")}>Meet someone new</button>
+          </section>
         ) : activeView === "conversations" ? (
           <ConversationLibrary
             packs={overview.conversationPacks}
@@ -438,6 +386,6 @@ export default function JourneyWorkspace() {
           </section>
         ) : null}
       </main>
-    </div>
+    </MemberChrome>
   );
 }

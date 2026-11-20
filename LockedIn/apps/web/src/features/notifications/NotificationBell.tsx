@@ -1,21 +1,16 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useNotifications } from "./use-notifications";
+import type { useNotifications } from "./use-notifications";
 import NotificationPanel from "./NotificationPanel";
 import type { NotificationItem } from "./notification.types";
 import inboxStyles from "./notification.module.scss";
-export default function NotificationBell({ userId, onOpen, onActivity, onExpired,onStatusChange,onChatSync }: {
-    userId: string;
+export default function NotificationBell({ notifications, onOpen }: {
+    notifications: ReturnType<typeof useNotifications>;
     onOpen: (item: NotificationItem) => Promise<boolean>;
-    onActivity: () => void;
-    onExpired: () => void;
-    onStatusChange?:(activity?:boolean)=>void;
-    onChatSync?:()=>void;
 }) {
     const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement>(null);
     const button = useRef<HTMLButtonElement>(null);
-    const notifications = useNotifications(userId, onActivity, onExpired,onStatusChange,onChatSync);
     const unread = notifications.unreadCount + notifications.unreadChatCount + notifications.unreadDateCount;
     const close = () => { setOpen(false); button.current?.focus(); };
     useEffect(() => {

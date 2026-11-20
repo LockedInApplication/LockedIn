@@ -20,6 +20,7 @@ import { conversationAllowsChat } from "../messaging/messaging-access.service.js
 import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
 import { closeDiscoveryConversationUnderLock } from "../messaging/messaging-lifecycle.service.js";
 import { dateSpotsAvailable } from "../date-spots/date-spots-config.js";
+import { datePlansEnabled } from "../date-plans/date-plan-config.js";
 
 const week = 7 * 86400000;
 const missing = { ok: false as const, status: 404, error: "This connection is not available." };
@@ -49,10 +50,12 @@ export async function connectionValue(tx: Prisma.TransactionClient, row: Discove
   const eligible = await discoveryPairEligible(tx, row);
   const lockedIn = await isDiscoveryLockedIn(tx, row.userLowId) || await isDiscoveryLockedIn(tx, row.userHighId);
   const dateSpots = dateSpotsAvailable();
-  const chat = sharedMessagingEnabled() || dateSpots ? await tx.chatConversation.findUnique({ where: { discoveryConnectionId: row.id } }) : null;
+  const datePlans = datePlansEnabled();
+  const chat = sharedMessagingEnabled() || dateSpots || datePlans ? await tx.chatConversation.findUnique({ where: { discoveryConnectionId: row.id } }) : null;
   const canChat = chat?.accessMode === "RELATIONSHIP" ? await conversationAllowsChat(tx, chat) : eligible && await connectionAllowsChat(tx, row);
   return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligible && !lockedIn, linkedMembership, !occupied), canChat,
-    ...(dateSpots && chat && canChat ? { dateSpotsConversationId: chat.id } : {}) } };
+    ...(dateSpots && chat && canChat ? { dateSpotsConversationId: chat.id } : {}),
+    ...(datePlans && chat && canChat ? { datePlansConversationId: chat.id } : {}) } };
 }
 type ConnectionResult = DiscoveryResult<ReturnType<typeof discoveryConnectionView>>;
 

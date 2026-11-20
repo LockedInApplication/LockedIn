@@ -10,11 +10,17 @@ import styles from "./discovery.module.scss";
 import DiscoverySafetyActions from "./DiscoverySafetyActions";
 import DiscoveryDistancePreferences, { type DistancePreferences } from "./DiscoveryDistancePreferences";
 import DiscoveryLocationCheck from "./DiscoveryLocationCheck";
+import DiscoveryMatchPreferences from "./DiscoveryMatchPreferences";
 export default function DiscoverPage(){return <DiscoveryShell><DiscoveryBrowse/></DiscoveryShell>;}
 function DiscoveryBrowse(){
-  const {userId,emailVerified,me,leave}=useDiscovery(),[area,setArea]=useState(""),[cursors,setCursors]=useState<(string|null)[]>([null]),[selected,setSelected]=useState<string|null>(null);
+  const {userId,emailVerified,me,leave}=useDiscovery(),[area,setArea]=useState(""),[selected,setSelected]=useState<string|null>(null);
+  const matchingScope=me.matching?.revision??"",setupRequired=!!me.matching&&!me.matching.complete;
+  const [paging,setPaging]=useState<{scope:string;cursors:(string|null)[]}>({scope:matchingScope,cursors:[null]});
+  const cursors=paging.scope===matchingScope?paging.cursors:[null];
+  const [showMatching,setShowMatching]=useState(false);
   const [showDistance,setShowDistance]=useState(false),[searchVersion,setSearchVersion]=useState(0),[confirmation,setConfirmation]=useState("");
   const [checkedLocation,setCheckedLocation]=useState<DiscoveryLocation|null>(null),[expiredCheck,setExpiredCheck]=useState<string|null>(null);
+  const [openedAt]=useState(Date.now);
   const cityPicker=useRef<HTMLSelectElement>(null);
   const loadOwn=useCallback((signal:AbortSignal)=>discoveryRequest<OwnDiscoveryProfile>(userId,"/api/discovery/profile",{signal}),[userId]);
   const own=useDiscoveryResource(userId,"profile",loadOwn);
@@ -25,25 +31,27 @@ function DiscoveryBrowse(){
     const timer=setTimeout(()=>setExpiredCheck(expiresAt),Math.max(0,Date.parse(expiresAt)-Date.now()));
     return()=>clearTimeout(timer);
   },[expiresAt]);
-  const searchArea=location?(expiresAt&&expiresAt!==expiredCheck?location.areaId??"":""):area||own.value?.published?.areaId||"";
+  const searchArea=location?(expiresAt&&expiresAt!==expiredCheck&&Date.parse(expiresAt)>openedAt?location.areaId??"":""):area||own.value?.published?.areaId||"";
   const before=cursors.at(-1);
-  const canBrowse=!!(me.canDiscover&&own.value?.published&&!own.value.paused&&!own.value.suspended);
+  const canBrowse=!!(me.canDiscover&&own.value?.published&&!own.value.paused&&!own.value.suspended&&!setupRequired&&!showMatching);
   const loadDistance=useCallback((signal:AbortSignal)=>discoveryRequest<DistancePreferences>(userId,"/api/discovery/distance-preferences",{signal}),[userId]);
   const distance=useDiscoveryResource(userId,canBrowse&&!location?"distance-preferences":"",loadDistance);
   const preference=location?null:distance.value?.preference;
   const query=preference?"mode=distance":`areaId=${encodeURIComponent(searchArea)}`;
   const load=useCallback((signal:AbortSignal)=>discoveryRequest<PageOf<PublicDiscoveryProfile>>(userId,`/api/discovery/candidates?${query}${before?`&before=${encodeURIComponent(before)}`:""}`,{signal}),[userId,query,before]);
-  const candidates=useDiscoveryResource(userId,canBrowse&&(location||distance.value)&&searchArea?`${query}:${before??""}:${searchVersion}`:"",load);
+  const candidates=useDiscoveryResource(userId,canBrowse&&(location||distance.value)&&searchArea?`${query}:${before??""}:${searchVersion}${matchingScope?`:${matchingScope}`:""}`:"",load);
   const chosen=candidates.value?.items.find(item=>item.id===selected)??candidates.value?.items[0];
   const homeCity=me.areas.find(city=>city.id===own.value?.published?.areaId)?.label;
   const selectedCity=me.areas.find(city=>city.id===searchArea)?.label;
-  const restart=()=>{setCursors([null]);setSelected(null);};
+  const restart=()=>{setPaging({scope:matchingScope,cursors:[null]});setSelected(null);};
   const onChecked=(value:DiscoveryLocation)=>{setCheckedLocation(value);restart();setSearchVersion(version=>version+1);setConfirmation(value.areaId?"Location confirmed.":"You’re outside an area where Discovery is open right now.");};
   const saveDistance=(value:DistancePreferences)=>{distance.install(value);restart();setSearchVersion(version=>version+1);setShowDistance(false);setConfirmation(value.preference?"Distance preferences saved.":"Search location removed. You’re browsing by city.");};
   const refreshSearch=()=>{restart();distance.retry();setSearchVersion(version=>version+1);};
   if(!me.canDiscover)return <section className={styles.card}><h1>Discovery is not available.</h1>{emailVerified===false?<><p>Verify your email to use Discovery. Availability also depends on account eligibility and the current rollout. Your existing shared space is still available.</p><button className={styles.primary} onClick={()=>void leave("/verify-email?pending=1")}>Verify email</button></>:null}<p>Your existing shared space and starter history are unchanged.</p><button onClick={()=>void leave("/connections")}>Starter history</button></section>;
   if(own.error)return <section role="alert"><p>{own.error}</p><button onClick={own.retry}>Try again</button></section>;
   if(!own.value)return <p role="status">Loading your profile…</p>;
+  if(showMatching&&me.matching)return <><h1>Discovery matching</h1><DiscoveryMatchPreferences onCancel={()=>setShowMatching(false)} onSaved={value=>{setShowMatching(false);restart();setSearchVersion(version=>version+1);setConfirmation(value.settings?"Matching preferences saved.":"");}}/></>;
+  if(setupRequired&&!own.value.paused&&!own.value.suspended)return <section className={styles.card}><p className={styles.eyebrow}>Private matching</p><h1>Meet people who are open to meeting you.</h1><p>Set who you’re open to meeting. We’ll only show people when your preferences fit both ways.</p><div className={styles.actions}><button className={styles.primary} onClick={()=>setShowMatching(true)}>Set up matching</button><button onClick={()=>void leave("/connections")}>Go to Connections</button></div></section>;
   if(!canBrowse)return <section className={styles.card}><p className={styles.eyebrow}>Optional discovery</p><h1>{own.value.paused?"Your visibility is paused.":"Meet someone to build with."}</h1><p>Choose exactly what to publish before exploring. Your shared space stays separate.</p><button className={styles.primary} onClick={()=>void leave("/discover/profile")}>{own.value.paused?"Manage visibility":"Set up my profile"}</button></section>;
   if(location&&!searchArea)return <section className={styles.card}><p className={styles.eyebrow}>Local Discovery</p><h1>Confirm your current area.</h1><p>See people in the same supported area. We check only when you ask and keep only your metro area and when the check expires. Existing chats and direct invites still work without it.</p>{location.areaId?<p role="status">Your location check expired. Confirm again to keep browsing.</p>:confirmation?<p role="status">{confirmation}</p>:null}<div className={styles.actions}><DiscoveryLocationCheck userId={userId} confirmed={false} onChecked={onChecked}/><button onClick={()=>void leave("/connections")}>Go to Connections</button></div></section>;
   const canSetDistance=!location&&distance.value&&(distance.value.configured||preference);
@@ -51,6 +59,7 @@ function DiscoveryBrowse(){
     <div className={`${styles.actions} ${styles.browseActions}`}>{!location&&distance.value&&!preference?<label className={styles.areaPicker}>Explore an area<select ref={cityPicker} aria-label="Explore an area" className={styles.field} value={searchArea} onChange={event=>{setArea(event.target.value);restart();}}>{me.areas.map(area=><option key={area.id} value={area.id}>{area.label}</option>)}</select></label>:null}
       {location?<DiscoveryLocationCheck userId={userId} confirmed onChecked={onChecked}/>:null}
       {canSetDistance?<button type="button" aria-expanded={showDistance} onClick={()=>setShowDistance(value=>!value)}>Distance preferences</button>:null}
+      {me.matching?<button type="button" onClick={()=>setShowMatching(true)}>Matching preferences</button>:null}
       <button onClick={()=>void leave("/discover/profile")}>My discovery profile</button>
     </div>
     {confirmation?<p role="status">{confirmation}</p>:null}
@@ -62,8 +71,8 @@ function DiscoveryBrowse(){
     <details><summary>How recommendations work</summary><p>{location?"We show eligible people with a recent location check in the same metro area.":preference?"We show eligible people within both people’s distance ranges. Results aren’t ordered by nearest distance or a compatibility score.":"We show eligible people in the city you pick. Shared interests, relationship goals and recent use of Discovery can influence the order in smaller pools."} We don’t show when someone was last active.</p></details>
     {candidates.error?<div role="alert" className={`${styles.notice} ${styles.error}`}><p>{candidates.error}</p><button onClick={refreshSearch}>{before?"Back to first results":"Try again"}</button></div>:null}
     {!candidates.value&&!candidates.error&&!distance.error?<p role="status">Loading opted-in people…</p>:null}
-    {chosen?<CandidateDetail key={`${searchVersion}:${chosen.id}`} profileId={chosen.id}/>:null}
-    {candidates.value?<>{candidates.value.items.length?<DiscoveryCandidateList candidates={candidates.value.items} selectedId={chosen?.id??null} onSelect={setSelected}/>:<section className={styles.card}><h2>{candidates.value.nextCursor?"No profiles to show on this page":before?"No more people on this page":preference?"No profiles fit your distance preferences right now.":selectedCity?`No profiles to show in ${selectedCity} yet`:"No profiles to show here yet"}</h2><p>{candidates.value.nextCursor?"Choose More people to continue searching within your preferences.":"We don’t expand your search automatically."}</p>{candidates.value.nextCursor||location?null:preference?<button onClick={()=>setShowDistance(true)}>Change distance</button>:me.areas.length>1?<button onClick={()=>cityPicker.current?.focus()}>Explore another area</button>:null}</section>}<div className={styles.actions}>{cursors.length>1?<button onClick={()=>{setCursors(value=>value.slice(0,-1));setSelected(null);}}>Previous people</button>:null}{candidates.value.nextCursor?<button onClick={()=>{setCursors(value=>[...value,candidates.value!.nextCursor]);setSelected(null);}}>More people</button>:null}</div></>:null}
+    {chosen?<CandidateDetail key={`${searchVersion}:${matchingScope}:${chosen.id}`} profileId={chosen.id}/>:null}
+    {candidates.value?<>{candidates.value.items.length?<DiscoveryCandidateList candidates={candidates.value.items} selectedId={chosen?.id??null} onSelect={setSelected}/>:<section className={styles.card}><h2>{candidates.value.nextCursor?"No profiles to show on this page":before?"No more people on this page":preference?"No profiles fit your distance preferences right now.":selectedCity?`No profiles to show in ${selectedCity} yet`:"No profiles to show here yet"}</h2><p>{candidates.value.nextCursor?"Choose More people to continue searching within your preferences.":"We don’t expand your search automatically."}</p>{candidates.value.nextCursor||location?null:preference?<button onClick={()=>setShowDistance(true)}>Change distance</button>:me.areas.length>1?<button onClick={()=>cityPicker.current?.focus()}>Explore another area</button>:null}</section>}<div className={styles.actions}>{cursors.length>1?<button onClick={()=>{setPaging({scope:matchingScope,cursors:cursors.slice(0,-1)});setSelected(null);}}>Previous people</button>:null}{candidates.value.nextCursor?<button onClick={()=>{setPaging({scope:matchingScope,cursors:[...cursors,candidates.value!.nextCursor]});setSelected(null);}}>More people</button>:null}</div></>:null}
   </>;
 }
 function CandidateDetail({profileId}:{profileId:string}){

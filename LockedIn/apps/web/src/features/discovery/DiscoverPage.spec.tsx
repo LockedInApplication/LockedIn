@@ -3,17 +3,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, expect, it, vi } from "vitest";
 import DiscoverPage from "./DiscoverPage";
 import type { DiscoveryLocation } from "./discovery.types";
-const state = vi.hoisted(() => ({ emailVerified: false as boolean | null, canDiscover: false, nextCursor: null as string | null, location: undefined as DiscoveryLocation | undefined, resourceKeys: [] as string[] }));
-vi.mock("./DiscoveryShell", () => ({ default: ({ children }: { children: ReactNode }) => children, useDiscovery: () => ({ userId: "a", emailVerified: state.emailVerified, me: { canDiscover: state.canDiscover, hasHistory: false, location: state.location, areas: [{ id: "pilot-city", label: "Pilot city" }, { id: "new-york", label: "New York" }] }, leave: async () => true }) }));
+const state = vi.hoisted(() => ({ emailVerified: false as boolean | null, canDiscover: false, nextCursor: null as string | null, location: undefined as DiscoveryLocation | undefined, matching: undefined as {required:true;complete:boolean}|undefined, published: true, paused: false, resourceKeys: [] as string[] }));
+vi.mock("./DiscoveryShell", () => ({ default: ({ children }: { children: ReactNode }) => children, useDiscovery: () => ({ userId: "a", emailVerified: state.emailVerified, me: { canDiscover: state.canDiscover, hasHistory: false, location: state.location, matching: state.matching, areas: [{ id: "pilot-city", label: "Pilot city" }, { id: "new-york", label: "New York" }] }, leave: async () => true }) }));
 vi.mock("./use-discovery-resource", () => ({ useDiscoveryResource: (_userId: string, key: string) => {
   state.resourceKeys.push(key);
   return {
-  value: !state.canDiscover || !key ? undefined : key === "profile" ? { published: { areaId: "pilot-city" }, paused: false, suspended: false }
+  value: !state.canDiscover || !key ? undefined : key === "profile" ? { published: state.published ? { areaId: "pilot-city" } : null, paused: state.paused, suspended: false }
     : key === "distance-preferences" ? { configured: true, preference: { maxDistanceMiles: 25, areaLabel: "Pilot city" } }
     : { items: [], nextCursor: state.nextCursor },
   retry: () => {}, error: null,
 }; } }));
-beforeEach(() => { state.emailVerified = false; state.canDiscover = false; state.nextCursor = null; state.location = undefined; state.resourceKeys.length = 0; });
+beforeEach(() => { state.emailVerified = false; state.canDiscover = false; state.nextCursor = null; state.location = undefined; state.matching = undefined; state.published = true; state.paused = false; state.resourceKeys.length = 0; });
 it("explains email verification on unavailable Discovery without promising access or hiding history", () => {
   state.emailVerified = false;
   const html = renderToStaticMarkup(<DiscoverPage />);
@@ -62,4 +62,29 @@ it("browses the confirmed metro instead of the account’s selected profile city
   expect(html).not.toContain("Explore an area");
   expect(html).not.toContain(">Distance preferences");
   expect(state.resourceKeys.filter(Boolean)).toEqual(["profile", "areaId=new-york::0"]);
+});
+
+it.each([true, false])("offers matching setup without starting a search (published: %s)", published => {
+  state.canDiscover = true;
+  state.published = published;
+  state.matching = { required: true, complete: false };
+  state.location = { required: true, areaId: null, expiresAt: null };
+  const html = renderToStaticMarkup(<DiscoverPage />);
+  expect(html).toContain(">Set up matching</button>");
+  expect(html).not.toContain("Confirm my location");
+  expect(html).not.toContain("Set up my profile");
+  expect(state.resourceKeys.filter(Boolean)).toEqual(["profile"]);
+});
+
+it("still requires publication, active visibility, and a current location after completing matching", () => {
+  state.canDiscover = true;
+  state.matching = { required: true, complete: true };
+  state.published = false;
+  expect(renderToStaticMarkup(<DiscoverPage />)).toContain("Set up my profile");
+  state.published = true;
+  state.paused = true;
+  expect(renderToStaticMarkup(<DiscoverPage />)).toContain("Your visibility is paused.");
+  state.paused = false;
+  state.location = { required: true, areaId: "new-york", expiresAt: new Date(Date.now() - 1000).toISOString() };
+  expect(renderToStaticMarkup(<DiscoverPage />)).toContain("Your location check expired.");
 });

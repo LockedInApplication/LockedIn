@@ -20,6 +20,15 @@ it('does not offer partner-profile viewing or chat for closed connections',()=>{
   expect(html).not.toContain('aria-label="Discovery chat"');
   expect(html).not.toContain('aria-label="View Sam’s profile"');
 });
+it('preserves decline and report for a received invitation that cannot be accepted',()=>{
+  state.connection={...state.connection,state:'PENDING',inviter:'partner',canChat:false,canAccept:false};
+  const html=renderToStaticMarkup(<ConnectionPage connectionId="connection"/>);
+  expect(html).toContain('Decline quietly');
+  expect(html).toContain('Safety &amp; contact controls');
+  expect(html).toContain('This invitation can’t be accepted right now.');
+  expect(html).not.toContain('Accept and chat');
+  expect(html).not.toContain('Your invitation has been sent.');
+});
 it('explains an ended shared space without offering chat or navigation to it',()=>{
   state.currentRelationshipId=null;
   state.connection={...state.connection,state:'PROMOTED',lockedIn:true,promotedRelationshipId:'relationship',canChat:false};

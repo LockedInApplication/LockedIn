@@ -16,6 +16,7 @@ const webPort=await freePort(), apiPort=await freePort(), base=`http://127.0.0.1
 Object.assign(process.env,{APP_URL:base,BETTER_AUTH_URL:`http://127.0.0.1:${apiPort}`,SHARED_MESSAGING_ENABLED:"true",DISCOVERY_CHAT_ENABLED:"true",DISCOVERY_ENABLED:"true",DISCOVERY_ACCESS_MODE:"pilot",DISCOVERY_MODERATOR_USER_IDS:"shared-browser-moderator",DISCOVERY_AREAS_JSON:'[{"id":"pilot-city","label":"Pilot city"}]',RESEND_API_KEY:"",RESEND_FROM_EMAIL:""});
 const sampleArea = { areaId:"date-test",label:"Synthetic meetup area",latitude:40.75,longitude:-73.97 };
 const sampleVenue = { id:"date-test-gallery",name:"Date Test Gallery",address:"1 Public Way",categories:["entertainment.culture.gallery"],latitude:40.746,longitude:-73.955 };
+process.env.DISCOVERY_MATCH_PREFERENCES_REQUIRED="true";
 Object.assign(process.env,{DATE_PLANS_ENABLED:"true",DATE_SPOTS_ENABLED:"true",DATE_SPOTS_GEOAPIFY_API_KEY:"local-fixture-only",DATE_SPOT_AREAS_JSON:JSON.stringify([sampleArea])});
 const services=path.resolve(path.dirname(fileURLToPath(import.meta.url)),".."), web=path.resolve(services,"../apps/web");
 const artifacts=mkdtempSync(path.join(tmpdir(),"lockedin-shared-chat-browser-")), log=openSync(path.join(artifacts,"preview.log"),"a");
@@ -391,6 +392,7 @@ try {
   const pe=await pageFor(e);await pe.goto(`${base}/journey`);await pe.getByRole("link",{name:"Messages →",exact:true}).click();await pe.getByRole("textbox",{name:"Message",exact:true}).waitFor();assert(pe.url().endsWith(oldRel.id));
   // Discovery keeps its original transcript and source policy after promotion.
   for(const u of [c,d]) {const draft={publicName:`Discovery ${u.label}`,avatarPreset:"leaf",bio:"Synthetic public introduction",intention:"LONG_TERM",interests:["Reading"],pace:null,areaId:"pilot-city"};const p=await prisma.discoveryProfile.create({data:{ownerId:u.id,draft:{revision:1,profile:draft},publishedSnapshot:draft,publishedAreaId:"pilot-city",publishedIntention:"LONG_TERM",publicationVersion:1,publicationConsentVersion:1,publicationConsentedAt:new Date(),adultAttestedAt:new Date(),publishedAt:new Date()}});u.profileId=p.id;}
+  for(const user of [c,d])assert.equal((await request(user,"PUT","/api/discovery/match-preferences",{birthDate:"1995-04-02",gender:"ANOTHER_GENDER",meetGenders:"all",minAge:18,maxAge:null})).status,200);
   const sent=await request(c,"POST","/api/discovery/connections",{targetProfileId:d.profileId,topicKey:"support",hello:"Discovery opening",requestId:randomUUID()});assert.equal(sent.status,200);const source=sent.body.value.id;
   await pc.goto(`${base}/connections/${source}`);await pc.getByText("Waiting for acceptance",{exact:true}).waitFor();
   assert.equal((await request(d,"POST",`/api/discovery/connections/${source}/accept`,{})).status,200);

@@ -15,10 +15,14 @@ function view(settings: DiscoveryMatchPreferences | null, required = discoveryMa
   const { birthDate, gender, meetAllGenders, meetGenders, minAge, maxAge, revision } = settings;
   return { required, settings: { birthDate: utcDate(birthDate), gender, meetGenders: meetAllGenders ? "all" as const : meetGenders, minAge, maxAge, revision } };
 }
-type MatchPreferencesResult = DiscoveryResult<ReturnType<typeof view>>;
+type MatchPreferencesResult = DiscoveryResult<ReturnType<typeof view> & { requiresBirthDateConfirmation?: true }>;
 
 export async function getMatchPreferences(ownerId: string): Promise<MatchPreferencesResult> {
-  return { ok: true, value: view(await prisma.discoveryMatchPreferences.findUnique({ where: { ownerId } })) };
+  const settings = await prisma.discoveryMatchPreferences.findUnique({ where: { ownerId } });
+  const value = view(settings);
+  if (settings || !value.required) return { ok: true, value };
+  const guard = await prisma.discoveryMatchPreferenceGuard.findUnique({ where: { ownerId }, select: { reenrollUntil: true } });
+  return { ok: true, value: { ...value, ...(guard?.reenrollUntil && guard.reenrollUntil > new Date() ? { requiresBirthDateConfirmation: true as const } : {}) } };
 }
 
 export async function saveMatchPreferences(ownerId: string, input: MatchPreferencesInput): Promise<MatchPreferencesResult> {

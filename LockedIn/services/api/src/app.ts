@@ -15,7 +15,7 @@ import { registerDatePlanRoutes } from "./features/date-plans/date-plan-routes.j
 import type { PlaceProvider } from "./features/date-spots/date-spots-provider.js";
 
 function serializeRequestForLog(request: FastifyRequest) {
-  const path = request.url.split("?", 1)[0];
+  const path = request.url.split("?", 1)[0] ?? request.url;
   const authPath = path === "/api/auth" || path.startsWith("/api/auth/");
   const matchPreferencesPath = path.startsWith("/api/discovery/match-preferences");
   const version = request.headers["accept-version"];
@@ -26,10 +26,10 @@ function serializeRequestForLog(request: FastifyRequest) {
     url: authPath
       ? path.replace(/^\/api\/auth\/reset-password\/.*/, "/api/auth/reset-password/:token")
       : matchPreferencesPath ? path : request.url,
-    version: Array.isArray(version) ? version[0] : version,
+    ...(typeof version === "string" ? { version } : version?.[0] ? { version: version[0] } : {}),
     host: request.host,
     remoteAddress: request.ip,
-    remotePort: request.socket?.remotePort,
+    ...(request.socket?.remotePort === undefined ? {} : { remotePort: request.socket.remotePort }),
   };
 }
 

@@ -18,6 +18,7 @@ import { registerDiscoveryDistanceRoutes } from "./discovery-distance.routes.js"
 import { getDiscoveryGeocoder, type DiscoveryGeocoder } from "./discovery-geocoding.js";
 import { registerDiscoveryLocationRoutes } from "./discovery-location.routes.js";
 import { registerMatchPreferencesRoutes } from "./discovery-match-preferences.routes.js";
+import { discoveryMatchPreferencesRequired } from "./discovery-match-preferences.service.js";
 import { currentDiscoveryLocation, discoveryLocationRequired, noLocation } from "./discovery-location.js";
 import { prisma } from "../../lib/prisma.js";
 
@@ -45,6 +46,9 @@ export async function registerDiscoveryRoutes(server: FastifyInstance, options: 
       const check = profile && await currentDiscoveryLocation(prisma, profile.id);
       location = check ? { required: true, areaId: check.areaId, expiresAt: check.expiresAt.toISOString() } : noLocation;
     }
-    return { ownerId: user.id, value: { ...capabilities, ...(location ? { location } : {}), chatEnabled: discoveryChatEnabled(), photos: photoCapabilities(), areas: capabilities.canManageProfile ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
+    const matchingRequired = discoveryMatchPreferencesRequired();
+    const matchingSettings = await prisma.discoveryMatchPreferences.findUnique({ where: { ownerId: user.id }, select: { revision: true } });
+    const matching = matchingRequired ? { required: true as const, complete: !!matchingSettings, ...(matchingSettings ? { revision: matchingSettings.revision } : {}) } : undefined;
+    return { ownerId: user.id, value: { ...capabilities, ...(location ? { location } : {}), ...(matching ? { matching } : matchingSettings ? { hasSavedMatchingSettings: true as const } : {}), chatEnabled: discoveryChatEnabled(), photos: photoCapabilities(), areas: capabilities.canManageProfile ? getDiscoveryConfig().areas : [], topics: capabilities.canDiscover ? discoveryTopics : [] } };
   });
 }

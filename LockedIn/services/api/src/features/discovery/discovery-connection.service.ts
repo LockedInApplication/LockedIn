@@ -21,6 +21,8 @@ import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
 import { closeDiscoveryConversationUnderLock } from "../messaging/messaging-lifecycle.service.js";
 import { dateSpotsAvailable } from "../date-spots/date-spots-config.js";
 import { datePlansEnabled } from "../date-plans/date-plan-config.js";
+import { requireMutualDiscoveryFit } from "./discovery-match-eligibility.js";
+import { discoveryMatchPreferencesRequired } from "./discovery-match-preferences.service.js";
 
 const week = 7 * 86400000;
 const missing = { ok: false as const, status: 404, error: "This connection is not available." };
@@ -38,6 +40,15 @@ export async function discoveryPairEligible(tx: Prisma.TransactionClient, row: D
   }
   return true;
 }
+async function pendingDiscoverySearchEligible(tx: Prisma.TransactionClient, row: DiscoveryConnection, now: Date) {
+  if (!discoveryMatchPreferencesRequired()) return true;
+  if (!await requireMutualDiscoveryFit(tx, row.userLowId, row.userHighId, now)) return false;
+  const profiles = await tx.discoveryProfile.findMany({ where: { ownerId: { in: [row.userLowId, row.userHighId] } } });
+  const [left, right] = profiles;
+  return !!left && !!right && hasDiscoveryPublication(left) && hasDiscoveryPublication(right)
+    && intentionsMatch(left.publishedIntention, right.publishedIntention)
+    && await discoverySearchPairEligible(tx, left.id, right.id);
+}
 export async function connectionValue(tx: Prisma.TransactionClient, row: DiscoveryConnection, actorId: string) {
   const stored = await tx.discoveryConnection.findUniqueOrThrow({ where: { id: row.id }, include: { sharedResponses: { orderBy: [{ sharedAt: "asc" }, { id: "asc" }] } } });
   const connection = { ...stored, drafts: [] };
@@ -49,11 +60,12 @@ export async function connectionValue(tx: Prisma.TransactionClient, row: Discove
   const occupied = await tx.relationship.findFirst({ where: { status: "ACTIVE", members: { some: { userId: { in: [row.userLowId, row.userHighId] } } } }, select: { id: true } });
   const eligible = await discoveryPairEligible(tx, row);
   const lockedIn = await isDiscoveryLockedIn(tx, row.userLowId) || await isDiscoveryLockedIn(tx, row.userHighId);
+  const eligibleForAction = eligible && !lockedIn && (row.state !== "PENDING" || row.inviterId === actorId || await pendingDiscoverySearchEligible(tx, row, new Date()));
   const dateSpots = dateSpotsAvailable();
   const datePlans = datePlansEnabled();
   const chat = sharedMessagingEnabled() || dateSpots || datePlans ? await tx.chatConversation.findUnique({ where: { discoveryConnectionId: row.id } }) : null;
   const canChat = chat?.accessMode === "RELATIONSHIP" ? await conversationAllowsChat(tx, chat) : eligible && await connectionAllowsChat(tx, row);
-  return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligible && !lockedIn, linkedMembership, !occupied), canChat,
+  return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligibleForAction, linkedMembership, !occupied), canChat,
     ...(dateSpots && chat && canChat ? { dateSpotsConversationId: chat.id } : {}),
     ...(datePlans && chat && canChat ? { datePlansConversationId: chat.id } : {}) } };
 }
@@ -82,6 +94,8 @@ export async function sendDiscoveryInvitation(actorId: string, input: z.infer<ty
     if (await isDiscoveryLockedIn(tx, target.ownerId)) return missing;
     const partner = await tx.discoveryProfile.findUnique({ where: { id: data.targetProfileId } });
     if (!partner || !await isDiscoveryAdmitted(tx, target.ownerId, partner) || !hasDiscoveryPublication(partner) || !intentionsMatch(actor.publishedIntention, partner.publishedIntention) || await invitationBlockBetween(tx, actorId, target.ownerId) || !await discoverySearchPairEligible(tx, actor.id, partner.id)) return missing;
+    const now = new Date();
+    if (!await requireMutualDiscoveryFit(tx, actorId, target.ownerId, now)) return missing;
     const overlap = await samePairRelationshipConflict(tx, actorId, target.ownerId); if (overlap) return overlap;
     let replyQuestion = profilePrompt;
     if (data.topicKey === profilePromptKey) {
@@ -102,7 +116,6 @@ export async function sendDiscoveryInvitation(actorId: string, input: z.infer<ty
       }
     }
     const userLowId = ordered[0]!.id, userHighId = ordered[1]!.id;
-    const now = new Date();
     // Expire only this locked pair. Other expired rows are excluded from capacity
     // without acquiring third-account locks or mutating their history.
     await tx.discoveryConnection.updateMany({ where: { userLowId, userHighId, state: "PENDING", expiresAt: { lte: now } }, data: { state: "EXPIRED", lowReadinessVersion: null, highReadinessVersion: null } });
@@ -148,6 +161,7 @@ export async function withDiscoveryConnection(actorId: string, id: string, actio
 }
 async function transition(actorId: string, id: string, action: "accept" | "decline" | "withdraw" | "close"): Promise<ConnectionResult> {
   return withDiscoveryConnection(actorId, id, async (tx, row, notify) => {
+    const now = new Date();
     if (action === "close" && row.state === "PROMOTED" && row.lockedInAt) {
       if (!row.closedAt) await tx.discoveryConnection.update({ where: { id }, data: { closedAt: new Date() } });
       await closeDiscoveryConversationUnderLock(tx,id);
@@ -164,14 +178,14 @@ async function transition(actorId: string, id: string, action: "accept" | "decli
         return unavailable;
       }
       if (action === "accept" && (!await discoveryPairEligible(tx, row) || await isDiscoveryLockedIn(tx, row.userLowId) || await isDiscoveryLockedIn(tx, row.userHighId))) return unavailable;
-      if (action === "accept" && discoveryLocationRequired()) {
+      if (action === "accept" && discoveryLocationRequired() && !discoveryMatchPreferencesRequired()) {
         const profiles = await tx.discoveryProfile.findMany({ where: { ownerId: { in: [row.userLowId, row.userHighId] } }, select: { id: true } });
         if (profiles.length !== 2 || !await discoverySearchPairEligible(tx, profiles[0]!.id, profiles[1]!.id)) return { ok: false as const, status: 403, error: "This invitation is not available for local Discovery right now." };
       }
+      if (action === "accept" && !await pendingDiscoverySearchEligible(tx, row, now)) return unavailable;
     }
     if (action === "withdraw" && (row.inviterId !== actorId || row.state !== "PENDING")) return unavailable;
     const quota = await consumeDiscoveryQuota(tx, actorId, "mutation"); if (!quota.ok) return quota;
-    const now = new Date();
     const updated = await tx.discoveryConnection.update({ where: { id }, data: action === "accept" ? { state: "ACCEPTED", acceptedAt: now } : { state: action === "decline" ? "DECLINED" : action === "withdraw" ? "WITHDRAWN" : "CLOSED", ...(action === "decline" ? { declinedAt: now } : { closedAt: now }), lowReadinessVersion: null, highReadinessVersion: null, consentVersion: { increment: 1 } } });
     if (action === "accept") await ensureDiscoveryConversation(tx, id);
     if (action === "close") await closeDiscoveryConversationUnderLock(tx,id);

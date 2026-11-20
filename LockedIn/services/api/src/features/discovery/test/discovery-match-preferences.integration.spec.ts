@@ -43,6 +43,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private Discovery
     expect(await db.discoveryProfile.findUnique({ where: { ownerId: owner.id } })).toBeNull();
     expect((await f.request(other, "GET", path)).json().value.settings).toBeNull();
     expect((await f.request(other, "GET", `${path}?ownerId=${owner.id}`)).statusCode).toBe(400);
+    expect((await app.inject({ method: "GET", url: path, headers: { cookie: owner.cookie } })).json().value.settings).toMatchObject(input);
     expect((await app.inject({ method: "GET", url: path, headers: { cookie: other.cookie, origin: "http://localhost:3001", "x-discovery-owner": owner.id } })).statusCode).toBe(409);
     expect((await app.inject({ method: "PUT", url: path, payload: input, headers: { cookie: owner.cookie, origin: "https://example.test", "x-discovery-owner": owner.id } })).statusCode).toBe(403);
     expect(logs).not.toContain(input.birthDate);
@@ -62,6 +63,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private Discovery
     expect(edit.json().value.settings.revision).not.toBe(initial.json().value.settings.revision);
     expect((await save({ confirmBirthDateChange: true })).statusCode).toBe(409);
     expect((await clear()).json().value.settings).toBeNull();
+    expect((await f.request(owner, "GET", path)).json().value).toEqual({ required: true, settings: null, requiresBirthDateConfirmation: true });
     expect(await db.discoveryMatchPreferences.findUnique({ where: { ownerId: owner.id } })).toBeNull();
     const guard = await db.discoveryMatchPreferenceGuard.findUniqueOrThrow({ where: { ownerId: owner.id } });
     expect(Object.keys(guard).sort()).toEqual(["correctionUntil", "ownerId", "reenrollUntil"]);

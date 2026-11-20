@@ -15,11 +15,15 @@ import { compareDiscoveryRank, compatibleIntentions, dayMs, rankCandidate, recom
 import { currentDiscoveryLocation, discoveryLocationRequired, discoverySearchPairEligible, locationRequired } from "./discovery-location.js";
 import { distanceCandidateIds, distanceSearchBatchSize } from "./discovery-distance-search.js";
 import { activeLockIn, isDiscoveryLockedIn } from './discovery-lock-in.js';
+import { mutualMatchWhere, readDiscoveryMatchSettings } from "./discovery-match-eligibility.js";
+import { discoveryMatchPreferencesRequired } from "./discovery-match-preferences.service.js";
+import { utcDate } from "./discovery-match-preferences.dates.js";
 type VisibleProfile = Omit<PublicDiscoveryProfile, "photoIds"> & { photos?: PhotoCard[]; recommendation?: ReturnType<typeof recommendation> };
 
 const denied = { ok: false as const, status: 403, error: "Discovery is not available for this account." };
 const invalid = { ok: false as const, status: 400, error: "Please check your discovery search." };
 const missing = { ok: false as const, status: 404, error: "This profile is not available." };
+const setupRequired = { ok: false as const, status: 403, error: "Complete your private matching setup before using Discovery." };
 const rankedLimit = 300;
 const cursorSchema = z.strictObject({ scope: z.string(), day: z.number().int().nonnegative(), id: z.string().uuid(), rank: z.strictObject({ score: z.number().int().min(0).max(18), rotation: z.string().regex(/^[0-9a-f]{16}$/) }).optional() });
 type CandidateCursor = z.infer<typeof cursorSchema>;
@@ -28,12 +32,12 @@ function discoverySecret() {
   if (!secret) throw new Error("Discovery cursors require the configured authentication secret");
   return secret;
 }
-const scopeFor = (actor: string, area: string, version: number) => {
+const scopeFor = (actor: string, area: string, version: number, matchingRevision: string | null) => {
   const config = getDiscoveryConfig();
   return createHmac("sha256", discoverySecret()).update(JSON.stringify([
     "discovery-scope-v3", actor, area, version, config.accessMode,
     config.accessMode === "pilot" ? [...config.pilotUserIds].sort() : [],
-    config.areas.map(item => item.id).sort(),
+    config.areas.map(item => item.id).sort(), matchingRevision,
   ])).digest("base64url");
 };
 const cursorKey = () => createHmac("sha256", discoverySecret()).update("discovery-cursor-v2").digest();
@@ -58,7 +62,7 @@ function decodeCursor(value: string, scope: string, day: number): CandidateCurso
 }
 
 // The database predicates exclude unsafe pairs before the page is selected.
-export function visibleWhere(actorId: string, intention: string): Prisma.DiscoveryProfileWhereInput {
+export function visibleWhere(actorId: string, intention: string, matching?: Prisma.DiscoveryMatchPreferencesWhereInput): Prisma.DiscoveryProfileWhereInput {
   const config = getDiscoveryConfig();
   const live: Prisma.DiscoveryConnectionWhereInput = { OR: [{ state: "ACCEPTED" }, { state: "PENDING", expiresAt: { gt: new Date() } }, { state: "PROMOTED", relationship: { status: "ACTIVE" } }] };
   return {
@@ -66,6 +70,7 @@ export function visibleWhere(actorId: string, intention: string): Prisma.Discove
     adultAttestedAt: { not: null }, publicationConsentedAt: { not: null }, publicationConsentVersion: 1,
     publishedAt: { not: null }, publicationVersion: { gt: 0 }, publishedIntention: { in: compatibleIntentions(intention) },
     owner: { emailVerified: true,
+      ...(matching ? { discoveryMatchPreferences: { is: matching } } : {}),
       AND: [{ discoveryConnectionsLow: { none: activeLockIn } }, { discoveryConnectionsHigh: { none: activeLockIn } }],
       invitationBlocksCreated: { none: { blockedId: actorId } }, invitationBlocksReceived: { none: { blockerId: actorId } },
       discoveryConnectionsLow: { none: { userHighId: actorId, ...live } },
@@ -78,10 +83,13 @@ function safeProfile(row: Parameters<typeof hasDiscoveryPublication>[0]) {
   return hasDiscoveryPublication(row) ? publicDiscoveryProfile(row.id, row.publishedSnapshot) : null;
 }
 
-export async function findVisibleDiscoveryProfile(tx: Prisma.TransactionClient, actorId: string, profileId: string) {
+export async function findVisibleDiscoveryProfile(tx: Prisma.TransactionClient, actorId: string, profileId: string, purpose: "browse" | "safety-report" = "browse") {
   const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
   if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || await isDiscoveryLockedIn(tx, actorId)) return null;
-  const profile = await tx.discoveryProfile.findFirst({ where: { ...visibleWhere(actorId, actor.publishedIntention!), id: profileId, publishedAreaId: { in: getDiscoveryConfig().areas.map(area => area.id) } } });
+  const matching = purpose === "browse" && discoveryMatchPreferencesRequired();
+  const settings = matching ? await readDiscoveryMatchSettings(tx, actorId) : null;
+  if (matching && !settings) return null;
+  const profile = await tx.discoveryProfile.findFirst({ where: { ...visibleWhere(actorId, actor.publishedIntention!, settings ? mutualMatchWhere(settings, utcDate(new Date())) : undefined), id: profileId, publishedAreaId: { in: getDiscoveryConfig().areas.map(area => area.id) } } });
   return hasDiscoveryPublication(profile) && await discoverySearchPairEligible(tx, actor.id, profile.id) ? profile : null;
 }
 
@@ -92,6 +100,10 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
     const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId }, include: { distancePreference: true } });
     if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || await isDiscoveryLockedIn(tx, actorId)) return denied;
     const now = new Date();
+    const matchingRequired = discoveryMatchPreferencesRequired();
+    const settings = matchingRequired ? await readDiscoveryMatchSettings(tx, actorId) : null;
+    if (matchingRequired && !settings) return setupRequired;
+    const matching = settings ? { viewer: settings, today: utcDate(now) } : undefined;
     const gate = discoveryLocationRequired();
     const location = gate ? await currentDiscoveryLocation(tx, actor.id, now) : null;
     if (gate && (!location || areaId !== location.areaId)) return locationRequired;
@@ -100,8 +112,8 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
       return { ok: false, status: 409, error: "Your Discovery preferences changed. Refresh your search." };
     }
     const intention = actor.publishedIntention!;
-    const today = Math.floor(Date.now() / dayMs);
-    const scope = scopeFor(actorId, location ? `local:${location.areaId}:${location.expiresAt.toISOString()}` : distance ? `distance:${distance.revision}` : `city:${areaId}`, actor.publicationVersion);
+    const today = Math.floor(now.getTime() / dayMs);
+    const scope = scopeFor(actorId, location ? `local:${location.areaId}:${location.expiresAt.toISOString()}` : distance ? `distance:${distance.revision}` : `city:${areaId}`, actor.publicationVersion, settings?.revision ?? null);
     const before = cursor === undefined ? undefined : decodeCursor(cursor, scope, today);
     if (before === null) return invalid;
     const quota = await consumeDiscoveryQuota(tx, actorId, "candidates"); if (!quota.ok) return quota;
@@ -110,7 +122,7 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
       await tx.discoveryProfile.update({ where: { id: actor.id }, data: { lastDiscoveryActiveOn: activity, updatedAt: actor.updatedAt } });
     }
     const config = getDiscoveryConfig();
-    const where: Prisma.DiscoveryProfileWhereInput = { ...visibleWhere(actorId, intention), ...(location
+    const where: Prisma.DiscoveryProfileWhereInput = { ...visibleWhere(actorId, intention, matching ? mutualMatchWhere(matching.viewer, matching.today) : undefined), ...(location
       ? { locationCheck: { is: { areaId: location.areaId, expiresAt: { gt: now } } }, publishedAreaId: { in: config.areas.map(area => area.id) } }
       : distance
       ? { publishedAreaId: { in: config.areas.map(area => area.id) } }
@@ -148,7 +160,7 @@ export async function listDiscoveryCandidates(actorId: string, areaId: string | 
     // partial page can carry a continuation after a run of corrupt snapshots.
     while (items.length < 13 && (!distance || batches < 8)) {
       batches++;
-      const ids = distance ? await distanceCandidateIds(tx, actorId, distance, intention, config, scanBefore) : null;
+      const ids = distance ? await distanceCandidateIds(tx, actorId, distance, intention, config, scanBefore, matching) : null;
       if (ids && !ids.length) { exhausted = true; break; }
       const profiles = await tx.discoveryProfile.findMany({ where: ids ? { AND: [where, { id: { in: ids } }] } : scanBefore ? { AND: [where, { id: { lt: scanBefore } }] } : where, orderBy: { id: "desc" }, take: distanceSearchBatchSize, select: publicSelect });
       if (!ids && !profiles.length) { exhausted = true; break; }
@@ -173,12 +185,16 @@ export async function getVisibleDiscoveryProfile(actorId: string, profileId: str
   return prisma.$transaction(async tx => {
     await lockInvitationUsers(tx, [actorId]);
     const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
-    if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || (discoveryLocationRequired() && await isDiscoveryLockedIn(tx, actorId))) return denied;
+    const matchingRequired = discoveryMatchPreferencesRequired();
+    if (!await isDiscoveryAdmitted(tx, actorId, actor) || !hasDiscoveryPublication(actor) || ((matchingRequired || discoveryLocationRequired()) && await isDiscoveryLockedIn(tx, actorId))) return denied;
+    const now = new Date();
+    const settings = matchingRequired ? await readDiscoveryMatchSettings(tx, actorId) : null;
+    if (matchingRequired && !settings) return missing;
     const gate = discoveryLocationRequired();
     const location = gate ? await currentDiscoveryLocation(tx, actor.id) : null;
     if (gate && !location) return locationRequired;
     const quota = await consumeDiscoveryQuota(tx, actorId, "candidates"); if (!quota.ok) return quota;
-    const profile = await tx.discoveryProfile.findFirst({ where: { ...visibleWhere(actorId, actor.publishedIntention!), id: profileId, publishedAreaId: { in: getDiscoveryConfig().areas.map(area => area.id) } }, select: publicSelect });
+    const profile = await tx.discoveryProfile.findFirst({ where: { ...visibleWhere(actorId, actor.publishedIntention!, settings ? mutualMatchWhere(settings, utcDate(now)) : undefined), id: profileId, publishedAreaId: { in: getDiscoveryConfig().areas.map(area => area.id) } }, select: publicSelect });
     const safe = safeProfile(profile);
     if (!safe || !await discoverySearchPairEligible(tx, actor.id, safe.id)) return missing;
     const viewer = publicDiscoveryProfile(actor.id, actor.publishedSnapshot)!;

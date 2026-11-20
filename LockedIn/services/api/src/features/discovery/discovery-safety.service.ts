@@ -70,7 +70,7 @@ async function reportSource(tx: Prisma.TransactionClient, actorId: string, sourc
     if (!config.enabled || !config.configured) return null;
     const photo = await tx.discoveryPhoto.findFirst({ where: { id: sourceId, deletedAt: null, revokedAt: null, destroyedAt: null, state: "APPROVED", scanCompleted: true, assetId: { not: null } } });
     if (!photo || !photo.assetVersion) return null;
-    const profile = await findVisibleDiscoveryProfile(tx, actorId, photo.profileId) ?? await findConnectedProfile(tx, actorId, photo.profileId);
+    const profile = await findVisibleDiscoveryProfile(tx, actorId, photo.profileId, "safety-report") ?? await findConnectedProfile(tx, actorId, photo.profileId);
     const publicFields = profile && publicDiscoveryProfile(profile.id, profile.publishedSnapshot);
     if (!profile || !publicFields?.photoIds?.includes(photo.id)) return null;
     return { targetId: profile.ownerId, label: publicFields.publicName, connectionId: null, photoId: photo.id, photoVersion: photo.assetVersion, evidence: { publicName: publicFields.publicName, publicationVersion: profile.publicationVersion } };

@@ -2,13 +2,14 @@ import { Prisma } from "../../../generated/prisma/client.js";
 import type { DiscoveryConfig } from "./discovery.types.js";
 import type { DiscoveryDistanceRange } from "./discovery-distance.js";
 import { compatibleIntentions } from "./discovery-matching.js";
+import { distanceMutualMatchPredicate, type DiscoveryMatchSearch } from "./discovery-match-eligibility.js";
 
 export const distanceSearchBatchSize = 32;
 
 // Keep these eligibility predicates in parity with visibleWhere. The caller
 // rechecks Prisma eligibility and validates snapshots before returning a card.
 // Only this bounded ID batch crosses from PostgreSQL into application memory.
-export function distanceCandidateQuery(actorId: string, viewer: DiscoveryDistanceRange, intention: string, config: DiscoveryConfig, before?: string) {
+export function distanceCandidateQuery(actorId: string, viewer: DiscoveryDistanceRange, intention: string, config: DiscoveryConfig, before?: string, matching?: DiscoveryMatchSearch) {
   const earthMiles = 3958.7613;
   const delta = viewer.maxDistanceMiles / earthMiles * 180 / Math.PI;
   const intentions = compatibleIntentions(intention);
@@ -20,6 +21,7 @@ export function distanceCandidateQuery(actorId: string, viewer: DiscoveryDistanc
     JOIN "DiscoveryProfile" p ON p."id" = d."profileId"
     JOIN "user" u ON u."id" = p."ownerId"
     WHERE ${admission}
+      ${matching ? Prisma.sql`AND ${distanceMutualMatchPredicate(matching)}` : Prisma.empty}
       AND p."ownerId" <> ${actorId} AND u."emailVerified" = TRUE
       AND p."pausedAt" IS NULL AND p."suspendedAt" IS NULL
       AND p."adultAttestedAt" IS NOT NULL AND p."publicationConsentedAt" IS NOT NULL
@@ -45,7 +47,7 @@ export function distanceCandidateQuery(actorId: string, viewer: DiscoveryDistanc
     ORDER BY p."id" DESC LIMIT ${distanceSearchBatchSize}`;
 }
 
-export async function distanceCandidateIds(tx: Prisma.TransactionClient, actorId: string, viewer: DiscoveryDistanceRange, intention: string, config: DiscoveryConfig, before?: string) {
-  const rows = await tx.$queryRaw<{ profileId: string }[]>(distanceCandidateQuery(actorId, viewer, intention, config, before));
+export async function distanceCandidateIds(tx: Prisma.TransactionClient, actorId: string, viewer: DiscoveryDistanceRange, intention: string, config: DiscoveryConfig, before?: string, matching?: DiscoveryMatchSearch) {
+  const rows = await tx.$queryRaw<{ profileId: string }[]>(distanceCandidateQuery(actorId, viewer, intention, config, before, matching));
   return rows.map(row => row.profileId);
 }

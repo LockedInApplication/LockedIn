@@ -29,7 +29,7 @@ async function ready(){for(let tries=0;tries<150;tries++){if(preview.exitCode!==
 try{
   ({prisma}=await import("../api/src/lib/prisma.ts"));
   const people=[];
-  for(const key of ["a","b","c","d","existing-partner","moderator","e","f"]){
+  for(const key of ["a","b","c","d","existing-partner","moderator","e","f","match-a","match-b","match-c","match-d"]){
     const id=`browser-${key}`,token=`browser-token-${randomUUID()}`;
     await prisma.user.create({data:{id,email:`${id}@example.test`,name:`PRIVATE ${key}`,emailVerified:true}});
     await prisma.session.create({data:{id:randomUUID(),userId:id,token,expiresAt:new Date(Date.now()+3600000)}});
@@ -37,7 +37,7 @@ try{
     people.push({id,cookie:{name:"better-auth.session_token",value,url:base},publicName:`Public ${key.toUpperCase()}`});
   }
   process.env.DISCOVERY_PILOT_USER_IDS=people.map(person=>person.id).join(",");
-  const [a,b,c,d,existingPartner,moderator,e,f]=people;
+  const [a,b,c,d,existingPartner,moderator,e,f,matchA,matchB,matchC,matchD]=people;
   const oldRelationship=await prisma.relationship.create({data:{members:{create:[{userId:d.id},{userId:existingPartner.id}]}}});
   const oldSnapshot=JSON.stringify(await prisma.relationship.findUnique({where:{id:oldRelationship.id},include:{members:true}}));
   const jpeg=await (await import("sharp")).default({create:{width:120,height:80,channels:3,background:"#74a989"}}).jpeg().toBuffer();
@@ -74,6 +74,7 @@ try{
     const saved=await request(person,"PUT","/api/discovery/profile",{publicName:person.publicName,avatarPreset:"leaf",bio:`A public introduction from ${person.publicName}`,intention:"LONG_TERM",interests:["Reading"],pace:null,areaId,revision:0,...(person===b&&reviewRuns("matching")?{promptAnswer:"Make time and follow through."}:{})});assert.equal(saved.status,200);
     const result=await request(person,"POST","/api/discovery/profile/publish",{draftRevision:1,adultAttested:true});assert.equal(result.status,200);person.profileId=result.body.value.published.id;
   }
+  async function verifyLegacyDiscovery(){
   if(reviewRuns("onboarding")){
     await pageA.goto(`${base}/journey`);
     await pageA.getByRole("heading",{name:"How would you like to start?",exact:true}).waitFor();
@@ -323,15 +324,91 @@ try{
     await pageF.getByLabel("Explore an area").waitFor();
     console.log("PASS private location selection, mutual distance limits, cross-city Discovery and removing the saved location");
   }
+  return connectionId;
+  }
+  const legacyConnectionId=reviewCase==="mutual-preferences"?null:await verifyLegacyDiscovery();
+  if(reviewRuns("mutual-preferences")){
+    const geometry={latitude:40.75,longitude:-73.99,accuracy:30};
+    Object.assign(process.env,{DISCOVERY_MATCH_PREFERENCES_REQUIRED:"true",DISCOVERY_LOCATION_REQUIRED:"true",DISCOVERY_CHAT_ENABLED:"true",DISCOVERY_VERIFIED_MARKETS_JSON:JSON.stringify([{areaId:"pilot-city",latitude:40.75,longitude:-73.99,radiusKm:35}])});
+    const [pa,pb,pc,pd]=await Promise.all([matchA,matchB,matchC,matchD].map(person=>pageFor(person)));
+    for(const [person,page] of [[matchA,pa],[matchB,pb],[matchC,pc],[matchD,pd]]){
+      await publish(person);
+      await page.context().setGeolocation(geometry);
+      await page.context().grantPermissions(["geolocation"],{origin:base});
+    }
+    async function configure(page,gender,meet){
+      await page.goto(`${base}/discover`);
+      await page.getByRole("button",{name:"Set up matching",exact:true}).click();
+      await page.getByLabel("Date of birth",{exact:true}).fill("1996-02-09");
+      await page.getByLabel("How you identify for matching",{exact:true}).selectOption(gender);
+      const open=page.getByRole("checkbox",{name:meet,exact:true}),age=page.getByRole("radio",{name:"Any adult age",exact:true});
+      assert.equal(await page.getByRole("checkbox",{name:"Open to all genders",exact:true}).isChecked(),false);
+      assert.equal(await age.isChecked(),false);
+      assert.equal(await page.getByRole("button",{name:"Save and continue",exact:true}).isDisabled(),true);
+      await open.check();await age.check();
+      await page.getByRole("button",{name:"Save and continue",exact:true}).click();
+      await page.getByRole("button",{name:"Confirm my location",exact:true}).click();
+      await page.getByRole("button",{name:"Update my location",exact:true}).waitFor();
+    }
+    await configure(pa,"NONBINARY","Open to all genders");
+    await configure(pb,"WOMAN","Nonbinary");
+    await configure(pc,"WOMAN","Man");
+    await configure(pd,"WOMAN","Nonbinary");
+    await pa.reload();
+    assert.equal(await pa.getByText(matchC.publicName,{exact:true}).count(),0);
+    const list=await request(matchA,"GET","/api/discovery/candidates?areaId=pilot-city");
+    assert.deepEqual(list.body.value.items.map(row=>row.id).sort(),[matchB.profileId,matchD.profileId].sort());
+    assert.equal(await pa.getByText("1996-02-09",{exact:true}).count(),0);
+    const send=async target=>{
+      const reply=await request(matchA,"POST","/api/discovery/connections",{targetProfileId:target.profileId,topicKey:"support",hello:"Browser mutual fit",requestId:randomUUID()});
+      assert.equal(reply.status,200);return reply.body.value.id;
+    };
+    const accepted=await send(matchB), pending=await send(matchD);
+    assert.equal((await request(matchB,"POST",`/api/discovery/connections/${accepted}/accept`,{})).status,200);
+    await pa.getByRole("button",{name:"Matching preferences",exact:true}).click();
+    await pa.getByRole("button",{name:"Remove matching setup",exact:true}).click();
+    await pa.getByRole("alertdialog").getByRole("button",{name:"Remove setup",exact:true}).click();
+    await pa.getByRole("button",{name:"Set up matching",exact:true}).waitFor();
+    await pd.goto(`${base}/connections/${pending}`);
+    await pd.getByText("This invitation can’t be accepted right now.",{exact:true}).waitFor();
+    assert.equal(await pd.getByRole("button",{name:"Accept and chat",exact:true}).count(),0);
+    await pd.getByText("Safety & contact controls",{exact:true}).click();
+    await pd.getByRole("button",{name:"Send report",exact:true}).waitFor();
+    await pd.getByRole("button",{name:"Decline quietly",exact:true}).click();
+    await pa.goto(`${base}/connections/${accepted}`);
+    await pa.getByRole("textbox",{name:"Message",exact:true}).fill("Matching removal doesn’t stop chat.");
+    await pa.getByRole("button",{name:"Send message",exact:true}).click();
+    await pa.getByText("Matching removal doesn’t stop chat.",{exact:true}).waitFor();
+    await prisma.discoveryLocationCheck.update({where:{profileId:matchB.profileId},data:{expiresAt:new Date(0)}});
+    await pb.goto(`${base}/discover`);
+    await pb.getByRole("button",{name:"Confirm my location",exact:true}).waitFor();
+    await pb.getByRole("button",{name:"Matching preferences",exact:true}).click();
+    await pb.getByRole("button",{name:"Remove matching setup",exact:true}).waitFor();
+    // A dismissed pilot member with no connections must still have a visible
+    // route to control saved personal data — no location or Discovery access.
+    process.env.DISCOVERY_PILOT_USER_IDS=process.env.DISCOVERY_PILOT_USER_IDS.split(",").filter(id=>id!==matchC.id).join(",");
+    await pc.goto(`${base}/profile`);
+    await pc.getByRole("button",{name:"Manage matching preferences",exact:true}).click();
+    await pc.waitForURL(`${base}/discover/matching`);
+    assert.equal(await pc.getByLabel("Date of birth",{exact:true}).count(),0);
+    await pc.getByRole("button",{name:"Remove matching setup",exact:true}).click();
+    await pc.getByRole("alertdialog").getByRole("button",{name:"Remove setup",exact:true}).click();
+    await pc.getByText("Matching setup removed. Existing chats and direct invites are unchanged.",{exact:true}).waitFor();
+    assert.equal((await request(matchC,"GET","/api/discovery/match-preferences")).body.value.settings,null);
+    process.env.DISCOVERY_MATCH_PREFERENCES_REQUIRED="false";process.env.DISCOVERY_LOCATION_REQUIRED="false";
+    console.log("PASS private mutual matching setup, verified metro, one-sided exclusion, pending safety actions, established chat, and settings removal without location or admission");
+  }
+  if(legacyConnectionId){
   const fallback=await pageFor(c,true);await fallback.goto(`${base}/connections`);await fallback.getByRole("button",{name:"Your space",exact:true}).click();await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).fill("FALLBACK UNSAVED");const fallbackBack=fallback.goBack({waitUntil:"commit",timeout:4000}).catch(()=>null);await fallback.getByRole("button",{name:"Keep editing",exact:true}).click();await fallbackBack;assert.equal(await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).inputValue(),"FALLBACK UNSAVED");
   // Account switch discards mounted state; old text is never installed for B.
   await contexts.get(a.id).context.clearCookies();await contexts.get(a.id).context.addCookies([b.cookie]);await pageA.goto(`${base}/your-space`);await pageA.getByRole("textbox",{name:"Your private reflection",exact:true}).waitFor();assert.equal(await pageA.getByRole("textbox",{name:"Your private reflection",exact:true}).inputValue(),"");
   process.env.DISCOVERY_ENABLED="false";
-  assert.equal((await request(b,"GET","/api/discovery/candidates?areaId=pilot-city")).status,403);assert.equal((await request(b,"GET",`/api/discovery/connections/${connectionId}`)).status,200);assert.equal((await request(a,"GET","/api/discovery/reflection")).status,200);
-  assert.equal((await request(b,"POST","/api/discovery/blocks",{connectionId})).status,200);
-  assert.deepEqual(errors,[],"No browser runtime errors");
+  assert.equal((await request(b,"GET","/api/discovery/candidates?areaId=pilot-city")).status,403);assert.equal((await request(b,"GET",`/api/discovery/connections/${legacyConnectionId}`)).status,200);assert.equal((await request(a,"GET","/api/discovery/reflection")).status,200);
+  assert.equal((await request(b,"POST","/api/discovery/blocks",{connectionId:legacyConnectionId})).status,200);
   console.log("Verified report UI, audited moderator suspend/restore and block without hiding the existing deep space.");
   console.log(`PASS real multi-account discovery workflow, modern/fallback draft guards, layouts and migration isolation. Screenshots: ${artifacts}`);
+  }
+  assert.deepEqual(errors,[],"No browser runtime errors");
 }finally{
   await browser?.close();
   if(build&&build.exitCode===null)build.kill("SIGTERM");

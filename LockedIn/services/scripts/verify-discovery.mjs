@@ -21,6 +21,8 @@ delete childEnv.DISCOVERY_TEST_ADMIN_URL;
 Object.assign(childEnv, { DISCOVERY_PHOTOS_ENABLED: "false", CLOUDINARY_CLOUD_NAME: "", CLOUDINARY_API_KEY: "", CLOUDINARY_API_SECRET: "" });
 // Tests must not inherit an operator's open/invalid rollout mode.
 childEnv.DISCOVERY_ACCESS_MODE = "pilot";
+childEnv.DISCOVERY_MATCH_PREFERENCES_REQUIRED = "false";
+childEnv.DISCOVERY_LOCATION_REQUIRED = "false";
 const temp = mkdtempSync(path.join(tmpdir(), "lockedin-discovery-harness-"));
 const admin = new Client({ connectionString: adminUrl.toString() });
 let created = false, database;
@@ -109,7 +111,8 @@ try {
   }
   const dateSnapshot = async () => (await database.query(`SELECT id,"datePlanEvent",sequence FROM "DiscoveryMessage" WHERE id=ANY($1) ORDER BY sequence`, [legacyDates])).rows;
   const beforeSheet = await dateSnapshot();
-  for (const entry of later.filter(entry => entry >= dateSheetExpansion)) cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
+  const matchingExpansion = "20261120012000_mutual_discovery_preferences";
+  for (const entry of later.filter(entry => entry >= dateSheetExpansion && entry < matchingExpansion)) cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
   run(["migrate", "deploy", "--config", config]);
   if (JSON.stringify(beforeSheet) !== JSON.stringify(await dateSnapshot())) throw new Error("Sheet expansion changed legacy date events");
   const [alreadySeen, unseen] = legacyDates;
@@ -119,6 +122,22 @@ try {
     WHERE m.id=ANY($1) AND r."userId"=$2 AND m.sequence>GREATEST(p.through,r.through)
     ORDER BY m.sequence`, [[alreadySeen, unseen], recipient]);
   if (legacy.rows.length !== 1 || legacy.rows[0]?.id !== unseen) throw new Error("Sheet expansion changed what was unseen");
+  const historicalOwner = "discovery-preserved-publication-owner";
+  await database.query('INSERT INTO "user" (id,email,"updatedAt") VALUES ($1,$2,NOW())', [historicalOwner, `${historicalOwner}@example.test`]);
+  const historicalProfile = { publicName: "Historical alias", avatarPreset: "leaf", bio: "Historical public introduction", areaId: "pilot-city", intention: "LONG_TERM", interests: ["Reading"], pace: null };
+  await database.query(`INSERT INTO "DiscoveryProfile" (id,"ownerId",draft,"publishedSnapshot","publishedAreaId","publishedIntention","adultAttestedAt","publicationConsentedAt","publicationConsentVersion","publishedAt","publicationVersion","pausedAt","updatedAt")
+    VALUES ($1,$2,$3,$4,'pilot-city','LONG_TERM',NOW(),NOW(),1,NOW(),1,NOW(),NOW())`, [randomUUID(), historicalOwner, { revision: 1, profile: historicalProfile }, historicalProfile]);
+  const matchingBaseline = async () => ({
+    preserved: await snapshot(), chat: await chatSnapshot(), dates: await dateSnapshot(),
+    publicProfiles: (await database.query('SELECT to_jsonb(p) AS profile FROM "DiscoveryProfile" p ORDER BY id')).rows,
+    plans: (await database.query('SELECT to_jsonb(d) AS plan FROM "ChatDatePlan" d ORDER BY id')).rows,
+  });
+  const beforeMatching = await matchingBaseline();
+  for (const entry of later.filter(entry => entry >= matchingExpansion)) cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
+  run(["migrate", "deploy", "--config", config]);
+  const inferred = await database.query('SELECT EXISTS (SELECT 1 FROM "DiscoveryMatchPreferences") OR EXISTS (SELECT 1 FROM "DiscoveryMatchPreferenceGuard") AS inferred');
+  if (inferred.rows[0].inferred || JSON.stringify(beforeMatching) !== JSON.stringify(await matchingBaseline())) throw new Error("Matching migration populated owner settings or changed historical records");
+  console.log("Matching migration preserved historical records and did not infer settings.");
   const files = process.env.DISCOVERY_TEST_FILES?.split(",").filter(Boolean) ?? ["api/src"];
   const migrationTest = "api/src/features/messaging/test/messaging-migration.integration.spec.ts";
   const rolloutTest = "api/src/features/messaging/test/messaging-rollout.integration.spec.ts";

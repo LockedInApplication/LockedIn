@@ -2,6 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import Chat, { ChatTranscript } from "./Chat";
 import MessageActions from "./MessageActions";
+import { notificationDestination } from "../notifications/notification.navigation";
+import NotificationPanel from "../notifications/NotificationPanel";
 
 describe("reusable bounded conversation", () => {
   it("renders without Discovery context or a required opening prompt", () => {
@@ -27,5 +29,33 @@ describe("reusable bounded conversation", () => {
     const html = renderToStaticMarkup(<ChatTranscript items={[shared,text]} partnerName="Sam" busy={false} onReport={() => {}} onViewPlace={() => {}}/>);
     expect(html.match(/>View place<\/button>/g)).toHaveLength(1);
     expect(renderToStaticMarkup(<ChatTranscript items={[shared]} partnerName="Sam" busy={false} onReport={() => {}}/>)).not.toContain("View place");
+  });
+  it("offers a single planner control before the transcript only when scheduling is available", () => {
+    const chat = { conversationId: "direct", userId: "a", partner: { publicName: "Sam", avatarPreset: "leaf" }, onAccessEnded: () => {} };
+    const sheet = renderToStaticMarkup(<Chat {...chat} datePlansConversationId="direct"/>);
+    expect(sheet.match(/>Plan a date<\/button>/g)).toHaveLength(1);
+    expect(sheet.indexOf(">Plan a date</button>")).toBeLessThan(sheet.indexOf("Loading messages"));
+    expect(renderToStaticMarkup(<Chat {...chat}/>)).not.toContain(">Plan a date</button>");
+  });
+  it("renders one compact invite linking the original plan, not the time or later transitions", () => {
+    const received = { id: "invite", sequence: "1", author: "partner" as const, text: "Suggested a date time.", createdAt: "2026-11-19T12:00:00Z" };
+    const date = { id: "old-plan", sourceMessageId: received.id, venueName: "Unexpected Venue", startsAt: "2026-11-21T12:00:00Z", timeZone: "UTC", revision: 1, state: "pending" as const };
+    const html = renderToStaticMarkup(<ChatTranscript items={[
+      { ...received, datePlanEvent: { ...date, action: "propose" } },
+      { ...received, id: "confirm", sequence: "2", text: "Confirmed the date.", datePlanEvent: { ...date, action: "confirm", state: "confirmed" } },
+    ]} partnerName="Sam" busy={false} onReport={() => {}} onOpenDate={() => {}}/>);
+    expect(html).toContain("Open date invite");
+    expect(html).toContain("data-plan-id=\"old-plan\"");
+    expect(html).not.toMatch(/Unexpected Venue|Confirmed the date|2026-11-21/);
+  });
+  it("lists date updates separately and opens the exact plan without exposing details", () => {
+    const noop = () => {};
+    const dates = [{ conversationId: "conversation", discoveryConnectionId: "discovery", planId: "old-plan" }];
+    const html = renderToStaticMarkup(<NotificationPanel items={[]} loading={false} error={null} connection="live" nextCursor={null} onRetry={noop}
+      onMore={noop} onOpen={noop} onClose={noop} unreadDates={dates}/>);
+    expect(html).toContain("<h3>Date update</h3>");
+    expect(html).not.toMatch(/New message|all caught up/);
+    expect(notificationDestination({ view: "discovery", entityId: "discovery", wordKey: null, planId: "old-plan" })).toBe("/connections/discovery?date=old-plan");
+    expect(notificationDestination({ view: "messages", entityId: "conversation", wordKey: null, planId: "old-plan" })).toBe("/messages/conversation?date=old-plan");
   });
 });

@@ -13,9 +13,9 @@ type Reply = Suggestions | { status: "request"; request: DateRequest | null } | 
   | { status: "shared" | "forgotten" };
 type Detail = { venue: VenueDetails; spot?: Spot } | null;
 
-export default function DateSpots({ userId, conversationId, open, shared, clearShared, onIncoming, onAvailabilityChange }: {
+export default function DateSpots({ userId, conversationId, open, shared, clearShared, onIncoming, onAvailabilityChange, onSelectSpot }: {
   userId: string; conversationId: string; open: boolean; shared: { id: string } | null; clearShared: () => void;
-  onIncoming: (incoming: boolean) => void; onAvailabilityChange?: (available: boolean) => void;
+  onIncoming?: (incoming: boolean) => void; onAvailabilityChange?: (available: boolean) => void; onSelectSpot?: (spot: Spot) => void;
 }) {
   const path = `/api/messaging/conversations/${conversationId}/date-spots`;
   const [state, setState] = useState<DateSpotState | null>(null);
@@ -159,7 +159,7 @@ export default function DateSpots({ userId, conversationId, open, shared, clearS
   function closeDetail() { setDetail(null); clearShared(); setError(""); }
   const areaLabel = state?.areas.find(area => area.areaId === state.areaId)?.label;
   const incoming = request?.state === "pending" && request.from === "partner";
-  useEffect(() => { onIncoming(incoming); }, [onIncoming, incoming]);
+  useEffect(() => { onIncoming?.(incoming); }, [onIncoming, incoming]);
   if (!open && !shared) return null;
   if (failedLookup) return <div className={styles.planner} aria-label="Date spots">
     <section className={styles.panel}>
@@ -167,6 +167,10 @@ export default function DateSpots({ userId, conversationId, open, shared, clearS
       <div className={styles.actions}>
         <button type="button" disabled={busy} onClick={() => void retryPlaceLookup()}>{busy ? "Retrying…" : "Retry place lookup"}</button>
         {shared ? <button type="button" onClick={closeDetail}>← Back to chat</button> : null}
+        {onSelectSpot && failedLookup.action === "details" ? (() => {
+          const spot = results?.items.find(item => item.ticket === failedLookup.ticket);
+          return spot ? <button type="button" disabled={busy} onClick={() => onSelectSpot(spot)}>Choose this place without photos</button> : null;
+        })() : null}
       </div>
     </section>
   </div>;
@@ -182,7 +186,8 @@ export default function DateSpots({ userId, conversationId, open, shared, clearS
     {note ? <p role="status">{note}</p> : null}
     {error ? <p role="alert">{error}</p> : null}
     {detail ? <div ref={detailsPanel}><DateSpotVenue key={detail.venue.name} venue={detail.venue} reason={detail.spot?.reason}
-      busy={busy} onBack={closeDetail} onShare={detail.spot ? () => void share(detail.spot!) : undefined}/></div> : shared ? <section className={styles.panel}>
+      busy={busy} onBack={closeDetail} onShare={detail.spot ? () => void share(detail.spot!) : undefined}
+      onSelect={detail.spot && onSelectSpot ? () => onSelectSpot(detail.spot!) : undefined}/></div> : shared ? <section className={styles.panel}>
       {busy ? <p role="status">Opening place…</p> : null}
       <div><button type="button" disabled={busy} onClick={closeDetail}>← Back to chat</button></div>
     </section> : <>

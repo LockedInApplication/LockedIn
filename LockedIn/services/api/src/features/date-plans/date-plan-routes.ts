@@ -10,6 +10,7 @@ import { datePlansEnabled } from "./date-plan-config.js";
 import { applyDatePlanAction, getActiveDatePlan, getDatePlan, getDatePlanCalendar, listPlanVenues } from "./date-plan-service.js";
 import { datePlanInput } from "./date-plan-types.js";
 import { acknowledgeDatePlan, getUnreadDateUpdate } from "./date-plan-read.service.js";
+import { dateSpotsAvailable } from "../date-spots/date-spots-config.js";
 
 export async function registerDatePlanRoutes(server: FastifyInstance) {
   const path = "/api/messaging/conversations/:id/date-plans";
@@ -24,8 +25,15 @@ export async function registerDatePlanRoutes(server: FastifyInstance) {
       const conversation = await openConversation(tx, params.data.id, user.id, true);
       if (!conversation) return chatMissing;
       const activePlan = await getActiveDatePlan(tx, conversation, user.id, new Date());
-      return { ok: true as const, value: { activePlan, ...(query.data.presentation === "sheet"
-        ? { unreadUpdate: await getUnreadDateUpdate(tx, conversation.id, user.id) } : {}) } };
+      const sheet = query.data.presentation === "sheet";
+      const sharedSearch = sheet && dateSpotsAvailable() && await tx.dateSpotRequest.findUnique({ where: { conversationId: conversation.id } });
+      return { ok: true as const, value: {
+        activePlan,
+        ...(sheet ? {
+          unreadUpdate: await getUnreadDateUpdate(tx, conversation.id, user.id),
+          sharedSearchRequested: !!sharedSearch && sharedSearch.initiatorId !== user.id && !sharedSearch.joinsWith && sharedSearch.expiresAt > new Date(),
+        } : {}),
+      } };
     });
     return respondMessaging(reply, user.id, result);
   });

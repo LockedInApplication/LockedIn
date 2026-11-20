@@ -1,8 +1,10 @@
 import type { NotificationItem } from "./notification.types";
-export function notificationDestination(item: Pick<NotificationItem, "view" | "entityId" | "wordKey"> & {id?:string}) {
+export function notificationDestination(item: Pick<NotificationItem, "view" | "entityId" | "wordKey" | "planId"> & {id?:string}) {
     const query = new URLSearchParams();
-    if(item.view==="discovery")return `/connections/${encodeURIComponent(item.entityId)}`;
-    if(item.view==="messages")return `/messages/${encodeURIComponent(item.entityId)}`;
+    if(item.view==="discovery" || item.view==="messages") {
+        if (item.planId) query.set("date", item.planId);
+        return `/${item.view === "discovery" ? "connections" : "messages"}/${encodeURIComponent(item.entityId)}${query.size ? "?" + query : ""}`;
+    }
     if(item.view==="invitations")return `/journey?invitation=${encodeURIComponent(item.entityId)}`;
     if (item.view === "atlas") {
         query.set("view", "atlas");

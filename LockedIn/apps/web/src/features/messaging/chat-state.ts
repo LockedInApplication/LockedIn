@@ -42,11 +42,14 @@ export class ChatSession {
   readonly controller = new AbortController();
   private attempt: { text: string; id: string } | null = null;
   private readonly path: string;
-  constructor(private readonly ownerId: string, conversationId: string, private readonly request: ChatRequest = messagingRequest, path?: string) { this.path = path ?? `/api/messaging/conversations/${conversationId}/messages`; }
+  constructor(private readonly ownerId: string, conversationId: string, private readonly request: ChatRequest = messagingRequest, path?: string, private readonly sheet = false) { this.path = path ?? `/api/messaging/conversations/${conversationId}/messages`; }
   private assertActive() { if (this.controller.signal.aborted) throw new DOMException("Chat identity ended","AbortError"); }
   async load(before?: string) {
     this.assertActive();
-    const page = await this.request<ChatPage>(this.ownerId,`${this.path}${before ? `?before=${before}` : ""}`,{ signal: this.controller.signal });
+    const query = new URLSearchParams();
+    if (before) query.set("before", before);
+    if (this.sheet) query.set("presentation", "sheet");
+    const page = await this.request<ChatPage>(this.ownerId, this.path + (query.size ? "?" + query : ""), { signal: this.controller.signal });
     this.assertActive(); return page;
   }
   async send(text: string) {

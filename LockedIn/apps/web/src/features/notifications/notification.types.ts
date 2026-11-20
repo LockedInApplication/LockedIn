@@ -1,5 +1,6 @@
 export type NotificationItem = {
     invitationStatus?:string|null;
+    planId?: string;
     id: string;
     kind: string;
     entityId: string;
@@ -18,4 +19,5 @@ export type NotificationInbox = {
 };
 export type ConnectionState = "connecting" | "live" | "reconnecting";
 export type UnreadChat = { conversationId: string; discoveryConnectionId: string | null };
-export type UnreadChats = { count: number; items: UnreadChat[] };
+export type UnreadDate = UnreadChat & { planId: string };
+export type UnreadChats = { count: number; items: UnreadChat[]; dates?: { count: number; items: UnreadDate[] } };

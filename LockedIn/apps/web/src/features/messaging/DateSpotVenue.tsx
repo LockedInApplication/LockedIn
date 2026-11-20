@@ -8,8 +8,8 @@ export function PlaceCredits() {
   return <small className={styles.credits}>Place data by <a href="https://www.geoapify.com/" target="_blank" rel="noreferrer">Geoapify</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a></small>;
 }
 
-export default function DateSpotVenue({ venue, reason, busy, onBack, onShare }: {
-  venue: VenueDetails; reason?: string; busy: boolean; onBack: () => void; onShare?: () => void;
+export default function DateSpotVenue({ venue, reason, busy, onBack, onShare, onSelect }: {
+  venue: VenueDetails; reason?: string; busy: boolean; onBack: () => void; onShare?: () => void; onSelect?: () => void;
 }) {
   const [index, setIndex] = useState(0), [failed, setFailed] = useState<string[]>([]);
   const photos = venue.photos.filter(photo => !failed.includes(photo.url));
@@ -29,7 +29,8 @@ export default function DateSpotVenue({ venue, reason, busy, onBack, onShare }: 
     <div className={styles.actions}>
       <a href={venue.mapsUrl} target="_blank" rel="noreferrer">View on map</a>
       {venue.website ? <a href={venue.website} target="_blank" rel="noreferrer">Venue website</a> : null}
-      {onShare ? <button type="button" className={styles.primary} onClick={onShare} disabled={busy}>{busy ? "Sharing…" : "Share in chat"}</button> : null}
+      {onSelect ? <button type="button" className={styles.primary} onClick={onSelect} disabled={busy}>Choose this place</button> : null}
+      {onShare ? <button type="button" className={onSelect ? undefined : styles.primary} onClick={onShare} disabled={busy}>{busy ? "Sharing…" : "Share in chat"}</button> : null}
     </div>
     <PlaceCredits/>
   </section>;

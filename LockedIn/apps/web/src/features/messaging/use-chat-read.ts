@@ -3,13 +3,13 @@ import { useCallback, useEffect, useRef } from "react";
 import { signalUnreadChats } from "../notifications/message-alerts.client";
 import { messagingRequest } from "./messaging.client";
 
-export function useChatRead(userId: string, conversationId: string, displayedSequence: () => string | null) {
+export function useChatRead(userId: string, conversationId: string, displayedSequence: () => string | null, sheet = false) {
   const active = useRef<{ controller: AbortController; through: bigint; sending: boolean; pending: boolean } | null>(null);
   useEffect(() => {
     const state = { controller:new AbortController(), through:BigInt(0), sending:false, pending:false };
     active.current = state;
     return () => { state.controller.abort(); active.current = null; };
-  },[userId,conversationId]);
+  },[userId,conversationId,sheet]);
   return useCallback(function check() {
     const state = active.current, through = displayedSequence();
     if (!state || !through || BigInt(through) <= state.through) return;
@@ -17,7 +17,7 @@ export function useChatRead(userId: string, conversationId: string, displayedSeq
     const { signal } = state.controller;
     state.sending = true;
     let acknowledged = false;
-    void messagingRequest<{ through:string }>(userId,`/api/messaging/conversations/${conversationId}/read`,{
+    void messagingRequest<{ through:string }>(userId,`/api/messaging/conversations/${conversationId}/read${sheet ? "?presentation=sheet" : ""}`,{
       method:"POST", body:JSON.stringify({through}),signal,
     }).then(value => {
       if (signal.aborted) return;
@@ -29,5 +29,5 @@ export function useChatRead(userId: string, conversationId: string, displayedSeq
       state.pending = false; state.sending = false;
       if (acknowledged && pending && !signal.aborted) check();
     });
-  },[conversationId,displayedSequence,userId]);
+  },[conversationId,displayedSequence,sheet,userId]);
 }

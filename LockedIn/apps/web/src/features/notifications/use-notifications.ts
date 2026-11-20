@@ -56,7 +56,9 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
                 setChatInbox(previous => {
                     const known = previous?.owner === userId ? new Set(previous.data.items.map(item => item.conversationId)) : null;
                     const newChats = known ? data.items.filter(item => !known.has(item.conversationId)).length : 0;
-                    return { owner:userId, data, announcement:newChats ? `New messages in ${data.count > 99 ? "99+" : data.count} ${data.count === 1 ? "conversation" : "conversations"}` : "" };
+                    const knownDates = previous?.owner === userId ? new Set(previous.data.dates?.items.map(item => item.planId)) : null;
+                    const newDate = knownDates && data.dates?.items.some(item => !knownDates.has(item.planId));
+                    return { owner:userId, data, announcement:newChats ? `New messages in ${data.count > 99 ? "99+" : data.count} ${data.count === 1 ? "conversation" : "conversations"}` : newDate ? "New date update" : "" };
                 });
             } catch { /* Other notifications remain usable; reconnect or poll can recover. */ }
             finally {
@@ -119,5 +121,6 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
     };
     const chat = chatInbox?.owner === userId ? chatInbox : null;
     return { ...inbox, loading, error, connection, retry: () => void load(), more: () => void load(inbox.nextCursor ?? undefined), markRead,
-        unreadChatCount:chat?.data.count ?? 0, unreadChats:chat?.data.items ?? [], chatAnnouncement:chat?.announcement ?? "" };
+        unreadChatCount:chat?.data.count ?? 0, unreadChats:chat?.data.items ?? [], chatAnnouncement:chat?.announcement ?? "",
+        unreadDateCount: chat?.data.dates?.count ?? 0, unreadDates: chat?.data.dates?.items ?? [] };
 }

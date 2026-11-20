@@ -3,7 +3,7 @@ import { datePlanTimeInput, getDateFields } from "./date-plan-time";
 import type { DatePlanTimeInput } from "./date-plans.types";
 import styles from "./chat.module.scss";
 
-export function DatePlanDialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function DatePlanDialog({ title, onClose, children, className }: { title: string; onClose: () => void; children: ReactNode; className?: string }) {
   const panel = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
@@ -15,15 +15,15 @@ export function DatePlanDialog({ title, onClose, children }: { title: string; on
       if (dialog.open) dialog.close();
     };
   }, []);
-  return <dialog ref={panel} className={styles.planDialog} aria-labelledby={titleId}
+  return <dialog ref={panel} className={[styles.planDialog, className].filter(Boolean).join(" ")} aria-labelledby={titleId}
     onCancel={event => { event.preventDefault(); onClose(); }}>
     <div className={styles.planDialogTitle}><h3 id={titleId}>{title}</h3><button type="button" onClick={onClose}>Close</button></div>
     {children}
   </dialog>;
 }
 
-export default function DatePlanForm({ venueName, startsAt, busy, onSubmit }: {
-  venueName: string; startsAt?: string; busy: boolean; onSubmit: (time: DatePlanTimeInput) => Promise<void>;
+export default function DatePlanForm({ venueName, startsAt, busy, onSubmit, submitLabel = "Send suggestion" }: {
+  venueName: string; startsAt?: string; busy: boolean; onSubmit: (time: DatePlanTimeInput) => Promise<void>; submitLabel?: string;
 }) {
   const [zone, setZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   const [date, setDate] = useState(() => startsAt ? getDateFields(new Date(startsAt), zone).date : "");
@@ -73,6 +73,6 @@ export default function DatePlanForm({ venueName, startsAt, busy, onSubmit }: {
       <button className={styles.quietAction} type="button" onClick={() => setChangingZone(true)}>Change time zone</button>
     </div>}
     {error ? <p role="alert">{error}</p> : null}
-    <button className={styles.primary} type="submit" disabled={!date || !time || checking || busy}>{checking || busy ? "Sending…" : "Send suggestion"}</button>
+    <button className={styles.primary} type="submit" disabled={!date || !time || checking || busy}>{checking || busy ? "Sending…" : submitLabel}</button>
   </form>;
 }

@@ -16,7 +16,7 @@ export default function NotificationBell({ userId, onOpen, onActivity, onExpired
     const root = useRef<HTMLDivElement>(null);
     const button = useRef<HTMLButtonElement>(null);
     const notifications = useNotifications(userId, onActivity, onExpired,onStatusChange,onChatSync);
-    const unread = notifications.unreadCount + notifications.unreadChatCount;
+    const unread = notifications.unreadCount + notifications.unreadChatCount + notifications.unreadDateCount;
     const close = () => { setOpen(false); button.current?.focus(); };
     useEffect(() => {
         if (!open)
@@ -42,6 +42,9 @@ export default function NotificationBell({ userId, onOpen, onActivity, onExpired
         onOpenChat={async chat => {
             if (await onOpen({ id:chat.conversationId, kind:"UNREAD_CHAT", view:chat.discoveryConnectionId ? "discovery" : "messages",
                 entityId:chat.discoveryConnectionId ?? chat.conversationId, wordKey:null, title:"New message", message:"", createdAt:"", readAt:null, resolvedAt:null })) close();
+        }} onOpenDate={async date => {
+            if (await onOpen({ id:date.planId, kind:"UNREAD_DATE", planId:date.planId, view:date.discoveryConnectionId ? "discovery" : "messages",
+                entityId:date.discoveryConnectionId ?? date.conversationId, wordKey:null, title:"Date update", message:"", createdAt:"", readAt:null, resolvedAt:null })) close();
         }} onOpen={async (item) => {
                 if (await onOpen(item)) {
                     await notifications.markRead(item.id);

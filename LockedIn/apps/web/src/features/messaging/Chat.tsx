@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { JourneyApiError } from "@/features/journey/journey.client";
 import { ChatSession, loadChatRefresh, mergeLatestMessages, prependMessages, readThroughSequence, type ChatMessage as Message, type ChatPage as Page } from "./chat-state";
 import { messagingRequest, type ChatRequest } from "./messaging.client";
@@ -9,10 +10,9 @@ import { useChatRead } from "./use-chat-read";
 import MessageSafetyActions from "./MessageSafetyActions";
 import MessageActions from "./MessageActions";
 import ChatDateTools from "./ChatDateTools";
-import DatePlanCard from "./DatePlanCard";
-import DatePlanForm, { DatePlanDialog } from "./DatePlanForm";
+import SharedDateSheet from "./SharedDateSheet";
 import { useDatePlans } from "./use-date-plans";
-import type { DatePlanDecision, DatePlanEvent, DatePlanTimeInput, DatePlanView } from "./date-plans.types";
+import type { DatePlanEvent, DateSheetTarget } from "./date-plans.types";
 import type { ChatPartner } from "./messaging.types";
 import styles from "./chat.module.scss";
 import chatStyles from "./chat.module.scss";
@@ -22,15 +22,19 @@ export default function Chat(props: ChatProps) {
   return <ChatBody key={props.userId + ":" + props.conversationId} {...props}/>;
 }
 
-export function ChatTranscript({items, partnerName, busy, onReport, openingContext, onViewPlace, onSuggestTime, activeDate, renderDateEvent}: {
+export function ChatTranscript({items, partnerName, busy, onReport, openingContext, onViewPlace, onSuggestTime, activeDate, renderDateEvent, onOpenDate}: {
   items: Message[]; partnerName: string; busy: boolean; onReport: (message: Message) => void; openingContext?: ReactNode;
   onViewPlace?: (id: string, origin: HTMLButtonElement) => void; onSuggestTime?: (message: Message, origin: HTMLButtonElement) => void;
   activeDate?: boolean; renderDateEvent?: (event: DatePlanEvent) => ReactNode;
+  onOpenDate?: (id: string, origin: HTMLButtonElement) => void;
 }) {
-  return <>{openingContext}{items.length ? <ol className={chatStyles.messages} role="log" aria-label="Conversation messages" aria-relevant="additions">{items.map(message => <li key={message.id} data-message-id={message.id} className={message.author === "self" ? chatStyles.mine : undefined}>
+  const shown = onOpenDate ? items.filter(item => !item.datePlanEvent || item.datePlanEvent.action === "propose") : items;
+  return <>{openingContext}{shown.length ? <ol className={chatStyles.messages} role="log" aria-label="Conversation messages" aria-relevant="additions">{shown.map(message => <li key={message.id} data-message-id={message.id} className={message.author === "self" ? chatStyles.mine : undefined}>
     <div className={chatStyles.messageMeta}><strong>{message.author === "self" ? "You" : partnerName}</strong>
-    {message.author === "partner" ? <MessageActions busy={busy} onReport={() => onReport(message)}/> : null}</div>
-    {message.datePlanEvent && renderDateEvent ? renderDateEvent(message.datePlanEvent) : <p>{message.text}</p>}
+    {message.author === "partner" && !(onOpenDate && message.datePlanEvent) ? <MessageActions busy={busy} onReport={() => onReport(message)}/> : null}</div>
+    {message.datePlanEvent && onOpenDate ? <button className={chatStyles.dateBreadcrumb} type="button" data-plan-id={message.datePlanEvent.id}
+      disabled={busy} onClick={event => onOpenDate(message.datePlanEvent!.id, event.currentTarget)}>Open date invite <span aria-hidden="true">↗</span></button>
+      : message.datePlanEvent && renderDateEvent ? renderDateEvent(message.datePlanEvent) : <p>{message.text}</p>}
     {message.dateSpot && (onViewPlace || onSuggestTime) ? <div className={chatStyles.planActions}>
       {onViewPlace ? <button type="button" disabled={busy} onClick={event => onViewPlace(message.id, event.currentTarget)}>View place</button> : null}
       {onSuggestTime ? <button className={chatStyles.quietAction} type="button" disabled={busy} onClick={event => onSuggestTime(message, event.currentTarget)}>{activeDate ? "View current date plan" : "Suggest a time"}</button> : null}
@@ -42,7 +46,13 @@ export function ChatTranscript({items, partnerName, busy, onReport, openingConte
 const accessEnded = (error: unknown) => error instanceof JourneyApiError && [401, 403, 404].includes(error.status);
 const atLatest = (node: HTMLDivElement) => node.scrollHeight - node.scrollTop - node.clientHeight < 4;
 
-type DatePanel = { kind: "propose"; source: Message } | { kind: "current" } | { kind: "counter"; plan: DatePlanView };
+function DateSheetLink({ onOpen }: { onOpen: (id: string) => void }) {
+  const planId = useSearchParams()?.get("date");
+  useEffect(() => {
+    if (planId && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(planId)) onOpen(planId);
+  }, [onOpen, planId]);
+  return null;
+}
 
 function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, profileAction, busy = false, ariaLabel = "Chat", request = messagingRequest, messagesPath, renderReport, dateSpotsConversationId, datePlansConversationId }: ChatProps) {
   const path = messagesPath ?? `/api/messaging/conversations/${conversationId}/messages`;
@@ -56,7 +66,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   const [report, setReport] = useState<Message | null>(null);
   const [sharedPlace, setSharedPlace] = useState<{ id: string } | null>(null);
   const [spotsOutage, setSpotsOutage] = useState(false);
-  const [datePanel, setDatePanel] = useState<DatePanel | null>(null);
+  const [datePanel, setDatePanel] = useState<DateSheetTarget | null>(null);
   const sharedOrigin = useRef<HTMLElement | null>(null);
   const dateOrigin = useRef<HTMLElement | null>(null);
   const chatRoot = useRef<HTMLElement>(null);
@@ -81,11 +91,13 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   const reportClose = useRef<HTMLButtonElement>(null);
   const reportOrigin = useRef<HTMLElement | null>(null);
   const hasPage = page !== null;
+  const sheet = !!datePlansConversationId;
   const displayedSequence = useCallback(() => {
     const node = viewport.current;
     const dialog = document.querySelector("dialog[open]");
     if (!node || ended.current || (dialog && !dialog.contains(node))) return null;
-    return readThroughSequence(renderedPage.current?.items ?? [], document.visibilityState === "visible", followLatest.current && atLatest(node), !!deferredLatest.current, message => {
+    const entries = renderedPage.current?.items ?? [];
+    return readThroughSequence(sheet ? entries.filter(item => !item.datePlanEvent) : entries, document.visibilityState === "visible", followLatest.current && atLatest(node), !!deferredLatest.current, message => {
       const item = node.querySelector(`[data-message-id="${CSS.escape(message.id)}"]`);
       if (!item) return false;
       const bounds = node.getBoundingClientRect(), rect = item.getBoundingClientRect();
@@ -93,8 +105,8 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       return Math.max(rect.top, bounds.top, 0) < Math.min(rect.bottom, bounds.bottom, screen.clientHeight)
         && Math.max(rect.left, bounds.left, 0) < Math.min(rect.right, bounds.right, screen.clientWidth);
     });
-  }, []);
-  const checkRead = useChatRead(userId,conversationId,displayedSequence);
+  }, [sheet]);
+  const checkRead = useChatRead(userId,conversationId,displayedSequence,sheet);
 
   useEffect(() => { checkRead(); },[page,checkRead]);
   useEffect(() => {
@@ -156,7 +168,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   }, []);
 
   useEffect(() => {
-    const currentSession = new ChatSession(userId, conversationId, request, path);
+    const currentSession = new ChatSession(userId, conversationId, request, path, sheet);
     session.current = currentSession;
     const controller = currentSession.controller;
     lifecycle.current = controller;
@@ -202,7 +214,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       refresh.current = null;
 
     };
-  }, [path, userId, conversationId, request, hideChat, rememberPosition]);
+  }, [path, userId, conversationId, request, hideChat, rememberPosition, sheet]);
 
   const sync = useCallback(() => refresh.current?.(), []);
   useChatRefresh({userId,onRefresh:sync});
@@ -264,44 +276,52 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
     }
   }
 
-  function openDate(next: DatePanel, origin?: HTMLElement) {
+  function openDate(next: DateSheetTarget, origin?: HTMLElement) {
     if (!datePanel) dateOrigin.current = origin ?? (document.activeElement as HTMLElement | null);
     datePlans.clearError();
     setDatePanel(next);
   }
+  const openLinkedDate = useCallback((id: string) => {
+    dateOrigin.current ??= chatRoot.current?.querySelector<HTMLElement>("[data-date-toggle]") ?? null;
+    setDatePanel({ kind: "plan", planId: id });
+  }, []);
   function closeDate() {
     setDatePanel(null);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("date")) { url.searchParams.delete("date"); window.history.replaceState(null, "", url); }
     const origin = dateOrigin.current;
     dateOrigin.current = null;
     requestAnimationFrame(() => {
       if (origin?.isConnected && !origin.hasAttribute("disabled")) origin.focus({ preventScroll: true });
-      else chatRoot.current?.querySelector<HTMLElement>("[data-date-toggle]:not([disabled]), textarea")?.focus({ preventScroll: true });
+      else (chatRoot.current?.querySelector<HTMLElement>("[data-date-toggle]:not([disabled])") ??
+        chatRoot.current?.querySelector<HTMLElement>("textarea"))?.focus({ preventScroll: true });
     });
-  }
-  function decideDate(action: DatePlanDecision, plan: DatePlanView) {
-    void datePlans.act({ action, planId: plan.id, revision: plan.revision }).then(result => {
-      if (result && !result.activePlan && datePanel) closeDate();
-    });
-  }
-  function renderDateEvent(event: DatePlanEvent) {
-    return <DatePlanCard event={event} activePlan={datePlans.activePlan} busy={busy || datePlans.busy}
-      onAction={decideDate} onCounter={plan => openDate({ kind: "counter", plan })} onCalendar={id => void datePlans.exportCalendar(id)}/>;
   }
   const currentDate = datePlans.activePlan;
-  const counter = datePanel?.kind === "counter" && currentDate?.id === datePanel.plan.id && currentDate.revision === datePanel.plan.revision
-    && currentDate.state === "pending" && currentDate.proposer === "partner" ? datePanel.plan : null;
-  const source = datePanel?.kind === "propose" && !currentDate ? datePanel.source : null;
-  const formVenue = counter?.venueName ?? source?.text.replace(/^Suggested date spot: /, "");
-  const dateTitle = counter ? "Suggest another time" : source ? "Suggest a time" : "Current date plan";
-  async function publishDate(time: DatePlanTimeInput) {
-    const result = await datePlans.act(counter ? { action: "counter", planId: counter.id, revision: counter.revision, time } : {
-      action: "propose", sourceMessageId: source!.id, time,
-    });
-    if (result) closeDate();
+  const update = datePlans.unreadUpdate;
+  const targetId = update?.planId ?? currentDate?.id;
+  const dateLabel = update ? (update.action === "propose" ? "Date invite" : update.action === "counter" ? "New time proposed" : "View date update")
+    : currentDate ? (currentDate.state === "pending" && currentDate.proposer === "partner" ? (currentDate.revision > 1 ? "New time proposed" : "Date invite") : "View date")
+    : "Plan a date";
+  const showDot = !!update || datePlans.sharedSearchRequested;
+  const sharedTarget = (message: Message, origin: HTMLButtonElement) => {
+    openDate({ kind: "shared", venue: { id: message.id, name: message.text.replace(/^Suggested date spot: /, "") } }, origin);
+  };
+  const onReportBlocked = () => { hideChat(); onAccessEnded(); };
+  function reportContent(message: Message) {
+    return renderReport ? renderReport(message, onReportBlocked) : <MessageSafetyActions key={message.id} userId={userId} conversationId={conversationId}
+      message={message} onBlocked={onReportBlocked}/>;
   }
 
   return <section ref={chatRoot} className={`${styles.card} ${chatStyles.chat}`} aria-label={ariaLabel}>
-    <h2>Messages</h2>{profileAction}
+    <div className={chatStyles.chatHeader}>
+      <h2>Messages</h2>
+      {sheet && !closed ? <button data-date-toggle type="button" aria-haspopup="dialog" aria-expanded={!!datePanel}
+        aria-label={update ? dateLabel + " · unread update" : datePlans.sharedSearchRequested ? dateLabel + " · shared search requested" : undefined}
+        disabled={busy} onClick={event => openDate(targetId ? { kind: "plan", planId: targetId } : { kind: "browse" }, event.currentTarget)}>
+        {dateLabel}{showDot ? <span className={chatStyles.inviteDot} aria-hidden="true"/> : null}</button> : null}
+    </div>{profileAction}
+    {sheet && !closed ? <Suspense><DateSheetLink onOpen={openLinkedDate}/></Suspense> : null}
     {closed ? <p role="status">This chat is no longer available.</p> : <>
       <p className={styles.muted}>You’re connected. Reported messages can be reviewed by moderators.</p>
       {!page && !syncError ? <p role="status">Loading messages…</p> : null}
@@ -310,29 +330,32 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
         onScroll={event => { const node = event.currentTarget; followLatest.current = !deferredLatest.current && atLatest(node); if (followLatest.current) setNewMessages(false); checkRead(); }}>
       {page?.nextCursor ? <button type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load older messages"}</button> : null}
       <ChatTranscript items={page.items} partnerName={partner.publicName} busy={busy} onReport={setReport} openingContext={openingContext}
-        onViewPlace={dateSpotsConversationId && !spotsOutage ? (id, origin) => { sharedOrigin.current = origin; setSharedPlace({ id }); } : undefined}
-        onSuggestTime={datePlansConversationId ? (message, origin) => openDate(currentDate ? { kind: "current" } : { kind: "propose", source: message }, origin) : undefined}
-        activeDate={!!currentDate} renderDateEvent={datePlansConversationId ? renderDateEvent : undefined}/>
+        onViewPlace={dateSpotsConversationId && !spotsOutage ? (id, origin) => {
+          const message = page.items.find(item => item.id === id);
+          if (sheet && message) sharedTarget(message, origin);
+          else { sharedOrigin.current = origin; setSharedPlace({ id }); }
+        } : undefined}
+        onSuggestTime={sheet && !dateSpotsConversationId ? sharedTarget : undefined}
+        onOpenDate={sheet ? (planId, origin) => openDate({ kind: "plan", planId }, origin) : undefined}/>
       </div> : null}
       {newMessages ? <button className={chatStyles.newMessages} type="button" onClick={jumpToLatest}>New messages · Jump to latest ↓</button> : null}
       {report ? <div role="region" aria-label="Report selected message">
         <button ref={reportClose} type="button" onClick={() => { setReport(null); reportOrigin.current?.focus(); }}>Close message report</button>
-        {renderReport ? renderReport(report, () => { hideChat(); onAccessEnded(); }) : <MessageSafetyActions key={report.id} userId={userId} conversationId={conversationId} message={report} onBlocked={() => { hideChat(); onAccessEnded(); }}/>}
+        {reportContent(report)}
       </div> : null}
-      {page ? <ChatDateTools userId={userId} dateSpotsConversationId={dateSpotsConversationId} activePlan={currentDate}
-        sharedPlace={sharedPlace} clearSharedPlace={clearSharedPlace} onVenueAvailability={updateVenueAvailability} onCurrentPlan={() => openDate({ kind: "current" })}>
+      {page ? <ChatDateTools userId={userId} dateSpotsConversationId={sheet ? undefined : dateSpotsConversationId} activePlan={null}
+        sharedPlace={sharedPlace} clearSharedPlace={clearSharedPlace} onVenueAvailability={updateVenueAvailability} onCurrentPlan={() => {}}>
         <form className={`${styles.form} ${chatStyles.composer}`} onSubmit={event => { event.preventDefault(); void send(); }}>
         <label>Message<textarea rows={2} maxLength={2000} value={draft} disabled={sending || busy} placeholder="Write a message…" onChange={event => setDraft(event.target.value)}/></label>
         <button className={styles.primary} type="submit" disabled={!draft.trim() || sending || busy}>{sending ? "Sending…" : "Send message"}</button>
         <p className={styles.muted}>Up to 2,000 characters. Unsent messages aren’t saved when you leave.</p>
         </form>
       </ChatDateTools> : null}
-      {datePanel && datePlansConversationId ? <DatePlanDialog title={dateTitle} onClose={closeDate}>
-        {formVenue ? <DatePlanForm key={counter ? counter.id + ":" + counter.revision : source?.id} venueName={formVenue} startsAt={counter?.startsAt} busy={busy || datePlans.busy} onSubmit={publishDate}/>
-          : currentDate ? renderDateEvent({ ...currentDate, action: currentDate.state === "confirmed" ? "confirm" : currentDate.revision > 1 ? "counter" : "propose" })
-          : <p role="status">No date plan is active right now.</p>}
-        {datePlans.error ? <p role="alert">{datePlans.error}</p> : null}
-      </DatePlanDialog> : datePlans.error ? <p role="alert">{datePlans.error}</p> : null}
+      {datePanel && datePlansConversationId ? <SharedDateSheet key={datePanel.kind === "shared" ? datePanel.venue.id : undefined}
+        target={datePanel} userId={userId} conversationId={datePlansConversationId} spotsId={dateSpotsConversationId}
+        partnerName={partner.publicName} onClose={closeDate} busy={busy || datePlans.busy} error={datePlans.error} clearError={datePlans.clearError}
+        act={datePlans.act} exportCalendar={datePlans.exportCalendar} currentPlanId={currentDate?.id} renderReport={reportContent}
+        showPlan={planId => openDate({ kind: "plan", planId })}/> : null}
       {actionError ? <p role="alert">{actionError}</p> : null}
     </>}
   </section>;

@@ -100,8 +100,8 @@ try {
     const startsAt = new Date(Date.now() + (i + 1) * 86_400_000).toISOString();
     const event = { id: planId, sourceMessageId: id, venueName: "Migration library", startsAt, timeZone: "UTC",
       revision: 1, state: "declined", action: "propose", fingerprint: "0".repeat(64) };
-    const { rows } = await database.query(`INSERT INTO "DiscoveryMessage" (id,"conversationId","senderId","requestId",text,"datePlanEvent")
-      VALUES ($1,$2,$3,$4,'Suggested a date time.',$5) RETURNING sequence`, [id, conversation, sender, randomUUID(), event]);
+    const { rows } = await database.query(`INSERT INTO "DiscoveryMessage" (id,"conversationId","connectionId","senderId","requestId",text,"datePlanEvent")
+      VALUES ($1,$2,'discovery-preserved-contact',$3,$4,'Suggested a date time.',$5) RETURNING sequence`, [id, conversation, sender, randomUUID(), event]);
     await database.query(`INSERT INTO "ChatDatePlan" (id,"conversationId","sourceMessageId","venueName","startsAt","timeZone",revision,"proposerId",state,"updatedAt")
       VALUES ($1,$2,$3,'Migration library',$4,'UTC',1,$5,'declined',NOW())`, [planId, conversation, id, startsAt, sender]);
     if (!i) await database.query(`INSERT INTO "ChatReadState" ("conversationId","userId",through) VALUES ($1,$2,$3)`, [conversation, recipient, rows[0].sequence]);

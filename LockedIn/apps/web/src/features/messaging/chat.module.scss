@@ -98,6 +98,30 @@
   h3 { margin: 0; font-size: 1.2rem; }
 }
 .planDialogTitle { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.chatHeader { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.chatHeader h2 { margin: 0; }
+.chatHeader button { display: inline-flex; align-items: center; gap: .45rem; }
+.chat .dateBreadcrumb { padding: .35rem .65rem; margin: .2rem 0 .35rem; text-align: left; }
+.dateSheet { width: min(36rem, calc(100% - 2rem)); overflow-y: auto; overscroll-behavior: contain; align-content: start; }
+.dateSheet .planDialogTitle { padding-bottom: .45rem; border-bottom: 1px solid #e5dce4; }
+.dateActivity { border-top: 1px solid #e5dce4; padding-top: .7rem; }
+.dateActivity summary { cursor: pointer; }
+.dateActivity ol, .sheetSaved ul { list-style: none; padding: 0; display: grid; gap: .55rem; }
+.dateActivity li { display: grid; grid-template-columns: 1fr auto; gap: .2rem .7rem; }
+.dateActivity li time { grid-row: 2; font-size: .9rem; }
+.dateActivity li details { grid-column: 2; grid-row: 1 / 3; }
+.sheetSaved { margin-top: .7rem; }
+@media (max-width: 600px) {
+  .dateSheet {
+    inset: auto 0 0;
+    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    max-height: min(88dvh, calc(100dvh - 1rem));
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    border-radius: 1rem 1rem 0 0;
+  }
+}
 .planFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
 .planFields input { min-width: 0; }
 @media (max-width: 450px) {

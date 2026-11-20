@@ -4,12 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { JourneyApiError } from "@/lib/journey";
 import { messagingRequest } from "./messaging.client";
 import { signalChatRefresh, useChatRefresh } from "./use-chat-refresh";
-import type { DatePlanAction, DatePlanReply, DatePlanView } from "./date-plans.types";
+import type { DatePlanAction, DatePlanReply, DatePlanUpdate, DatePlanView } from "./date-plans.types";
 
 export function useDatePlans(userId: string, conversationId: string | undefined, beforePlanChange: () => void) {
   const path = conversationId ? "/api/messaging/conversations/" + conversationId + "/date-plans" : null;
   const key = userId + ":" + path;
-  const [snapshot, setSnapshot] = useState<{ key: string; plan: DatePlanView | null }>();
+  const [snapshot, setSnapshot] = useState<{ key: string; plan: DatePlanView | null; unread: DatePlanUpdate | null; sharedSearchRequested: boolean }>();
   const installed = useRef<typeof snapshot>(undefined);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [problem, setProblem] = useState<{ key: string; message: string }>();
@@ -29,11 +29,14 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
     };
   }, [key]);
 
-  const install = useCallback((plan: DatePlanView | null) => {
+  const install = useCallback((plan: DatePlanView | null, update?: { unreadUpdate: DatePlanUpdate | null; sharedSearchRequested?: boolean }) => {
     const previous = installed.current;
-    if (previous?.key === key && previous.plan?.id === plan?.id && previous.plan?.revision === plan?.revision && previous.plan?.state === plan?.state) return;
-    beforePlanChange();
-    const next = { key, plan };
+    const unread = update ? update.unreadUpdate : previous?.key === key ? previous.unread : null;
+    const sharedSearchRequested = update ? !!update.sharedSearchRequested : previous?.key === key && previous.sharedSearchRequested;
+    const samePlan = previous?.key === key && previous.plan?.id === plan?.id && previous.plan?.revision === plan?.revision && previous.plan?.state === plan?.state;
+    if (samePlan && previous.unread?.planId === unread?.planId && previous.unread?.action === unread?.action && previous.sharedSearchRequested === sharedSearchRequested) return;
+    if (!samePlan) beforePlanChange();
+    const next = { key, plan, unread, sharedSearchRequested };
     installed.current = next;
     setSnapshot(next);
   }, [beforePlanChange, key]);
@@ -43,12 +46,12 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
     const controller = new AbortController();
     reading.current = controller;
     const { signal } = controller;
-    void messagingRequest<{ activePlan: DatePlanView | null }>(userId, path, { signal }).then(result => {
-      if (!signal.aborted) install(result.activePlan);
+    void messagingRequest<{ activePlan: DatePlanView | null; unreadUpdate: DatePlanUpdate | null; sharedSearchRequested?: boolean }>(userId, path + "?presentation=sheet", { signal }).then(result => {
+      if (!signal.aborted) install(result.activePlan, result);
     }).catch(error => {
       if (signal.aborted) return;
       if (error instanceof JourneyApiError && [401, 403, 404, 409].includes(error.status)) {
-        install(null);
+        install(null, { unreadUpdate: null });
       }
     }).finally(() => {
       if (reading.current === controller) reading.current = null;
@@ -112,6 +115,8 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
 
   return {
     activePlan: path && snapshot?.key === key ? snapshot.plan : null,
+    unreadUpdate: path && snapshot?.key === key ? snapshot.unread : null,
+    sharedSearchRequested: !!(path && snapshot?.key === key && snapshot.sharedSearchRequested),
     error: path && problem?.key === key ? problem.message : "",
     busy: path !== null && busyKey === key, refresh, act, exportCalendar,
     clearError: () => setProblem(undefined),

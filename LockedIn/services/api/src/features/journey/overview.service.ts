@@ -124,6 +124,8 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
       relationship: relationship
         ? {
             id: relationship.id,
+            isMutuallyLockedIn: relationship.discoveryConnection?.state === "PROMOTED"
+              && relationship.discoveryConnection.lockedInAt !== null,
             partner: {
               name: partner?.displayName ?? partner?.name ?? partner?.email ?? "Your partner",
               email: partner?.email ?? "",

@@ -32,6 +32,7 @@ import conversationStyles from "../conversations/conversation-library.module.scs
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
 import {useCompactWorkspace,useResponsiveActionRef} from './use-compact-workspace';
 import RelationshipMessages from "./components/RelationshipMessages";
+import TogetherDestinations from "./components/TogetherDestinations";
 
 type Notice = { tone: "success" | "error"; message: string } | null;
 
@@ -97,6 +98,9 @@ export default function JourneyWorkspace() {
   function setActiveView(view:Parameters<typeof navigateView>[0]) {
     if(view!==activeView && !confirmDiscard())return;
     navigateView(view);
+  }
+  function openCheckInProposal() {
+    if (confirmDiscard()) navigateWorkspaceUrl("/journey?view=roadmap#step-propose");
   }
 
   const loadOverview = useCallback(async () => {
@@ -257,7 +261,7 @@ export default function JourneyWorkspace() {
   return (
     <MemberChrome key={overview.user.id} {...chrome}>
       <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${mobileHome?guidanceStyles.mobileHome:''}`} onChangeCapture={()=>setDirty(true)}>
-        {mobileHome?<><h1 className={guidanceStyles.greeting}>Hi, {overview.user.name?.trim().split(/\s+/)[0]||'there'}.</h1>{nextAction}</>:null}
+        {mobileHome?<h1 className={guidanceStyles.greeting}>Hi, {overview.user.name?.trim().split(/\s+/)[0]||'there'}.</h1>:null}
         {overview.relationship && activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
           {!mobileHome?<div>
             <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
@@ -276,6 +280,8 @@ export default function JourneyWorkspace() {
           </div>
         </section>:null}
 
+        {isHome ? <TogetherDestinations onNavigate={setActiveView} /> : null}
+        {mobileHome ? nextAction : null}
         {suggestionReference?null:overview.relationship ? (
           <WorkspaceNav active={activeView} onChange={setActiveView} compact={activeView==='conversations'} />
         ) : null}
@@ -360,7 +366,7 @@ export default function JourneyWorkspace() {
             />
             {overview.session ? (
               <div id="current-action" tabIndex={-1} className={`${styles.currentActionStage} ${guidanceStyles.currentAction}`}>
-                <SessionStage session={overview.session} busy={busy} runAction={runAction} />
+                <SessionStage session={overview.session} busy={busy} runAction={runAction} onProposeNextStep={openCheckInProposal} />
               </div>
             ) : null}
           </>

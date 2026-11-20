@@ -84,10 +84,12 @@
   .tabs svg { width: 18px; height: 18px; }
 }
 @media (max-width: 700px) {
-  .header {
+  header.header {
     min-height: 64px;
     padding: 8px 16px;
     background: #f5f0e7;
+    // The legacy sticky header's blur makes fixed children anchor to the
+    // header instead of the viewport. Win even if its CSS is loaded last.
     backdrop-filter: none;
   }
   .frame { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }

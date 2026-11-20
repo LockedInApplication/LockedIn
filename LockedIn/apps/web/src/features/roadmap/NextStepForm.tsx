@@ -31,7 +31,7 @@ export default function NextStepForm({
   }
 
   return (
-    <section className={styles.nextStepCard}>
+    <section id="step-propose" tabIndex={-1} className={styles.nextStepCard}>
       <div>
         <span className={styles.eyebrow}>
           {session.nextSteps.length || session.proposals.length ? "ADD TO YOUR ROADMAP" : "CHOOSE WHAT COMES NEXT"}

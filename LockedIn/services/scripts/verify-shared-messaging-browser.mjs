@@ -278,6 +278,8 @@ try {
     const nav = page => page.getByRole("navigation",{name:"Main navigation",exact:true});
     const tab = (page,label) => nav(page).getByRole("link",{name:new RegExp("^"+label+"(?:,|$)")});
     const composer = page => page.getByRole("textbox",{name:"Message",exact:true});
+    const inboxAction = pa.getByRole("link",{name:"Go to Inbox",exact:true});
+    const discoverAction = pa.getByRole("link",{name:"Meet someone new",exact:true});
     await pa.goto(base+"/journey");
     await pa.getByRole("heading",{name:"Your shared space starts here.",exact:true}).waitFor();
     for (const width of [320,393,701,1280]) {
@@ -287,9 +289,24 @@ try {
         const rect=el.getBoundingClientRect();
         return document.documentElement.scrollWidth <= innerWidth+1 && (mobile ? Math.abs(rect.bottom-innerHeight)<2 : rect.top>=0 && rect.bottom<85);
       },width<=700),"Tabs fit the intended position at width "+width);
+      const first = await inboxAction.boundingBox(), second = await discoverAction.boundingBox();
+      assert(first && second && first.height>=48 && second.height>=48, "Both home actions have a large tap target");
+      assert(width<=540 ? first.y<second.y && first.width===second.width : Math.abs(first.y-second.y)<1, "Home actions stack on phones and align on desktop");
+      for (const action of [inboxAction, discoverAction]) {
+        assert(await action.evaluate(el=>{
+          const bounds=el.getBoundingClientRect();
+          return el.contains(document.elementFromPoint(bounds.x+bounds.width/2,bounds.y+bounds.height/2));
+        }),"The home action isn't covered by the card decoration or bottom nav");
+      }
     }
     await pa.setViewportSize({width:393,height:852});
-    await tab(pa,"Inbox").click();
+    await inboxAction.focus();
+    await pa.keyboard.press("Tab");
+    assert(await discoverAction.evaluate(el=>el===document.activeElement && getComputedStyle(el).outlineStyle==="solid"),"Secondary action shows a visible keyboard focus ring");
+    await pa.keyboard.press("Enter");
+    await pa.waitForURL(base+"/discover");
+    await tab(pa,"Together").click();
+    await inboxAction.click();
     await pa.getByRole("button",{name:"Invite someone",exact:true}).click();
     await pa.getByLabel("Their email",{exact:true}).fill(b.id+"@example.test");
     await tab(pa,"Discover").click();

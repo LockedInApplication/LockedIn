@@ -17,9 +17,10 @@ export const env = {
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   APP_URL: process.env.APP_URL || "http://localhost:3001",
   BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || "http://localhost:8000",
+  // Only disposable test fixtures may opt out. An old deployment flag cannot
+  // disable verification in production or staging.
   REQUIRE_EMAIL_VERIFICATION:
-    process.env.REQUIRE_EMAIL_VERIFICATION ??
-    (process.env.NODE_ENV === "production" ? "true" : "false"),
+    process.env.NODE_ENV === "test" && process.env.REQUIRE_EMAIL_VERIFICATION === "false" ? "false" : "true",
 };
 
 export function requireEnv(name: keyof typeof env): string {

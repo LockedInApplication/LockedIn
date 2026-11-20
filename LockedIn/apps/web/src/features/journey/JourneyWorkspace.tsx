@@ -85,6 +85,8 @@ export default function JourneyWorkspace() {
     const hash=new URL(workspaceLocation,"http://localhost").hash.slice(1);
     if(!hash.startsWith("step-"))return;
     const element=document.getElementById(hash);
+    const details=element?.closest("details");
+    if(details)details.open=true;
     element?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
     element?.focus({preventScroll:true});
   },[workspaceLocation,hasOverview]);
@@ -194,7 +196,7 @@ export default function JourneyWorkspace() {
         return true;
       }
     }
-    if(item.view==="roadmap" && ![...(fresh.session?.nextSteps??[]),...(fresh.session?.proposals??[])].some(s=>s.id===item.entityId)) {
+    if(item.view==="roadmap" && ![...(fresh.session?.nextSteps??[]),...(fresh.session?.proposals??[]),...(fresh.simplePlans??[])].some(s=>s.id===item.entityId)) {
       setNotice({tone:"success",message:"This step has already moved on. You can review your past conversations."});
       destination="/journey?view=chapters";
     }
@@ -342,7 +344,9 @@ export default function JourneyWorkspace() {
             runAction={runAction}
           />
         ) : activeView === "roadmap" ? (
-          <RoadmapView session={overview.session} busy={busy} runAction={runAction} />
+          <RoadmapView key={overview.relationship.id} relationshipId={overview.relationship.id} userId={overview.user.id} simplePlans={overview.simplePlans}
+            session={overview.session} busy={busy} runAction={runAction} onDiscard={()=>setDirty(false)}
+            onConflict={()=>{setDirty(false);requestQuietRefresh();}} />
         ) : activeView === "chapters" ? (
           overview.session ? (
             <CheckInTimeline

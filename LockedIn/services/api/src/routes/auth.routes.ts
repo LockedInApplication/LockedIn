@@ -1,6 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { fromNodeHeaders } from "better-auth/node";
 import { auth } from "../lib/auth.js";
+import { emailVerificationRequired } from "../lib/journey-http.js";
+
+const accountEntry = new Set([
+  "/api/auth/get-session", "/api/auth/sign-in/email", "/api/auth/sign-up/email", "/api/auth/sign-out",
+  "/api/auth/send-verification-email", "/api/auth/verify-email", "/api/auth/request-password-reset", "/api/auth/reset-password",
+]);
 
 export async function authRoutes(server: FastifyInstance) {
   server.route({
@@ -9,10 +15,6 @@ export async function authRoutes(server: FastifyInstance) {
     handler: async (request, reply) => {
       try {
         const expectedOwner=request.headers["x-profile-owner"];
-        if(expectedOwner && request.url.split("?")[0]==="/api/auth/change-password") {
-          const session=await auth.api.getSession({headers:fromNodeHeaders(request.headers)});
-          if(!session || session.user.id!==expectedOwner) return reply.code(409).send({message:"Your account changed. Reload this page before saving."});
-        }
         const host = request.headers.host ?? "localhost:8000";
         const protocol =
           (request.headers["x-forwarded-proto"] as string | undefined) ??
@@ -20,6 +22,17 @@ export async function authRoutes(server: FastifyInstance) {
 
         const url = new URL(request.url, `${protocol}://${host}`);
         const headers = fromNodeHeaders(request.headers);
+        const path = url.pathname.replace(/\/$/, "");
+        const resetLink = request.method === "GET" && /^\/api\/auth\/reset-password\/[a-zA-Z0-9_-]+$/.test(path);
+        if (!accountEntry.has(path) && !resetLink) {
+          const session = await auth.api.getSession({ headers });
+          if (session?.user && emailVerificationRequired(session.user)) {
+            return reply.code(403).send({ message: "Verify your email before using LockedIn.", code: "EMAIL_NOT_VERIFIED" });
+          }
+          if (expectedOwner && path === "/api/auth/change-password" && session?.user.id !== expectedOwner) {
+            return reply.code(409).send({ message: "Your account changed. Reload this page before saving." });
+          }
+        }
 
         const requestInit: RequestInit = {
           method: request.method,

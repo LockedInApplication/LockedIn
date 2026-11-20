@@ -1,6 +1,7 @@
 import { Readable } from "node:stream";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getAuthenticatedUser } from "../../lib/session.js";
+import { emailVerificationRequired } from "../../lib/journey-http.js";
 import { notificationBroker } from "./notification.broker.js";
 import { notificationFingerprint } from "./notification.repository.js";
 import { inAppActivityAllowed } from "./notification-preferences.js";
@@ -34,7 +35,7 @@ export function registerStream(server: FastifyInstance) {
             checking = true;
             try {
                 const user = await getAuthenticatedUser(request);
-                if (!user || user.id !== userId) {
+                if (!user || user.id !== userId || emailVerificationRequired(user)) {
                     emit("auth-expired", {});
                     stream.push(null);
                     return;

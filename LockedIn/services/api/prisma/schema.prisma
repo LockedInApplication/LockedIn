@@ -39,6 +39,15 @@ enum NextStepStatus {
   DECLINED
 }
 
+enum RoadmapPlanStatus {
+  PENDING
+  ACCEPTED
+  PASSED
+  WITHDRAWN
+  DONE
+  CANCELED
+}
+
 enum ReflectionOutcome {
   COMPLETED
   CHANGED
@@ -98,6 +107,8 @@ model User {
   intentionSessionsCreated   IntentionSession[]          @relation("IntentionSessionCreator")
   intentionResponses         IntentionResponse[]
   proposedNextSteps          SharedNextStep[]            @relation("NextStepProposer")
+  proposedRoadmapPlans       RoadmapPlan[]               @relation("RoadmapPlanProposer")
+  resolvedRoadmapPlans       RoadmapPlan[]               @relation("RoadmapPlanResolver")
   reflections                Reflection[]
   conversationChoices        ConversationChoice[]
   meaningChaptersCreated     MeaningChapter[]            @relation("MeaningChapterCreator")
@@ -216,6 +227,7 @@ model Relationship {
 
   members             RelationshipMember[]
   intentionSessions   IntentionSession[]
+  roadmapPlans        RoadmapPlan[]
   conversationChoices ConversationChoice[]
   meaningChapters     MeaningChapter[]
   notifications       Notification[]
@@ -859,6 +871,38 @@ model SharedNextStep {
 
   @@index([sessionId, status])
   @@index([proposedById])
+}
+
+model RoadmapPlan {
+  id             String            @id @default(uuid())
+  relationshipId String
+  proposerId     String
+  resolvedById   String?
+  version        Int               @default(1)
+  status         RoadmapPlanStatus @default(PENDING)
+  title          String
+  note           String?
+  day            DateTime?         @db.Date
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  relationship Relationship         @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  proposer     User                 @relation("RoadmapPlanProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  resolvedBy   User?                @relation("RoadmapPlanResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  requests     RoadmapPlanRequest[]
+
+  @@index([relationshipId, updatedAt, id])
+  @@index([proposerId])
+  @@index([resolvedById])
+}
+
+model RoadmapPlanRequest {
+  key         String @id
+  planId      String
+  fingerprint String
+  plan        RoadmapPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
 }
 
 model Reflection {

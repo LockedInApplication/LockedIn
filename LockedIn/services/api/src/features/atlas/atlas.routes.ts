@@ -1,6 +1,6 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { prisma } from "../../lib/prisma.js";
-import { getAuthenticatedUser } from "../../lib/session.js";
+import { requireUser, sendError } from "../../lib/journey-http.js";
 import { isRelationshipMember } from "../relationships/relationship-access.service.js";
 import { atlasWords } from "./atlas.catalog.js";
 import { getCompletedAtlasChapter } from "./atlas-chapter.service.js";
@@ -20,21 +20,6 @@ import {
   savePersonalDefinitionProposal,
   saveResolvedDefinition,
 } from "./atlas.service.js";
-
-function sendError(reply: FastifyReply, status: number, message: string) {
-  return reply.code(status).send({ error: message });
-}
-
-async function requireUser(request: FastifyRequest, reply: FastifyReply) {
-  const user = await getAuthenticatedUser(request);
-
-  if (!user) {
-    sendError(reply, 401, "Please sign in to continue.");
-    return null;
-  }
-
-  return user;
-}
 
 export async function registerAtlasRoutes(server: FastifyInstance): Promise<void> {
   server.get<{ Params: { chapterId: string } }>(

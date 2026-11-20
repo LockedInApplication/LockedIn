@@ -6,6 +6,7 @@ import { addAlignmentTrends } from "../check-ins/alignment.js";
 import { atlasWords } from "../atlas/atlas.catalog.js";
 import { buildAtlasView } from "../atlas/atlas.view.js";
 import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
+import { listSimplePlans } from "../roadmap/simple-plan.service.js";
 
 type OverviewUser = { id: string; email: string; name: string | null };
 
@@ -131,6 +132,7 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
           }
         : null,
       session,
+      simplePlans: relationship ? await listSimplePlans(relationship.id, userId) : [],
       checkInHistory,
       conversationSelection,
       conversationPacks: conversationPacks.map(({ questions, ...pack }) => ({

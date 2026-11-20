@@ -1,6 +1,7 @@
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { invitationPairWhere, lockInvitationRows } from "./invitation-access.service.js";
 import { blockPairConversationsUnderLock, closeUnbackfilledRelationshipChatsUnderLock } from "../messaging/messaging-lifecycle.service.js";
+import { cancelRestrictedRoadmapProposals } from "../roadmap/simple-plan-safety.js";
 
 // Call only after acquiring all affected account locks in database order.
 // Canonical restrictions are independent from discovery's admission switch.
@@ -8,6 +9,7 @@ export async function closeDiscoveryContactUnderLock(tx: Prisma.TransactionClien
   await closeDiscoverySourcesUnderLock(tx, { OR: [{ userLowId: a, userHighId: b }, { userLowId: b, userHighId: a }] });
   await closeUnbackfilledRelationshipChatsUnderLock(tx,a,"BLOCK",b);
   await blockPairConversationsUnderLock(tx,a,b);
+  await cancelRestrictedRoadmapProposals(tx,a,b);
 }
 
 export async function closeDiscoverySourcesUnderLock(tx: Prisma.TransactionClient, source: Prisma.DiscoveryConnectionWhereInput) {

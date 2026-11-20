@@ -8,8 +8,10 @@ import { nextStepSchema, reflectionSchema } from "./roadmap.schemas.js";
 import { reflectionOpensAt } from "./roadmap.dates.js";
 import { acceptRoadmapStep, saveRoadmapReflection } from "./roadmap.service.js";
 import { withNotifications } from "../notifications/index.js";
+import { registerSimplePlanRoutes } from "./simple-plan.routes.js";
 
 export async function registerRoadmapRoutes(server: FastifyInstance) {
+  registerSimplePlanRoutes(server);
   server.post<{ Params: { sessionId: string } }>(
     "/api/journey/sessions/:sessionId/next-steps",
     async (request, reply) => {

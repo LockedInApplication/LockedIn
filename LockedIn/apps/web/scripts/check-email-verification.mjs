@@ -31,6 +31,7 @@ try {
   const page = await context.newPage(), errors = [];
   page.on("pageerror", error => errors.push(error.message));
   let account = null, verified = false, sends = 0, mode = "success", release = null, freshChecks = 0;
+  let useCurrentSessionFlag = false;
   const user = () => account ? { id: account, name: "Test Person", email: `${account}@example.test`, emailVerified: false, image: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : null;
   await context.route("**/api/**", async route => {
     const request = route.request(), url = new URL(request.url()), endpoint = url.pathname;
@@ -38,12 +39,12 @@ try {
     if (endpoint.endsWith("/get-session")) {
       const person = user(), fresh = url.searchParams.get("disableCookieCache") === "true";
       if (fresh) freshChecks++;
-      return json(person ? { user: { ...person, emailVerified: fresh ? verified : false }, session: { id: `synthetic-${account}`, userId: account, token: "synthetic-only", expiresAt: new Date(Date.now() + 3600000).toISOString(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } } : null);
+      return json(person ? { user: { ...person, emailVerified: fresh || useCurrentSessionFlag ? verified : false }, session: { id: `synthetic-${account}`, userId: account, token: "synthetic-only", expiresAt: new Date(Date.now() + 3600000).toISOString(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } } : null);
     }
     if (endpoint.endsWith("/send-verification-email")) {
       sends++;
       const body = request.postDataJSON();
-      assert.equal(body.callbackURL, `${base}/verify-email?pending=1`);
+      assert.equal(body.callbackURL, `${base}/verify-email?pending=1&returnTo=%2Fjourney`);
       assert.equal(body.email, account ? `${account}@example.test` : "manual@example.test");
       const result = mode;
       if (result.startsWith("hold")) await new Promise(resolve => { release = resolve; });
@@ -101,7 +102,7 @@ try {
   await page.getByRole("heading", { name: "Your email is verified.", exact: true }).waitFor();
   assert(freshChecks > beforeCheck, "Check again must bypass stale cookie status");
   assert.equal(await resend().count(), 0);
-  assert.equal(await page.getByRole("link", { name: "Continue to Discovery" }).getAttribute("href"), "/discover");
+  assert.equal(await page.getByRole("link", { name: "Continue to LockedIn" }).getAttribute("href"), "/journey");
   await page.screenshot({ path: path.join(artifacts, "verified-393.png"), fullPage: true });
 
   // Change accounts via the same cross-tab signal Better Auth uses; don't replace app code.
@@ -121,25 +122,19 @@ try {
   await resend().click(); await page.getByRole("status").filter({ hasText: "Verification email requested" }).waitFor();
 
   if (process.env.EMAIL_VERIFY_STAGE !== "shared") {
+    for (const path of ["/profile", "/discover", "/journey?view=roadmap", "/connections?compose=invite", "/messages/example"]) {
+      await page.goto(`${base}${path}`);
+      await page.waitForURL(url => url.pathname === "/verify-email" && url.searchParams.get("returnTo") === path);
+      await resend().waitFor();
+      assert.equal(await page.getByRole("navigation", { name: "Main navigation" }).count(), 0);
+    }
     await page.goto(`${base}/profile`);
-    await page.getByRole("button", { name: "Verify email", exact: true }).waitFor();
-    await page.screenshot({ path: path.join(artifacts, "profile-entry-393.png"), fullPage: true });
-    await page.getByLabel("Current password", { exact: true }).fill("private-unsaved");
-    await page.getByRole("button", { name: "Verify email", exact: true }).click();
-    await page.getByRole("button", { name: "Keep editing", exact: true }).click();
-    assert.equal(await page.getByLabel("Current password", { exact: true }).inputValue(), "private-unsaved");
-    await page.getByRole("button", { name: "Verify email", exact: true }).click();
-    await page.getByRole("button", { name: "Leave without saving", exact: true }).click();
-    await page.waitForURL(`${base}/verify-email?pending=1`); await resend().waitFor();
-    await page.goto(`${base}/discover`);
-    await page.getByRole("button", { name: "Verify email", exact: true }).waitFor();
-    await page.screenshot({ path: path.join(artifacts, "discovery-entry-393.png"), fullPage: true });
-    await page.getByRole("button", { name: "Verify email", exact: true }).click();
-    await page.waitForURL(`${base}/verify-email?pending=1`); await resend().waitFor();
-    verified = true;
-    await page.goto(`${base}/profile`); await page.getByText("Email verified", { exact: true }).waitFor();
-    assert.equal(await page.getByRole("button", { name: "Verify email", exact: true }).count(), 0);
-    // Cached session deliberately remains unverified: Discovery must independently confirm status.
+    await checkAgain().waitFor();
+    verified = true; useCurrentSessionFlag = true;
+    await checkAgain().click();
+    await page.getByRole("link", { name: "Continue to LockedIn", exact: true }).click();
+    await page.waitForURL(`${base}/profile`);
+    await page.getByText("Email verified", { exact: true }).waitFor();
     await page.goto(`${base}/discover`); await page.getByRole("heading", { name: "Discovery is not available.", exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Verify email", exact: true }).count(), 0);
   }
@@ -152,7 +147,7 @@ try {
     await page.screenshot({ path: path.join(artifacts, `verify-${width}.png`), fullPage: true });
   }
   assert.deepEqual(errors, [], "No browser runtime errors");
-  console.log("PASS verification resend, no false success, failures, duplicate submission, stale status, account switch and layouts" + (process.env.EMAIL_VERIFY_STAGE === "shared" ? "" : ", Profile/Discovery entry and dirty navigation"));
+  console.log("PASS verification resend, no false success, failures, duplicate submission, stale status, account switch and layouts" + (process.env.EMAIL_VERIFY_STAGE === "shared" ? "" : ", mandatory member gate and return path"));
 } finally {
   if (browser) await browser.close();
   if (preview) { preview.kill("SIGTERM"); await new Promise(resolve => preview.exitCode !== null ? resolve() : preview.once("exit", resolve)); }

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { connectionFixtures } from "../discovery/test/discovery-connection.fixtures.js";
 import { createPerson } from "../discovery/test/discovery.fixtures.js";
 import { notificationBroker } from "../notifications/notification.broker.js";
+import { dateSpotTicket } from "../date-spots/date-spots-ticket.js";
 
 vi.mock("../../lib/email.js", () => ({ sendEmail: async () => {}, sendPasswordResetEmail: async () => {} }));
 vi.mock("../journey-notifications/journey-email.service.js", () => ({ sendJourneyEmailSafely: async () => {} }));
@@ -109,6 +110,49 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("date planning thr
     active = value(await action(a, propose())).activePlan;
     const confirmed = value(await action(b, change("confirm", active))).activePlan;
     expect(value(await action(b, change("cancel", confirmed))).activePlan).toBeNull();
+  });
+
+  it.each([true, false])("sends a ticket as one legacy-compatible invite (discovery=%s)", async discovery => {
+    const { a, b, id, action } = await fixture(discovery);
+    const url = chat(id) + "/messages";
+    const before = value(await request(a, url)).items.length;
+    const ticket = dateSpotTicket(id, a.id, venue.id, venue.name, process.env.BETTER_AUTH_SECRET!, Date.now() - 29 * 60_000);
+    const input = { action: "propose", ticket, requestId: randomUUID(), time: time() };
+    expect((await action(b, input)).statusCode).toBe(404);
+    const { activePlan, message } = value(await action(a, input));
+    const legacy = value(await request(b, url)).items;
+    expect(legacy).toHaveLength(before + 1);
+    expect(legacy.at(-1)).toMatchObject({ id: message.id, datePlanEvent: { id: activePlan.id, action: "propose", venueName: venue.name } });
+    expect(legacy.at(-1)).not.toHaveProperty("dateSpot");
+    expect(JSON.stringify({ activePlan, message })).not.toContain(venue.id);
+    expect(JSON.stringify({ activePlan, message })).not.toContain(ticket);
+    const { applyDatePlanAction } = await import("./date-plan-service.js");
+    const { openConversation } = await import("../messaging/messaging-access.service.js");
+    const replay = await prisma.$transaction(async tx => {
+      const conversation = await openConversation(tx, id, a.id, true);
+      if (!conversation) throw new Error("Expected test chat");
+      return applyDatePlanAction(tx, conversation, a.id, { ...input, action: "propose" }, new Date(Date.now() + 2 * 60_000));
+    });
+    expect(replay).toMatchObject({ ok: true, value: { message: { id: message.id } } });
+    expect((await action(a, { ...input, time: time(5) })).statusCode).toBe(409);
+    const source = plans(id) + "/" + activePlan.id;
+    expect(value(await request(b, source))).toMatchObject({ plan: { id: activePlan.id }, activity: [{ id: message.id }], canAct: true });
+    expect(value(await action(b, change("confirm", activePlan))).activePlan.state).toBe("confirmed");
+    expect(value(await action(b, change("cancel", activePlan))).activePlan).toBeNull();
+    expect(value(await request(a, source))).toMatchObject({ plan: { state: "canceled" }, canAct: false });
+    await request(b, chat(id) + "/block", {});
+    expect((await request(a, source)).statusCode).toBe(404);
+  });
+
+  it("lists only explicitly shared places, including shares older than the chat page", async () => {
+    const { a, b, id, sourceMessageId } = await fixture();
+    const another = await fixture();
+    const conversation = await prisma.chatConversation.findUniqueOrThrow({ where: { id } });
+    await prisma.discoveryMessage.createMany({ data: Array.from({ length: 31 }, () => ({
+      conversationId: conversation.id, senderId: a.id, requestId: randomUUID(), text: "Suggested date spot: Not a trusted venue",
+    })) });
+    expect(value(await request(b, plans(id) + "/venues")).items).toEqual([{ id: sourceMessageId, name: venue.name }]);
+    expect((await request(another.a, plans(id) + "/venues")).statusCode).toBe(404);
   });
 
   it("keeps history scoped to members and rejects arbitrary or forged messages", async () => {

@@ -20,7 +20,7 @@ export async function listMessages(tx: Prisma.TransactionClient, c: ChatConversa
   const page = rows.slice(0, 30), nextCursor = rows.length > 30 ? String(page.at(-1)!.sequence) : null;
   return { items: page.reverse().map(row => messageView(row, actorId)), nextCursor };
 }
-export async function sendMessage(tx: Prisma.TransactionClient, c: ChatConversation, actorId: string, input: { text: string; requestId: string; dateSpotPlaceId?: string; datePlanEvent?: StoredDatePlanEvent }): Promise<ChatResult<ChatMessageView> & { notify?: string[] }> {
+export async function sendMessage(tx: Prisma.TransactionClient, c: ChatConversation, actorId: string, input: { id?: string; text: string; requestId: string; dateSpotPlaceId?: string; datePlanEvent?: StoredDatePlanEvent }): Promise<ChatResult<ChatMessageView> & { notify?: string[] }> {
   const prior = await tx.discoveryMessage.findFirst({ where: { ...messageScope(c), senderId: actorId, requestId: input.requestId } });
   if (prior) {
     const priorEvent = prior.datePlanEvent === null ? null : readStoredDatePlanEvent(prior.datePlanEvent);

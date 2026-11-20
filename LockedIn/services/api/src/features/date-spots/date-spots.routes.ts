@@ -11,6 +11,8 @@ import { chatMissing, openConversation } from "../messaging/messaging-access.ser
 import { messageScope, sendMessage } from "../messaging/messaging-message.service.js";
 import { respondMessaging } from "../messaging/messaging.routes.js";
 import { notificationBroker } from "../notifications/notification.broker.js";
+import { datePlansEnabled } from "../date-plans/date-plan-config.js";
+import { readPlanVenueId } from "../date-plans/date-plan-service.js";
 import { dateSpotsAvailable } from "./date-spots-config.js";
 import { getPlaceProvider, type PlaceProvider } from "./date-spots-provider.js";
 import { mapInterests, meetupAreas, preferencesSchema, rankVenues, searchCategories, searchWindow, type Preferences } from "./date-spots-ranking.js";
@@ -27,6 +29,7 @@ const inputSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("share"), ticket, requestId: uuid }),
   z.strictObject({ action: z.literal("details"), ticket }),
   z.strictObject({ action: z.literal("sharedDetails"), messageId: uuid }),
+  z.strictObject({ action: z.literal("planDetails"), planId: uuid }),
 ]);
 const invalidArea = { ok: false as const, status: 400, error: "Choose an available meetup area." };
 const stale = { ok: false as const, status: 409, error: "This date-spot request changed. Refresh and try again." };
@@ -75,10 +78,12 @@ export function registerDateSpotRoutes(server: FastifyInstance, injected?: Place
     const params = chatParams.safeParse(request.params), body = inputSchema.safeParse(request.body);
     if (!params.success || !body.success || !emptyChatInput.safeParse(request.query).success) return sendError(reply,400,"Invalid date-spot request.");
     const owner = actor.userId, id = params.data.id, input = body.data, areas = meetupAreas();
+    const planDetails = input.action === "planDetails";
+    if (planDetails && !datePlansEnabled()) return sendError(reply,404,chatMissing.error);
     const findArea = (key: string) => areas.find(area => area.areaId === key);
     const remember = (tx: Prisma.TransactionClient, preferences: Preferences) => tx.dateSpotPreference.upsert({ where: { userId: owner }, create: { userId: owner, ...preferences }, update: preferences });
     const resolve = async () => prisma.$transaction(async tx => {
-      const c = await openConversation(tx,id,owner); if (!c) return chatMissing;
+      const c = await openConversation(tx,id,owner,planDetails); if (!c) return chatMissing;
       if (input.action === "forget") {
         await tx.dateSpotPreference.deleteMany({ where: { userId: owner } });
         return success({ status: "forgotten" as const });
@@ -89,9 +94,10 @@ export function registerDateSpotRoutes(server: FastifyInstance, injected?: Place
         const result = await sendMessage(tx,c,owner,{ text: `Suggested date spot: ${valid.name}`, dateSpotPlaceId: valid.place, requestId: input.requestId });
         return result.ok ? { ...success({ status: "shared" as const, message: result.value }), ...(result.notify ? { signal: c } : {}) } : result;
       }
-      if (input.action === "details" || input.action === "sharedDetails") {
+      if (input.action === "details" || input.action === "sharedDetails" || input.action === "planDetails") {
         const place = input.action === "details" ? readDateSpotTicket(input.ticket,id,owner,secret)?.place
-          : (await tx.discoveryMessage.findFirst({ where: { ...messageScope(c), id: input.messageId }, select: { dateSpotPlaceId: true } }))?.dateSpotPlaceId;
+          : input.action === "planDetails" ? await readPlanVenueId(tx,c,input.planId)
+            : (await tx.discoveryMessage.findFirst({ where: { ...messageScope(c), id: input.messageId }, select: { dateSpotPlaceId: true } }))?.dateSpotPlaceId;
         if (!place) return invalidSpot;
         const quota = await consumeDiscoveryQuota(tx,owner,"dateSpots"); if (!quota.ok) return quota;
         return success({ status: "lookup" as const, place });
@@ -134,7 +140,7 @@ export function registerDateSpotRoutes(server: FastifyInstance, injected?: Place
     if (!result.ok) return respondMessaging(reply,owner,result);
     if ("signal" in result && result.signal) notify(result.signal);
     const authorized = (mutualId?: string | null) => prisma.$transaction(async tx => {
-      if (!await openConversation(tx,id,owner)) return false;
+      if (!await openConversation(tx,id,owner,planDetails)) return false;
       if (!mutualId) return true;
       const current = await tx.dateSpotRequest.findUnique({ where: { conversationId:id } });
       return current?.id === mutualId && !!current.joinsWith && current.expiresAt > new Date();

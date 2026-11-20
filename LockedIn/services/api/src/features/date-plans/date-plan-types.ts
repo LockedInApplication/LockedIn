@@ -6,8 +6,9 @@ const revision = z.number().int().min(1).max(2_147_483_647);
 const action = z.enum(["propose", "counter", "confirm", "decline", "withdraw", "cancel"]);
 const time = z.strictObject({ localTime: z.string().length(16), timeZone: z.string().min(1).max(100), startsAt: z.string().min(20).max(30) });
 const target = { planId: uuid, revision, requestId: uuid };
-export const datePlanInput = z.discriminatedUnion("action", [
+export const datePlanInput = z.union([
   z.strictObject({ action: z.literal("propose"), sourceMessageId: uuid, requestId: uuid, time }),
+  z.strictObject({ action: z.literal("propose"), ticket: z.string().min(16).max(2400), requestId: uuid, time }),
   z.strictObject({ action: z.literal("counter"), ...target, time }),
   z.strictObject({ action: z.enum(["confirm", "decline", "withdraw", "cancel"]), ...target }),
 ]);

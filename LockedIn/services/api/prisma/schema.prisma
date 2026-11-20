@@ -484,6 +484,7 @@ model ChatDatePlan {
   conversationId  String
   sourceMessageId String
   venueName       String
+  venuePlaceId    String?
   startsAt        DateTime
   timeZone        String
   revision        Int

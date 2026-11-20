@@ -129,6 +129,8 @@ model User {
   chatConversationsLow       ChatConversation[] @relation("ChatLowUser")
   chatConversationsHigh      ChatConversation[] @relation("ChatHighUser")
   chatReadStates             ChatReadState[]
+  chatTextReadStates         ChatTextReadState[]
+  chatDatePlanReads          ChatDatePlanRead[]
   dateSpotPreference         DateSpotPreference?
   dateSpotRequests           DateSpotRequest[]
   proposedDates              ChatDatePlan[]
@@ -435,12 +437,24 @@ model ChatConversation {
   dateSpotRequest       DateSpotRequest?
   datePlans             ChatDatePlan[]
   readStates            ChatReadState[]
+  textReadStates        ChatTextReadState[]
 
   @@index([userLowId])
   @@index([userHighId])
 }
 
 model ChatReadState {
+  conversationId String
+  userId         String
+  through        BigInt
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+}
+
+model ChatTextReadState {
   conversationId String
   userId         String
   through        BigInt
@@ -496,10 +510,22 @@ model ChatDatePlan {
   conversation    ChatConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sourceMessage   DiscoveryMessage   @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
   proposer        User               @relation(fields: [proposerId], references: [id], onDelete: Cascade)
+  reads           ChatDatePlanRead[]
 
   @@index([conversationId, state, startsAt])
   @@index([sourceMessageId])
   @@index([proposerId])
+}
+
+model ChatDatePlanRead {
+  planId  String
+  userId  String
+  through BigInt
+  plan    ChatDatePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user    User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([planId, userId])
+  @@index([userId])
 }
 
 model DiscoveryMessage {

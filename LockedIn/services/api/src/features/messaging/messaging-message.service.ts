@@ -1,4 +1,4 @@
-import type { ChatConversation, DiscoveryMessage, Prisma } from "../../../generated/prisma/client.js";
+import { Prisma, type ChatConversation, type DiscoveryMessage } from "../../../generated/prisma/client.js";
 import { consumeDiscoveryQuota } from "../discovery/discovery-throttle.service.js";
 import { inAppActivityAllowed } from "../notifications/notification-preferences.js";
 import { datePlansEnabled } from "../date-plans/date-plan-config.js";
@@ -15,8 +15,11 @@ export const messageView = (row: DiscoveryMessage, actorId: string): ChatMessage
   }
   return message;
 };
-export async function listMessages(tx: Prisma.TransactionClient, c: ChatConversation, actorId: string, before?: string): Promise<ChatPage> {
-  const rows = await tx.discoveryMessage.findMany({ where: { ...messageScope(c), ...(before ? { sequence: { lt: BigInt(before) } } : {}) }, orderBy: { sequence: "desc" }, take: 31 });
+export async function listMessages(tx: Prisma.TransactionClient, c: ChatConversation, actorId: string, before?: string, sheet = false): Promise<ChatPage> {
+  const projection = sheet && datePlansEnabled() ? { AND: [{ OR: [
+    { datePlanEvent: { equals: Prisma.DbNull } }, { datePlanEvent: { path: ["action"], equals: "propose" } },
+  ] }] } : {};
+  const rows = await tx.discoveryMessage.findMany({ where: { ...messageScope(c), ...projection, ...(before ? { sequence: { lt: BigInt(before) } } : {}) }, orderBy: { sequence: "desc" }, take: 31 });
   const page = rows.slice(0, 30), nextCursor = rows.length > 30 ? String(page.at(-1)!.sequence) : null;
   return { items: page.reverse().map(row => messageView(row, actorId)), nextCursor };
 }

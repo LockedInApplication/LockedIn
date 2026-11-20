@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
-import { chatParams, chatQuery, emptyChatInput, requireAccountMutationIdentity } from "../../lib/account-mutation-http.js";
+import { chatParams, chatPresentationQuery, chatQuery, chatSequence, emptyChatInput, requireAccountMutationIdentity } from "../../lib/account-mutation-http.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
 import { chatMissing, openConversation } from "../messaging/messaging-access.service.js";
 import { respondMessaging } from "../messaging/messaging.routes.js";
@@ -9,6 +9,7 @@ import { notificationBroker } from "../notifications/notification.broker.js";
 import { datePlansEnabled } from "./date-plan-config.js";
 import { applyDatePlanAction, getActiveDatePlan, getDatePlan, getDatePlanCalendar, listPlanVenues } from "./date-plan-service.js";
 import { datePlanInput } from "./date-plan-types.js";
+import { acknowledgeDatePlan, getUnreadDateUpdate } from "./date-plan-read.service.js";
 
 export async function registerDatePlanRoutes(server: FastifyInstance) {
   const path = "/api/messaging/conversations/:id/date-plans";
@@ -17,13 +18,28 @@ export async function registerDatePlanRoutes(server: FastifyInstance) {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply); if (!user) return;
     if (!datePlansEnabled()) return sendError(reply, 404, chatMissing.error);
-    const params = chatParams.safeParse(request.params);
-    if (!params.success || !emptyChatInput.safeParse(request.query).success) return sendError(reply, 400, "Invalid date-plan request.");
+    const params = chatParams.safeParse(request.params), query = chatPresentationQuery.safeParse(request.query);
+    if (!params.success || !query.success) return sendError(reply, 400, "Invalid date-plan request.");
     const result = await prisma.$transaction(async tx => {
       const conversation = await openConversation(tx, params.data.id, user.id, true);
-      return conversation ? { ok: true as const, value: { activePlan: await getActiveDatePlan(tx, conversation, user.id, new Date()) } } : chatMissing;
+      if (!conversation) return chatMissing;
+      const activePlan = await getActiveDatePlan(tx, conversation, user.id, new Date());
+      return { ok: true as const, value: { activePlan, ...(query.data.presentation === "sheet"
+        ? { unreadUpdate: await getUnreadDateUpdate(tx, conversation.id, user.id) } : {}) } };
     });
     return respondMessaging(reply, user.id, result);
+  });
+  server.post(path + "/:planId/read", { bodyLimit: 1024 }, async (request, reply) => {
+    const actor = await requireAccountMutationIdentity(request, reply, "x-messaging-owner"); if (!actor) return;
+    if (!datePlansEnabled()) return sendError(reply, 404, chatMissing.error);
+    const params = planParams.safeParse(request.params), input = z.strictObject({ through: chatSequence }).safeParse(request.body);
+    if (!params.success || !input.success || !emptyChatInput.safeParse(request.query).success) return sendError(reply, 400, "Invalid date-plan request.");
+    const result = await prisma.$transaction(async tx => {
+      const conversation = await openConversation(tx, params.data.id, actor.userId, true);
+      return conversation ? acknowledgeDatePlan(tx, conversation, params.data.planId, actor.userId, BigInt(input.data.through)) : chatMissing;
+    });
+    if (result.ok) notificationBroker.publish(actor.userId, false, "unread");
+    return respondMessaging(reply, actor.userId, result);
   });
   server.get(path + "/venues", async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");

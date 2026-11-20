@@ -18,3 +18,5 @@ export const emptyChatInput = z.strictObject({});
 export const chatMessageInput = z.strictObject({ text: z.string().trim().min(1).max(2000).refine(v => !v.includes("\u0000")), requestId: z.string().uuid() });
 export const chatSequence = z.string().regex(/^[1-9][0-9]{0,18}$/).refine(v => v.length < 19 || v <= "9223372036854775807");
 export const chatQuery = z.strictObject({ before: chatSequence.optional() });
+export const chatPresentationQuery = z.strictObject({ presentation: z.literal("sheet").optional() });
+export const chatMessagesQuery = chatQuery.extend(chatPresentationQuery.shape);

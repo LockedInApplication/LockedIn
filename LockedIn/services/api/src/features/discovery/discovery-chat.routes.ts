@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../../lib/prisma.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
-import { chatMessageInput, chatQuery } from "../../lib/account-mutation-http.js";
+import { chatMessageInput, chatMessagesQuery } from "../../lib/account-mutation-http.js";
 import { notificationBroker } from "../notifications/notification.broker.js";
 import { respondDiscovery } from "./discovery-connection.routes.js";
 import { requireDiscoveryMutation } from "./discovery.http.js";
@@ -26,11 +26,11 @@ export function registerDiscoveryChatRoutes(server: FastifyInstance) {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply); if (!user) return;
     if (!discoveryChatEnabled()) return sendError(reply, 404, chatMissing.error);
-    const params = discoveryConnectionParams.safeParse(request.params), query = chatQuery.safeParse(request.query);
+    const params = discoveryConnectionParams.safeParse(request.params), query = chatMessagesQuery.safeParse(request.query);
     if (!params.success || !query.success) return sendError(reply, 400, "Invalid chat request.");
     return respondDiscovery(reply, user.id, await prisma.$transaction(async tx => {
       const c = await openLegacyChat(tx, params.data.id, user.id);
-      return c ? { ok: true as const, value: await listMessages(tx, c, user.id, query.data.before) } : chatMissing;
+      return c ? { ok: true as const, value: await listMessages(tx, c, user.id, query.data.before, query.data.presentation === "sheet") } : chatMissing;
     }));
   });
   server.post(path, { bodyLimit: 16_384, config: { discoveryValidation: { body: chatMessageInput, params: discoveryConnectionParams } } }, async (request, reply) => {

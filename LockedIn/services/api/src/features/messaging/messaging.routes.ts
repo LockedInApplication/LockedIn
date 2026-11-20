@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { prisma } from "../../lib/prisma.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
-import { chatMessageInput, chatParams, chatQuery, chatSequence, emptyChatInput, requireAccountMutationIdentity } from "../../lib/account-mutation-http.js";
+import { chatMessageInput, chatParams, chatMessagesQuery, chatPresentationQuery, chatSequence, emptyChatInput, requireAccountMutationIdentity } from "../../lib/account-mutation-http.js";
 import { sharedMessagingEnabled } from "./messaging.config.js";
 import { chatMissing, conversationAllowsChat, lockConversation, openConversation } from "./messaging-access.service.js";
 import { listMessages, sendMessage } from "./messaging-message.service.js";
@@ -14,6 +14,7 @@ import { changeChatContact, reportMessage } from "./messaging-safety.service.js"
 import { dateSpotsAvailable } from "../date-spots/date-spots-config.js";
 import { datePlansEnabled } from "../date-plans/date-plan-config.js";
 import { acknowledgeChat, listUnreadChats } from "./messaging-unread.service.js";
+import { listUnreadDates } from "../date-plans/date-plan-read.service.js";
 
 const reportInput = z.strictObject({ messageId: z.string().uuid(), reason: z.enum(["HARASSMENT","IMPERSONATION","SPAM","OTHER"]), detail: z.string().max(1000).optional(), requestId: z.string().uuid(), blockAlso: z.boolean().optional() });
 
@@ -26,14 +27,18 @@ export async function registerMessagingRoutes(server: FastifyInstance) {
   server.get("/api/messaging/unread", async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply); if (!user) return;
-    if (!emptyChatInput.safeParse(request.query).success) return sendError(reply, 400, "Invalid chat request.");
-    return respondMessaging(reply, user.id, { ok: true, value: await listUnreadChats(user.id) });
+    const query = chatPresentationQuery.safeParse(request.query);
+    if (!query.success) return sendError(reply, 400, "Invalid chat request.");
+    const sheet = query.data.presentation === "sheet";
+    const [chats, dates] = await Promise.all([listUnreadChats(user.id, sheet), sheet ? listUnreadDates(user.id) : null]);
+    return respondMessaging(reply, user.id, { ok: true, value: dates ? { ...chats, dates } : chats });
   });
   server.post(`${base}/read`, { bodyLimit: 1024 }, async (request, reply) => {
     const actor = await requireAccountMutationIdentity(request, reply, "x-messaging-owner"); if (!actor) return;
     const params = chatParams.safeParse(request.params), input = z.strictObject({ through: chatSequence }).safeParse(request.body);
-    if (!params.success || !input.success || !emptyChatInput.safeParse(request.query).success) return sendError(reply, 400, "Invalid chat request.");
-    const result = await prisma.$transaction(tx => acknowledgeChat(tx, params.data.id, actor.userId, BigInt(input.data.through)));
+    const query = chatPresentationQuery.safeParse(request.query);
+    if (!params.success || !input.success || !query.success) return sendError(reply, 400, "Invalid chat request.");
+    const result = await prisma.$transaction(tx => acknowledgeChat(tx, params.data.id, actor.userId, BigInt(input.data.through), query.data.presentation === "sheet"));
     if (result.ok) notificationBroker.publish(actor.userId, false, "unread");
     return respondMessaging(reply, actor.userId, result);
   });
@@ -89,11 +94,11 @@ export async function registerMessagingRoutes(server: FastifyInstance) {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply); if (!user) return;
     if (!sharedMessagingEnabled()) return sendError(reply, 404, chatMissing.error);
-    const params = chatParams.safeParse(request.params), query = chatQuery.safeParse(request.query);
+    const params = chatParams.safeParse(request.params), query = chatMessagesQuery.safeParse(request.query);
     if (!params.success || !query.success) return sendError(reply, 400, "Invalid chat request.");
     return respondMessaging(reply, user.id, await prisma.$transaction(async tx => {
       const c = await openConversation(tx, params.data.id, user.id);
-      return c ? { ok: true as const, value: await listMessages(tx, c, user.id, query.data.before) } : chatMissing;
+      return c ? { ok: true as const, value: await listMessages(tx, c, user.id, query.data.before, query.data.presentation === "sheet") } : chatMissing;
     }));
   });
   server.post(`${base}/messages`, { bodyLimit: 16_384 }, async (request, reply) => {

@@ -155,6 +155,56 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("date planning thr
     expect((await request(another.a, plans(id) + "/venues")).statusCode).toBe(404);
   });
 
+  it.each([true, false])("keeps text and exact-plan receipts independent (discovery=%s)", async discovery => {
+    const { a, b, id, action, propose } = await fixture(discovery);
+    const url = chat(id) + "/messages";
+    const unread = (actor: typeof a) => request(actor, "/api/messaging/unread?presentation=sheet").then(value);
+    const dates = async (actor: typeof a) => (await unread(actor)).dates.items.map((entry: { planId: string }) => entry.planId);
+    const first = value(await action(a, propose()));
+    const firstId = first.activePlan.id;
+    const accepted = value(await action(b, change("confirm", first.activePlan))).activePlan;
+    const canceled = value(await action(a, change("cancel", accepted))).message;
+    const next = value(await action(a, propose(time(5))));
+    expect(await dates(b)).toEqual([next.activePlan.id, firstId]);
+    expect(await dates(a)).toEqual([firstId]);
+    expect(value(await request(b, plans(id) + "?presentation=sheet")).unreadUpdate).toEqual({ planId: next.activePlan.id, action: "propose" });
+    expect(value(await request(b, url + "?presentation=sheet")).items.map((row: { datePlanEvent?: { action: string } }) => row.datePlanEvent?.action).filter(Boolean)).toEqual(["propose", "propose"]);
+    expect(value(await request(b, url)).items.map((row: { datePlanEvent?: { action: string } }) => row.datePlanEvent?.action).filter(Boolean)).toEqual(["propose", "confirm", "cancel", "propose"]);
+    const readFirst = plans(id) + "/" + firstId + "/read";
+    expect((await request(b, readFirst, { through: next.message.sequence })).statusCode).toBe(404);
+    expect((await request(b, chat(id) + "/read?presentation=sheet", { through: next.message.sequence })).statusCode).toBe(404);
+    const plain = value(await request(a, url, { text: "See you soon", requestId: randomUUID() }));
+    value(await request(b, readFirst, { through: canceled.sequence }));
+    expect(await dates(b)).toEqual([next.activePlan.id]);
+    expect((await unread(b)).items).toEqual([expect.objectContaining({ conversationId: id })]);
+    value(await request(b, chat(id) + "/read?presentation=sheet", { through: plain.sequence }));
+    expect((await unread(b)).items).toEqual([]);
+    expect(await dates(b)).toEqual([next.activePlan.id]);
+    await prisma.user.update({ where: { id: b.id }, data: { inAppActivity: false } });
+    expect(await dates(b)).toEqual([]);
+    expect(value(await request(b, plans(id) + "?presentation=sheet"))).toMatchObject({ activePlan: { id: next.activePlan.id }, unreadUpdate: null });
+    await prisma.user.update({ where: { id: b.id }, data: { inAppActivity: true } });
+    value(await request(b, chat(id) + "/read", { through: next.message.sequence }));
+    expect(await dates(b)).toEqual([]);
+  });
+
+  it("fills compact pages before applying the cursor even across many hidden date events", async () => {
+    const { a, b, id, action, propose } = await fixture();
+    const { activePlan, message } = value(await action(a, propose()));
+    const original = await prisma.discoveryMessage.findUniqueOrThrow({ where: { id: message.id } });
+    await prisma.discoveryMessage.createMany({ data: Array.from({ length: 37 }, (_, i) => [
+      { conversationId: id, senderId: a.id, requestId: randomUUID(), text: `Ordinary ${i}` },
+      { conversationId: id, senderId: a.id, requestId: randomUUID(), text: "Suggested another time.",
+        datePlanEvent: { ...(original.datePlanEvent as object), id: activePlan.id, action: "counter" } },
+    ]).flat() });
+    const path = chat(id) + "/messages?presentation=sheet";
+    const latest = value(await request(b, path));
+    const older = value(await request(b, path + "&before=" + latest.nextCursor));
+    expect(latest.items.map((row: { text: string }) => row.text)).toEqual(Array.from({ length: 30 }, (_, i) => `Ordinary ${i + 7}`));
+    expect(older.items.map((row: { text: string }) => row.text)).toEqual([`Suggested date spot: ${venue.name}`, "Suggested a date time.", ...Array.from({ length: 7 }, (_, i) => `Ordinary ${i}`)]);
+    expect(older.nextCursor).toBeNull();
+  });
+
   it("keeps history scoped to members and rejects arbitrary or forged messages", async () => {
     const { a, b, id, propose, action, calendar } = await fixture();
     const other = await fixture();

@@ -1,4 +1,4 @@
-import type { Prisma } from "../../../generated/prisma/client.js";
+import { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { chatMissing, conversationAllowsChat, openConversation } from "./messaging-access.service.js";
 import { messageScope } from "./messaging-message.service.js";
@@ -8,7 +8,7 @@ import type { ChatResult } from "./messaging.types.js";
 type UnreadItem = { conversationId: string; discoveryConnectionId: string | null };
 const cap = 100;
 
-export async function listUnreadChats(userId: string): Promise<{ count: number; items: UnreadItem[] }> {
+export async function listUnreadChats(userId: string, sheet = false): Promise<{ count: number; items: UnreadItem[] }> {
   const items: UnreadItem[] = [];
   let before: bigint | null = null;
   const neutral = sharedMessagingEnabled();
@@ -17,15 +17,24 @@ export async function listUnreadChats(userId: string): Promise<{ count: number; 
       SELECT c.id, latest.sequence
       FROM "ChatConversation" c
       LEFT JOIN "ChatReadState" r ON r."conversationId" = c.id AND r."userId" = ${userId}
+      LEFT JOIN "ChatTextReadState" t ON t."conversationId" = c.id AND t."userId" = ${userId}
       LEFT JOIN "DiscoveryConnection" d ON d.id = c."discoveryConnectionId"
       CROSS JOIN LATERAL (
         SELECT MAX(sequence) AS sequence FROM (
           (SELECT m.sequence FROM "DiscoveryMessage" m WHERE m."conversationId" = c.id AND m."senderId" <> ${userId} AND NOT m."unreadAlertSuppressed"
-            AND m.sequence > GREATEST(r."through", d."legacyUnreadBaseline", 0) ORDER BY m.sequence DESC LIMIT 1)
+            AND (NOT ${sheet} OR m."datePlanEvent" IS NULL)
+            AND m.sequence > GREATEST(r."through", d."legacyUnreadBaseline", 0,
+              CASE WHEN m."datePlanEvent" IS NULL THEN t."through"
+              ELSE (SELECT "through" FROM "ChatDatePlanRead" WHERE "planId" = m."datePlanEvent"->>'id' AND "userId" = ${userId}) END)
+            ORDER BY m.sequence DESC LIMIT 1)
           UNION ALL
           (SELECT m.sequence FROM "DiscoveryMessage" m WHERE m."conversationId" IS NULL AND m."connectionId" = c."discoveryConnectionId"
             AND m."senderId" <> ${userId} AND NOT m."unreadAlertSuppressed"
-            AND m.sequence > GREATEST(r."through", d."legacyUnreadBaseline", 0) ORDER BY m.sequence DESC LIMIT 1)
+            AND (NOT ${sheet} OR m."datePlanEvent" IS NULL)
+            AND m.sequence > GREATEST(r."through", d."legacyUnreadBaseline", 0,
+              CASE WHEN m."datePlanEvent" IS NULL THEN t."through"
+              ELSE (SELECT "through" FROM "ChatDatePlanRead" WHERE "planId" = m."datePlanEvent"->>'id' AND "userId" = ${userId}) END)
+            ORDER BY m.sequence DESC LIMIT 1)
         ) candidates
       ) latest
       WHERE (c."userLowId" = ${userId} OR c."userHighId" = ${userId}) AND c."closedAt" IS NULL
@@ -49,14 +58,17 @@ export async function listUnreadChats(userId: string): Promise<{ count: number; 
   return { count: items.length, items };
 }
 
-export async function acknowledgeChat(tx: Prisma.TransactionClient, id: string, owner: string, through: bigint): Promise<ChatResult<{ through: string }>> {
+export async function acknowledgeChat(tx: Prisma.TransactionClient, id: string, owner: string, through: bigint, sheet = false): Promise<ChatResult<{ through: string }>> {
   const c = await openConversation(tx, id, owner, true);
   if (!c) return chatMissing;
-  const shown = await tx.discoveryMessage.findFirst({ where: { ...messageScope(c), sequence: through, senderId: { not: owner } }, select: { id: true } });
+  const shown = await tx.discoveryMessage.findFirst({ where: { ...messageScope(c), sequence: through, senderId: { not: owner },
+    ...(sheet ? { datePlanEvent: { equals: Prisma.DbNull } } : {}),
+  }, select: { id: true } });
   if (!shown) return chatMissing;
+  const table = sheet ? Prisma.sql`"ChatTextReadState"` : Prisma.sql`"ChatReadState"`;
   const [marker] = await tx.$queryRaw<{ through: bigint }[]>`
-    INSERT INTO "ChatReadState" ("conversationId", "userId", "through") VALUES (${c.id}, ${owner}, ${through})
-    ON CONFLICT ("conversationId", "userId") DO UPDATE SET "through" = GREATEST("ChatReadState"."through", EXCLUDED."through")
+    INSERT INTO ${table} ("conversationId", "userId", "through") VALUES (${c.id}, ${owner}, ${through})
+    ON CONFLICT ("conversationId", "userId") DO UPDATE SET "through" = GREATEST(${table}."through", EXCLUDED."through")
     RETURNING "through"
   `;
   return { ok: true, value: { through: String(marker!.through) } };

@@ -1,7 +1,7 @@
 // Only this runner's validated, disposable database may be created or removed.
 import { Client } from "pg";
 import { execFileSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { cpSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -75,9 +75,9 @@ try {
     if (entry >= "20261118002000_shared_messaging" && entry < "20261119004000_chat_read_state") cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
   }
   run(["migrate", "deploy", "--config", config]);
-  for (const entry of readdirSync(migrations)) {
-    if (entry >= "20261119004000_chat_read_state" && entry !== "migration_lock.toml") cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
-  }
+  const dateSheetExpansion = "20261120010000_shared_date_sheet";
+  const later = readdirSync(migrations).filter(entry => entry >= "20261119004000_chat_read_state" && entry !== "migration_lock.toml");
+  for (const entry of later.filter(entry => entry < dateSheetExpansion)) cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
   run(["migrate", "deploy", "--config", config]);
   const baseline = await database.query(`SELECT EXISTS (
     SELECT 1 FROM "DiscoveryConnection" d JOIN "DiscoveryMessage" m ON m."connectionId" = d.id
@@ -90,6 +90,35 @@ try {
   if (JSON.stringify(chatBefore) !== JSON.stringify(await chatSnapshot())) throw new Error("Messaging expansion changed historical messages/reports");
   if (JSON.stringify(before) !== JSON.stringify(await snapshot())) throw new Error("Migration changed historical content/IDs/consent");
   console.log("Historical fixture snapshot preserved exactly.");
+  // Simulate an old server creating and reading dates before the new schema exists.
+  const conversation = randomUUID(), sender = "discovery-preserved-a", recipient = "discovery-preserved-b";
+  await database.query(`INSERT INTO "ChatConversation" (id,"userLowId","userHighId",origin,"accessMode","discoveryConnectionId","updatedAt")
+    VALUES ($1,$2,$3,'DISCOVERY','DISCOVERY','discovery-preserved-contact',NOW())`, [conversation, sender, recipient]);
+  const legacyDates = [];
+  for (let i = 0; i < 2; i++) {
+    const id = randomUUID(), planId = randomUUID();
+    const startsAt = new Date(Date.now() + (i + 1) * 86_400_000).toISOString();
+    const event = { id: planId, sourceMessageId: id, venueName: "Migration library", startsAt, timeZone: "UTC",
+      revision: 1, state: "declined", action: "propose", fingerprint: "0".repeat(64) };
+    const { rows } = await database.query(`INSERT INTO "DiscoveryMessage" (id,"conversationId","senderId","requestId",text,"datePlanEvent")
+      VALUES ($1,$2,$3,$4,'Suggested a date time.',$5) RETURNING sequence`, [id, conversation, sender, randomUUID(), event]);
+    await database.query(`INSERT INTO "ChatDatePlan" (id,"conversationId","sourceMessageId","venueName","startsAt","timeZone",revision,"proposerId",state,"updatedAt")
+      VALUES ($1,$2,$3,'Migration library',$4,'UTC',1,$5,'declined',NOW())`, [planId, conversation, id, startsAt, sender]);
+    if (!i) await database.query(`INSERT INTO "ChatReadState" ("conversationId","userId",through) VALUES ($1,$2,$3)`, [conversation, recipient, rows[0].sequence]);
+    legacyDates.push(id);
+  }
+  const dateSnapshot = async () => (await database.query(`SELECT id,"datePlanEvent",sequence FROM "DiscoveryMessage" WHERE id=ANY($1) ORDER BY sequence`, [legacyDates])).rows;
+  const beforeSheet = await dateSnapshot();
+  for (const entry of later.filter(entry => entry >= dateSheetExpansion)) cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
+  run(["migrate", "deploy", "--config", config]);
+  if (JSON.stringify(beforeSheet) !== JSON.stringify(await dateSnapshot())) throw new Error("Sheet expansion changed legacy date events");
+  const [alreadySeen, unseen] = legacyDates;
+  const legacy = await database.query(`SELECT m.id
+    FROM "DiscoveryMessage" m JOIN "ChatReadState" r ON r."conversationId"=m."conversationId"
+    LEFT JOIN "ChatDatePlanRead" p ON p."planId"=m."datePlanEvent"->>'id' AND p."userId"=r."userId"
+    WHERE m.id=ANY($1) AND r."userId"=$2 AND m.sequence>GREATEST(p.through,r.through)
+    ORDER BY m.sequence`, [[alreadySeen, unseen], recipient]);
+  if (legacy.rows.length !== 1 || legacy.rows[0]?.id !== unseen) throw new Error("Sheet expansion changed what was unseen");
   const files = process.env.DISCOVERY_TEST_FILES?.split(",").filter(Boolean) ?? ["api/src"];
   const migrationTest = "api/src/features/messaging/test/messaging-migration.integration.spec.ts";
   const rolloutTest = "api/src/features/messaging/test/messaging-rollout.integration.spec.ts";

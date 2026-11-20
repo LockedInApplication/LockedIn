@@ -20,9 +20,10 @@ function alignmentClassName(item: AlignmentItem): string {
 
 export type AlignmentStageProps = {
   session: JourneySession;
+  onProposeNextStep?: () => void;
 };
 
-export default function AlignmentStage({ session }: AlignmentStageProps) {
+export default function AlignmentStage({ session, onProposeNextStep }: AlignmentStageProps) {
   return (
     <div className={styles.alignmentStack}>
       <section className={styles.alignmentHeader}>
@@ -66,8 +67,9 @@ export default function AlignmentStage({ session }: AlignmentStageProps) {
         <div>
           <span className={styles.eyebrow}>NEXT</span>
           <h3>Turn insight into something you both choose.</h3>
-          <p>Open the Roadmap to propose practical next steps, dates, and private follow-up reflections.</p>
+          <p>If you have an idea after this check-in, suggest a next step in the Roadmap. It’s your partner’s choice whether to accept.</p>
         </div>
+        {onProposeNextStep ? <button type="button" className={styles.primaryAction} onClick={onProposeNextStep}>Make this a next step</button> : null}
       </section>
     </div>
   );

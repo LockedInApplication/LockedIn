@@ -11,12 +11,14 @@ export type SessionStageProps = {
   session: JourneySession;
   busy: boolean;
   runAction: (action: () => Promise<unknown>, successMessage?: string) => Promise<void>;
+  onProposeNextStep?: () => void;
 };
 
 export default function SessionStage({
   session,
   busy,
   runAction,
+  onProposeNextStep,
 }: SessionStageProps) {
   if (!session.ownResponse) {
     return (
@@ -60,5 +62,5 @@ export default function SessionStage({
     return <WaitingCard title="You chose what to reveal." name={session.partnerState.name} detail="The comparison will open only after both people consent. You cannot see their answers yet." />;
   }
 
-  return <AlignmentStage session={session} />;
+  return <AlignmentStage session={session} onProposeNextStep={session.bothRevealed ? onProposeNextStep : undefined} />;
 }

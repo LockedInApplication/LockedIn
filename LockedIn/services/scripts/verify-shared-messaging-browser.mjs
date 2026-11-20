@@ -323,6 +323,32 @@ try {
     await pb.getByRole("button",{name:/Alex.*Invitation to review/}).click();
     await pb.getByRole("button",{name:"Accept invitation",exact:true}).click();
     await pb.getByText("You’re connected. Find your chat in Inbox, and your new shared space here in Together.",{exact:true}).waitFor();
+    const activities = pb.getByRole("navigation",{name:"Together activities",exact:true});
+    const guided = activities.getByRole("button",{name:"Guided conversations",exact:true});
+    const roadmap = activities.getByRole("button",{name:"Our next steps",exact:true});
+    for (const width of [320,393,1280]) {
+      await pb.setViewportSize({width,height:852});
+      await guided.waitFor();
+      const first = await guided.boundingBox(), second = await roadmap.boundingBox();
+      assert(first && second && first.height>=48 && second.height>=48);
+      assert(width<=700 ? first.y<second.y : Math.abs(first.y-second.y)<1);
+      assert(await pb.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    }
+    await pb.setViewportSize({width:393,height:852});
+    await guided.click();
+    await pb.waitForURL(base+"/journey?view=conversations");
+    await pb.getByRole("heading",{name:"Explore topics",exact:true}).waitFor();
+    await tab(pb,"Together").click();
+    await roadmap.click();
+    await pb.waitForURL(base+"/journey?view=roadmap");
+    const joined = await prisma.relationship.findFirstOrThrow({where:{members:{some:{userId:b.id}}}});
+    const checkIn = await prisma.intentionSession.create({data:{relationshipId:joined.id,createdById:a.id,status:"REVEALED"}});
+    await prisma.intentionResponse.createMany({data:[a,b].map(user=>({sessionId:checkIn.id,userId:user.id,answers:{},shareKeys:[],revealConsentedAt:new Date()}))});
+    await pb.goto(base+"/journey");
+    await pb.getByRole("button",{name:"Make this a next step",exact:true}).click();
+    await pb.waitForURL(base+"/journey?view=roadmap#step-propose");
+    await pb.waitForFunction(()=>document.activeElement?.id==="step-propose");
+    assert.equal(await pb.getByLabel("Next step",{exact:true}).inputValue(),"");
     await tab(pb,"Inbox").click();
     await pb.getByRole("button",{name:/Alex.*shared-space conversation/}).click();
     await composer(pb).fill("Hello from the direct invite");
@@ -366,7 +392,7 @@ try {
     assert.equal(await composer(pc).inputValue(),"Keep this draft while viewing a profile");
     assert.equal(await pc.getByRole("button",{name:"Plan a date",exact:true}).count(),1);
     assert.deepEqual(errors,[]);
-    console.log("PASS navigation: mobile/desktop tabs, direct invite with draft guard, unread Inbox, Profile and private reflection, locked-in Discovery pause, chat and profile return");
+    console.log("PASS navigation: mobile/desktop tabs, direct invite, Together destinations and post-reveal Roadmap handoff, unread Inbox, private reflection, locked-in Discovery pause, chat and profile return");
   } else {
   const invite=await prisma.relationshipInvite.create({data:{inviterId:a.id,inviteeId:b.id,expiresAt:new Date(Date.now()+60000)}});
   await pb.goto(`${base}/journey?invite=${invite.token}`,{waitUntil:"domcontentloaded"});

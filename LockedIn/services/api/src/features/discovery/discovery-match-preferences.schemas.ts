@@ -6,6 +6,7 @@ const matchGender = z.enum(matchGenders);
 export type MatchGender = z.infer<typeof matchGender>;
 const ageBound = z.number().int().min(18).max(120);
 export const matchPreferencesSchema = z.strictObject({
+  revision: z.uuid().nullable(),
   birthDate: z.string().refine(isCalendarBirthDate),
   gender: matchGender,
   meetGenders: z.union([z.literal("all"), z.array(matchGender).min(1).max(4).refine(values => new Set(values).size === values.length)]),

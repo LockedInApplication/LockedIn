@@ -7,6 +7,7 @@ import ProfileAvatar from "./ProfileAvatar";
 import ProfileDetails from "./ProfileDetails";
 import ProfileSecurity from "./ProfileSecurity";
 import ProfileNotifications from "./ProfileNotifications";
+import ProfileMatchingSettings from "./ProfileMatchingSettings";
 import ProfileDeletion from "./ProfileDeletion";
 import InvitationBlocks from "@/features/invitations/InvitationBlocks";
 import styles from "./profile.module.scss";
@@ -100,6 +101,7 @@ function AccountProfile({ userId }: { userId: string }) {
             />
             <section className={styles.card} aria-labelledby="profile-privacy">
               <h2 id="profile-privacy">Privacy & safety</h2>
+              <ProfileMatchingSettings userId={userId} onOpen={() => void leave("/discover/matching")} />
               <InvitationBlocks />
             </section>
             <section className={styles.card}>

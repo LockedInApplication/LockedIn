@@ -5,7 +5,7 @@ import { connectionFixtures, publicDraft } from "./discovery-connection.fixtures
 const preferences = "/api/discovery/match-preferences";
 const city = "/api/discovery/candidates?areaId=pilot-city";
 const distance = "/api/discovery/candidates?mode=distance";
-const basic = { birthDate: "1994-06-04", meetGenders: "all", minAge: 18, maxAge: null };
+const basic = { birthDate: "1994-06-04", meetGenders: "all", minAge: 18, maxAge: null, revision: null };
 const privateFields = /birthDate|meetGenders|meetAllGenders|minAge|maxAge|NONBINARY|1994-06-04/;
 
 vi.mock("../../../lib/email.js", () => ({ sendEmail: async () => {}, sendPasswordResetEmail: async () => {} }));
@@ -60,7 +60,10 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("mutual Discovery 
     const priorIds = await allIds();
     expect(priorIds).toContain(unset.profileId);
     process.env.DISCOVERY_MATCH_PREFERENCES_REQUIRED = "true";
-    const saveViewer = (meetGenders: string[]) => f.request(viewer, "PUT", preferences, { ...basic, gender: "NONBINARY", meetGenders });
+    const saveViewer = async (meetGenders: string[]) => {
+      const revision = (await f.request(viewer, "GET", preferences)).json().value.settings?.revision ?? null;
+      return f.request(viewer, "PUT", preferences, { ...basic, gender: "NONBINARY", meetGenders, revision });
+    };
     expect((await saveViewer(["WOMAN"])).statusCode).toBe(200);
     for (const person of [...fitting, ...oneWay, paused]) {
       expect((await f.request(person, "PUT", preferences, { ...basic, gender: "WOMAN", meetGenders: oneWay.includes(person) ? ["MAN"] : ["NONBINARY"] })).statusCode).toBe(200);
@@ -96,7 +99,10 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("mutual Discovery 
 
   it("denies stale profile and photo reads but keeps pending safety actions and existing chats", async () => {
     const f = connectionFixtures(app), a = await f.person(), b = await f.person(), c = await f.person(), unset = await f.person();
-    const save = (person: typeof a, patch: object = {}) => f.request(person, "PUT", preferences, { ...basic, gender: "NONBINARY", ...patch });
+    const save = async (person: typeof a, patch: object = {}) => {
+      const revision = (await f.request(person, "GET", preferences)).json().value.settings?.revision ?? null;
+      return f.request(person, "PUT", preferences, { ...basic, gender: "NONBINARY", revision, ...patch });
+    };
     for (const person of [a, b, c]) expect((await save(person)).statusCode).toBe(200);
     Object.assign(process.env, { DISCOVERY_PHOTOS_ENABLED: "true", CLOUDINARY_CLOUD_NAME: "synthetic", CLOUDINARY_API_KEY: "synthetic", CLOUDINARY_API_SECRET: "synthetic" });
     const photo = await db.discoveryPhoto.create({ data: { ownerId: b.id, profileId: b.profileId, requestId: randomUUID(), payloadHash: "a".repeat(64), state: "APPROVED", scanCompleted: true, width: 600, height: 800, assetId: randomUUID(), publicId: randomUUID(), assetVersion: 1 } });

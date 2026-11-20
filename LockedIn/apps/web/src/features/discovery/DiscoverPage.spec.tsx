@@ -86,5 +86,7 @@ it("still requires publication, active visibility, and a current location after 
   expect(renderToStaticMarkup(<DiscoverPage />)).toContain("Your visibility is paused.");
   state.paused = false;
   state.location = { required: true, areaId: "new-york", expiresAt: new Date(Date.now() - 1000).toISOString() };
-  expect(renderToStaticMarkup(<DiscoverPage />)).toContain("Your location check expired.");
+  const expired = renderToStaticMarkup(<DiscoverPage />);
+  expect(expired).toContain("Your location check expired.");
+  expect(expired).toContain(">Matching preferences</button>");
 });

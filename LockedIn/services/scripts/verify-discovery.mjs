@@ -122,9 +122,11 @@ try {
     WHERE m.id=ANY($1) AND r."userId"=$2 AND m.sequence>GREATEST(p.through,r.through)
     ORDER BY m.sequence`, [[alreadySeen, unseen], recipient]);
   if (legacy.rows.length !== 1 || legacy.rows[0]?.id !== unseen) throw new Error("Sheet expansion changed what was unseen");
+  const historicalOwner = "discovery-preserved-publication-owner";
+  await database.query('INSERT INTO "user" (id,email,"updatedAt") VALUES ($1,$2,NOW())', [historicalOwner, `${historicalOwner}@example.test`]);
   const historicalProfile = { publicName: "Historical alias", avatarPreset: "leaf", bio: "Historical public introduction", areaId: "pilot-city", intention: "LONG_TERM", interests: ["Reading"], pace: null };
   await database.query(`INSERT INTO "DiscoveryProfile" (id,"ownerId",draft,"publishedSnapshot","publishedAreaId","publishedIntention","adultAttestedAt","publicationConsentedAt","publicationConsentVersion","publishedAt","publicationVersion","pausedAt","updatedAt")
-    VALUES ($1,$2,$3,$4,'pilot-city','LONG_TERM',NOW(),NOW(),1,NOW(),1,NOW(),NOW())`, [randomUUID(), sender, { revision: 1, profile: historicalProfile }, historicalProfile]);
+    VALUES ($1,$2,$3,$4,'pilot-city','LONG_TERM',NOW(),NOW(),1,NOW(),1,NOW(),NOW())`, [randomUUID(), historicalOwner, { revision: 1, profile: historicalProfile }, historicalProfile]);
   const matchingBaseline = async () => ({
     preserved: await snapshot(), chat: await chatSnapshot(), dates: await dateSnapshot(),
     publicProfiles: (await database.query('SELECT to_jsonb(p) AS profile FROM "DiscoveryProfile" p ORDER BY id')).rows,

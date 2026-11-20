@@ -379,8 +379,24 @@ try{
     await pa.getByRole("textbox",{name:"Message",exact:true}).fill("Matching removal doesn’t stop chat.");
     await pa.getByRole("button",{name:"Send message",exact:true}).click();
     await pa.getByText("Matching removal doesn’t stop chat.",{exact:true}).waitFor();
+    await prisma.discoveryLocationCheck.update({where:{profileId:matchB.profileId},data:{expiresAt:new Date(0)}});
+    await pb.goto(`${base}/discover`);
+    await pb.getByRole("button",{name:"Confirm my location",exact:true}).waitFor();
+    await pb.getByRole("button",{name:"Matching preferences",exact:true}).click();
+    await pb.getByRole("button",{name:"Remove matching setup",exact:true}).waitFor();
+    // A dismissed pilot member with no connections must still have a visible
+    // route to control saved personal data — no location or Discovery access.
+    process.env.DISCOVERY_PILOT_USER_IDS=process.env.DISCOVERY_PILOT_USER_IDS.split(",").filter(id=>id!==matchC.id).join(",");
+    await pc.goto(`${base}/profile`);
+    await pc.getByRole("button",{name:"Manage matching preferences",exact:true}).click();
+    await pc.waitForURL(`${base}/discover/matching`);
+    assert.equal(await pc.getByLabel("Date of birth",{exact:true}).count(),0);
+    await pc.getByRole("button",{name:"Remove matching setup",exact:true}).click();
+    await pc.getByRole("alertdialog").getByRole("button",{name:"Remove setup",exact:true}).click();
+    await pc.getByText("Matching setup removed. Existing chats and direct invites are unchanged.",{exact:true}).waitFor();
+    assert.equal((await request(matchC,"GET","/api/discovery/match-preferences")).body.value.settings,null);
     process.env.DISCOVERY_MATCH_PREFERENCES_REQUIRED="false";process.env.DISCOVERY_LOCATION_REQUIRED="false";
-    console.log("PASS private mutual matching setup, verified metro, one-sided exclusion, missing setup, pending safety actions, and established chat");
+    console.log("PASS private mutual matching setup, verified metro, one-sided exclusion, pending safety actions, established chat, and settings removal without location or admission");
   }
   if(legacyConnectionId){
   const fallback=await pageFor(c,true);await fallback.goto(`${base}/connections`);await fallback.getByRole("button",{name:"Your space",exact:true}).click();await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).fill("FALLBACK UNSAVED");const fallbackBack=fallback.goBack({waitUntil:"commit",timeout:4000}).catch(()=>null);await fallback.getByRole("button",{name:"Keep editing",exact:true}).click();await fallbackBack;assert.equal(await fallback.getByRole("textbox",{name:"Your private reflection",exact:true}).inputValue(),"FALLBACK UNSAVED");

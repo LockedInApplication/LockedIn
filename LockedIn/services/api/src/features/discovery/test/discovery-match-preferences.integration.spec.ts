@@ -5,6 +5,7 @@ import { createPerson } from "./discovery.fixtures.js";
 
 const path = "/api/discovery/match-preferences";
 const input = { birthDate: "1997-02-08", gender: "NONBINARY", meetGenders: "all", minAge: 18, maxAge: null };
+const newSetup = { ...input, revision: null };
 
 describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private Discovery match settings", () => {
   let app: Awaited<ReturnType<typeof import("../../../app.js").buildServer>>;
@@ -26,7 +27,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private Discovery
       { maxAge: undefined }, { minAge: 21 }, { minAge: 35, maxAge: 21 }, { minAge: 17 },
       { birthDate: "2001-02-29" }, { birthDate: "2999-02-19" }, { birthDate: new Date().toISOString().slice(0, 10) },
       { notes: "private-values-should-not-be-logged" },
-    ]) expect((await f.request(owner, "PUT", path, { ...input, ...patch })).statusCode).toBe(400);
+    ]) expect((await f.request(owner, "PUT", path, { ...newSetup, ...patch })).statusCode).toBe(400);
     expect((await f.request(owner, "GET", path)).json().value.settings).toBeNull();
     expect((await f.request(owner, "GET", `${path}?birthDate=1998-07-04`)).statusCode).toBe(400);
     expect(logs).not.toMatch(/1998-07-04|private-values-should-not-be-logged/);
@@ -36,7 +37,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private Discovery
     const f = connectionFixtures(app), owner = await createPerson(), other = await f.person();
     process.env.DISCOVERY_PILOT_USER_IDS += `,${owner.id}`;
     expect((await f.request(owner, "GET", path)).json()).toEqual({ ownerId: owner.id, value: { required: true, settings: null } });
-    const saved = await f.request(owner, "PUT", path, input);
+    const saved = await f.request(owner, "PUT", path, newSetup);
     expect(saved.statusCode).toBe(200);
     expect(saved.headers["cache-control"]).toBe("private, no-store");
     expect(saved.json().value.settings).toEqual({ ...input, revision: expect.any(String) });
@@ -45,13 +46,16 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private Discovery
     expect((await f.request(other, "GET", `${path}?ownerId=${owner.id}`)).statusCode).toBe(400);
     expect((await app.inject({ method: "GET", url: path, headers: { cookie: owner.cookie } })).json().value.settings).toMatchObject(input);
     expect((await app.inject({ method: "GET", url: path, headers: { cookie: other.cookie, origin: "http://localhost:3001", "x-discovery-owner": owner.id } })).statusCode).toBe(409);
-    expect((await app.inject({ method: "PUT", url: path, payload: input, headers: { cookie: owner.cookie, origin: "https://example.test", "x-discovery-owner": owner.id } })).statusCode).toBe(403);
+    expect((await app.inject({ method: "PUT", url: path, payload: newSetup, headers: { cookie: owner.cookie, origin: "https://example.test", "x-discovery-owner": owner.id } })).statusCode).toBe(403);
     expect(logs).not.toContain(input.birthDate);
   });
 
   it("does not let removal reset a consumed correction, and prunes the expired timestamp-only guard", async () => {
     const f = connectionFixtures(app), owner = await f.person();
-    const save = (patch: object = {}) => f.request(owner, "PUT", path, { ...input, ...patch });
+    const save = async (patch: object = {}) => {
+      const revision = (await f.request(owner, "GET", path)).json().value.settings?.revision ?? null;
+      return f.request(owner, "PUT", path, { ...input, revision, ...patch });
+    };
     const clear = () => f.request(owner, "DELETE", path);
     const initial = await save();
     expect(initial.statusCode).toBe(200);
@@ -80,13 +84,28 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("private Discovery
 
   it("allows removal after suspension, leaving the pilot and turning matching off", async () => {
     const f = connectionFixtures(app), owner = await f.person();
-    expect((await f.request(owner, "PUT", path, input)).statusCode).toBe(200);
+    expect((await f.request(owner, "PUT", path, newSetup)).statusCode).toBe(200);
     await db.discoveryProfile.update({ where: { id: owner.profileId }, data: { pausedAt: new Date(), suspendedAt: new Date() } });
     process.env.DISCOVERY_PILOT_USER_IDS = "";
     process.env.DISCOVERY_MATCH_PREFERENCES_REQUIRED = "false";
     expect((await f.request(owner, "GET", path)).json().value.settings).toMatchObject(input);
     expect((await f.request(owner, "DELETE", path)).json().value).toEqual({ required: false, settings: null });
-    expect((await f.request(owner, "PUT", path, input)).statusCode).toBe(404);
+    expect((await f.request(owner, "PUT", path, newSetup)).statusCode).toBe(404);
     expect(await db.discoveryMatchPreferences.findUnique({ where: { ownerId: owner.id } })).toBeNull();
+  });
+
+  it("does not let a stale editor widen saved preferences or recreate a removed setup", async () => {
+    const f = connectionFixtures(app), owner = await f.person();
+    const first = await f.request(owner, "PUT", path, { ...input, revision: null });
+    expect(first.statusCode).toBe(200);
+    const old = first.json().value.settings.revision;
+    const narrowed = await f.request(owner, "PUT", path, { ...input, meetGenders: ["WOMAN"], revision: old });
+    expect(narrowed.statusCode).toBe(200);
+    const stale = await f.request(owner, "PUT", path, { ...input, minAge: 23, maxAge: 44, revision: old });
+    expect(stale.statusCode).toBe(409);
+    expect((await f.request(owner, "GET", path)).json().value.settings).toMatchObject({ meetGenders: ["WOMAN"], minAge: 18, maxAge: null });
+    await f.request(owner, "DELETE", path);
+    expect((await f.request(owner, "PUT", path, { ...input, confirmBirthDateChange: true, revision: narrowed.json().value.settings.revision })).statusCode).toBe(409);
+    expect((await f.request(owner, "GET", path)).json().value.settings).toBeNull();
   });
 });

@@ -36,6 +36,7 @@ export async function saveMatchPreferences(ownerId: string, input: MatchPreferen
     const profile = await tx.discoveryProfile.findUnique({ where: { ownerId } });
     if (!await isDiscoveryAdmitted(tx, ownerId, profile)) return { ok: false, status: 403, error: "Discovery is not available for this account." };
     const existing = await tx.discoveryMatchPreferences.findUnique({ where: { ownerId } });
+    if (input.revision !== (existing?.revision ?? null)) return { ok: false, status: 409, error: "Your saved matching preferences changed. Reload them before saving again." };
     const guard = await tx.discoveryMatchPreferenceGuard.findUnique({ where: { ownerId } });
     const correction = existing ? utcDate(existing.birthDate) !== input.birthDate : !!guard?.reenrollUntil && guard.reenrollUntil > now;
     if (correction) {

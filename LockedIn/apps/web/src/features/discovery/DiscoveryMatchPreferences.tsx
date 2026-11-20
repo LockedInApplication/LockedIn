@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { useDiscovery } from "./DiscoveryShell";
+import { JourneyApiError } from "@/lib/journey";
+import DiscoveryShell, { useDiscovery } from "./DiscoveryShell";
 import { discoveryRequest } from "./discovery.client";
 import type { DiscoveryMatchGender, DiscoveryMatchPreferencesView } from "./discovery.types";
 import { useDiscoveryResource } from "./use-discovery-resource";
@@ -21,10 +22,23 @@ export default function DiscoveryMatchPreferences({ onCancel, onSaved }: { onCan
   if (resource.error) return <section className={styles.card} role="alert"><p>{resource.error}</p><div className={styles.actions}><button onClick={resource.retry}>Try again</button>{onCancel?<button onClick={onCancel}>Back</button>:null}</div></section>;
   if (!value) return <p role="status">Opening matching preferences…</p>;
   if (!value.settings && (!value.required || !me.canDiscover)) return <section className={styles.card}><p>Matching setup is unavailable right now.</p>{onCancel?<button onClick={onCancel}>Back</button>:null}</section>;
-  return <MatchingEditor key={`${userId}:${value.settings?.revision ?? "new"}:${value.required}`} initial={value} canEdit={value.required && me.canDiscover} onCancel={onCancel} onSaved={next=>{resource.install(next);onSaved(next);}}/>;
+  return <MatchingEditor key={`${userId}:${value.settings?.revision ?? "new"}:${value.required}`} initial={value} canEdit={value.required && me.canDiscover} onCancel={onCancel} onReload={resource.retry} onSaved={next=>{resource.install(next);onSaved(next);}}/>;
 }
 
-export function MatchingEditor({ initial, canEdit, onCancel, onSaved }: { initial: DiscoveryMatchPreferencesView; canEdit: boolean; onCancel?: () => void; onSaved: (next: DiscoveryMatchPreferencesView) => void }) {
+export function DiscoveryMatchPreferencesPage() {
+  return <DiscoveryShell><AccountMatchingEditor/></DiscoveryShell>;
+}
+
+function AccountMatchingEditor() {
+  const { leave } = useDiscovery();
+  const [notice,setNotice] = useState("");
+  return <><button type="button" onClick={()=>void leave("/profile")}>← Profile &amp; settings</button><h1>Discovery matching</h1>
+    {notice?<p role="status" className={styles.notice}>{notice}</p>:null}
+    {!notice?<DiscoveryMatchPreferences onCancel={()=>void leave("/profile")} onSaved={value=>setNotice(value.settings?"Matching preferences saved.":"Matching setup removed. Existing chats and direct invites are unchanged.")}/>:null}
+  </>;
+}
+
+export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved }: { initial: DiscoveryMatchPreferencesView; canEdit: boolean; onCancel?: () => void; onReload?: () => void; onSaved: (next: DiscoveryMatchPreferencesView) => void }) {
   const { userId, busy, setBusy, installMatching } = useDiscovery();
   const settings = initial.settings;
   const heading = useId();
@@ -37,6 +51,7 @@ export function MatchingEditor({ initial, canEdit, onCancel, onSaved }: { initia
   const [confirmed, setConfirmed] = useState(false);
   const [remove, setRemove] = useState(false);
   const [error, setError] = useState("");
+  const [canReload, setCanReload] = useState(false);
   const request = useRef<AbortController | null>(null);
   useEffect(()=>()=>{request.current?.abort();},[]);
   const birthDateChanged = settings ? settings.birthDate !== birthDate : initial.requiresBirthDateConfirmation === true;
@@ -49,11 +64,15 @@ export function MatchingEditor({ initial, canEdit, onCancel, onSaved }: { initia
     request.current = controller;
     setBusy(true);
     setError("");
+    setCanReload(false);
     try {
       const next = await discoveryRequest<DiscoveryMatchPreferencesView>(userId, apiPath, { method, signal: controller.signal, ...(body ? { body: JSON.stringify(body) } : {}) });
       if (!controller.signal.aborted) { installMatching(next); onSaved(next); }
     } catch (cause) {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not update your matching preferences.");
+      if (!controller.signal.aborted) {
+        setError(cause instanceof Error ? cause.message : "Could not update your matching preferences.");
+        setCanReload(cause instanceof JourneyApiError && cause.status === 409);
+      }
     } finally {
       if (!controller.signal.aborted) setBusy(false);
       request.current = null;
@@ -63,18 +82,22 @@ export function MatchingEditor({ initial, canEdit, onCancel, onSaved }: { initia
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!ready) return;
-    void update("PUT", { birthDate, gender, meetGenders: meet, minAge: ageChoice === "any" ? 18 : Number(minimum), maxAge: ageChoice === "any" ? null : Number(maximum), ...(birthDateChanged && confirmed ? { confirmBirthDateChange: true } : {}) });
+    void update("PUT", { revision: settings?.revision ?? null, birthDate, gender, meetGenders: meet, minAge: ageChoice === "any" ? 18 : Number(minimum), maxAge: ageChoice === "any" ? null : Number(maximum), ...(birthDateChanged && confirmed ? { confirmBirthDateChange: true } : {}) });
   }
 
   return <section className={styles.card} aria-labelledby={heading}>
     <h2 id={heading}>{settings ? "Matching preferences" : "Set up private matching"}</h2>
     <p>{canEdit ? "You’ll only see people who fit your preferences and whose preferences you fit. Your birthday and choices won’t appear on your profile." : "New matching settings are unavailable. You can still remove what you saved."}</p>
     {error?<p className={`${styles.notice} ${styles.error}`} role="alert">{error}</p>:null}
+    {canReload&&onReload?<button type="button" disabled={busy} onClick={onReload}>Reload saved preferences</button>:null}
     {canEdit?<form className={styles.form} onSubmit={submit}>
       <fieldset className={styles.editorFields} disabled={busy}>
         <label>Date of birth<input type="date" autoComplete="bday" required value={birthDate} onChange={event=>{setBirthDate(event.target.value);setConfirmed(false);}}/></label>
         {birthDateChanged?<label className={styles.check}><input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/>Confirm this birthday (one correction every 30 days)</label>:null}
-        <label>How you identify for matching<select required value={gender} onChange={event=>setGender(event.target.value as DiscoveryMatchGender|"")}><option value="">Select one</option>{options.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
+        <div className={styles.matchField}>
+          <label htmlFor={`${heading}-gender`}>How you identify for matching</label>
+          <select id={`${heading}-gender`} required value={gender} onChange={event=>setGender(event.target.value as DiscoveryMatchGender|"")}><option value="">Select one</option>{options.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>
+        </div>
         <fieldset className={styles.rangeField}>
           <legend>Who you’re open to meeting</legend>
           <label className={styles.check}><input type="checkbox" checked={meet === "all"} onChange={event=>setMeet(event.target.checked?"all":[])}/>Open to all genders</label>

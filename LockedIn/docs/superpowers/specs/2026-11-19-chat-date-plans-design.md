@@ -1,0 +1,44 @@
+# Date plans in chat
+
+## Intent
+
+A person who receives a shared date spot should be able to turn it into a real, mutually agreed plan without leaving the conversation. Make the date tools easy to discover without stacking controls above the composer. A venue suggestion, a proposal, and a confirmed date must look and behave differently.
+
+## Approaches
+
+- **Beside the message box (chosen):** one small **Plan a date** control in the composer area. It is visible where people already coordinate, but the search UI only opens on demand. Keep **Suggest a time** on the specific shared-place card.
+- **In the chat header:** the same actions are available without moving the composer, but the button is farther from the place card and easier to miss while reading the chat.
+- **Synchronize calendars first:** can propose mutual free times, but adds consent, permissions, and setup for both people. Start with direct agreement and an optional calendar export.
+
+## What people see
+
+1. **Plan a date** sits next to the message composer; on narrow screens it can sit in a compact row just above it. The menu offers **Find together** and **Browse on my own**. It uses the existing mutual and solo searches; it doesn't change ranking, inputs, or what gets shared. Incoming, waiting, and ready states stay accessible from the same control; a ready shared search changes its menu item to **See picks for both of you**. Keep the existing starting-area privacy explanation where people choose an area or join a shared search. Don't show a third persistent button.
+2. An already-shared venue card offers **View place** and **Suggest a time**. Either participant can propose a time on it, regardless of who shared it. The existing place details (including photos when available) remain available. Opening or viewing a place never sends anything.
+3. **Suggest a time** opens a compact in-chat day/time picker for that venue. The proposer sees the time zone before sending. **Send suggestion** creates a pending proposal shown as a new item in the conversation. The proposer sees **Waiting for their reply** and can withdraw. The other person sees **Confirm**, **Suggest another time**, and a low-emphasis **Decline** action. A counterproposal replaces the actionable time and requires the first person to confirm it. Sharing a venue or joining a search does not signal acceptance of a date.
+4. Once the other person confirms the current revision, both see **Date confirmed**, venue, date, and time, with an optional **Add to calendar** button. This exports a calendar file on demand; it does not access availability or create events automatically. Either person can cancel a future confirmed date. Rescheduling a confirmed date is cancel-and-repropose for this release; the UI says so. No calendar event is automatically updated or deleted on cancellation.
+
+## Scope and constraints
+
+- Works in existing writable one-to-one Discovery and direct-invite/shared-space chats. It doesn't change Discovery visibility, lock-in, match status, or the ability to send normal messages. Retain the existing report/block/close behavior.
+- Keep updates inside LockedIn, with the existing unread badges and quiet chat updates. No push, email, new refresh banner, calendar account connection, invitations sent through calendar providers, venue reservation, or private post-date reflection in this release.
+- The builder defaults below deliberately keep the initial feature small: one actionable date plan per conversation at a time; one proposed time per revision; a compact date/time picker, not a multi-slot poll.
+
+## Data and authorization
+
+- A plan belongs to one chat conversation and references an existing date-spot message in that conversation using the same message scope as **View place**. The server resolves its place ID and label from the authorized, server-authored date-spot message (which already records both); the client cannot submit an arbitrary place ID or display text. Snapshot that name for the plan and calendar location, without requiring a live provider lookup or copying photos and addresses. **View place** can still fetch details separately. No private starting areas, provider search inputs, calendar details, direct contact details, or unrelated account data go into the plan.
+- Store the latest actionable proposal with a revision, proposer, database status, UTC start, and IANA time zone used for the proposal. Terminal plans retain history. Pending proposals stop being actionable at their proposed start; a confirmed date stops occupying the active slot once its start passes. Expiry doesn't require a background job or generate an unread message. The server verifies future times and enforces the active slot during mutations; a new date may be proposed after a terminal/past plan.
+- Reuse the existing writable-chat authorization and per-conversation locking path for plan writes. Resolve scope and authorize reads and exports through existing chat permissions. Blocking, closing, or losing chat write access disables all plan mutations; no export from a chat the user can't access or a plan that is no longer a current confirmed date.
+- Check the expected plan revision in the same transaction as every change. Only the other member can confirm or counter a pending revision (or decline); only the proposer can withdraw it. Either member may cancel a future confirmed plan. A stale or concurrent action returns a conflict with a targeted reload of the plan, not a page refresh. Idempotent retries must not create multiple plans, confirmations, or chat items.
+- Each explicit change appends an ordered chat item in the same transaction: suggestion, counterproposal, confirmation, decline/withdraw, or cancellation. Use neutral fallbacks for older clients and optional structured plan metadata for the new client. Keep the venue and time as originally displayed on historical suggestions and confirmations, subject to the same visibility and deletion rules as chat; don't rewrite history after a counterproposal. Only the current revision has actionable buttons. The UI can open the current plan from **Plan a date** without scrolling through history. When another shared place is opened during an active plan, link to the current plan instead of starting a second one. Reuse existing message ordering, read markers, notification preferences, and post-commit invalidation. Do not put the venue or time in the bell entry or event stream.
+
+## Time and calendar behavior
+
+- Default to the proposer's browser time zone and show it beside the fields. Show the time in the viewer's local zone with a label; if it differs, also show the proposal's original time zone. Allow a time-zone change in the scheduling UI without requiring it for the common case.
+- Accept unambiguous wall-clock times up to 90 days ahead. Validate the time zone, local time, and submitted instant on the server. For a nonexistent or ambiguous daylight-saving time, ask the proposer to choose another time rather than silently shifting it.
+- Export a standards-compatible calendar event with a stable event ID, public venue, and confirmed start (UTC); use a default one-hour calendar block, editable after import. Export is offered only while the plan is confirmed and its start is in the future. No attendees or private location data. An exported event is a copy; if a plan changes, the user updates their calendar.
+
+## Rollout and verification
+
+- Additive migration before enabling the date-plan flag. Gate plan actions independently of date-spot searches: when searches are switched off or a provider is unavailable, existing shared venues can still anchor new plans and current plans can still be managed. Hide unavailable search and place-details tools, not plan actions. With the plan flag off, plain chat and enabled date-spot sharing remain usable, and old clients/read paths keep safe plain-text history with no plan actions or export. No conversion of old spot messages into active plans is necessary.
+- Test base state and all actor transitions (including duplicate submission, counter-then-stale-confirm, concurrent changes, expiry, cancellation, cross-conversation access, blocked/closed chats, and past, ambiguous, and invalid times). Test markup and keyboard/focus behavior at desktop and mobile composer widths, plus an end-to-end two-account flow in both existing chat types. Confirm proposals refresh quietly and create a normal unread entry for the other member when allowed; confirmation and cancellation propagate without resetting chat scroll or clearing a draft. Verify export contains only the agreed public details and the matching instant.
+- Leave naming, exact endpoint shape, message metadata representation, UI component split, and validation-library choice to the builder provided they preserve the behavior above.

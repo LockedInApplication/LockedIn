@@ -17,6 +17,7 @@ import type { PlaceProvider } from "./features/date-spots/date-spots-provider.js
 function serializeRequestForLog(request: FastifyRequest) {
   const path = request.url.split("?", 1)[0];
   const authPath = path === "/api/auth" || path.startsWith("/api/auth/");
+  const matchPreferencesPath = path.startsWith("/api/discovery/match-preferences");
   const version = request.headers["accept-version"];
 
   return {
@@ -24,7 +25,7 @@ function serializeRequestForLog(request: FastifyRequest) {
     // Verification tokens are in the query; password reset tokens are in the path.
     url: authPath
       ? path.replace(/^\/api\/auth\/reset-password\/.*/, "/api/auth/reset-password/:token")
-      : request.url,
+      : matchPreferencesPath ? path : request.url,
     version: Array.isArray(version) ? version[0] : version,
     host: request.host,
     remoteAddress: request.ip,

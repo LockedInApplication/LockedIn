@@ -17,6 +17,7 @@ import { registerPhotoModerationRoutes } from "./photos/photo-moderation.routes.
 import { registerDiscoveryDistanceRoutes } from "./discovery-distance.routes.js";
 import { getDiscoveryGeocoder, type DiscoveryGeocoder } from "./discovery-geocoding.js";
 import { registerDiscoveryLocationRoutes } from "./discovery-location.routes.js";
+import { registerMatchPreferencesRoutes } from "./discovery-match-preferences.routes.js";
 import { currentDiscoveryLocation, discoveryLocationRequired, noLocation } from "./discovery-location.js";
 import { prisma } from "../../lib/prisma.js";
 
@@ -32,6 +33,7 @@ export async function registerDiscoveryRoutes(server: FastifyInstance, options: 
   await registerDiscoverySafetyRoutes(server);
   registerDiscoveryDistanceRoutes(server, options.discoveryGeocoder ?? getDiscoveryGeocoder());
   registerDiscoveryLocationRoutes(server);
+  registerMatchPreferencesRoutes(server);
   server.get("/api/discovery/me", async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply);

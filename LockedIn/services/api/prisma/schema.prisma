@@ -112,6 +112,8 @@ model User {
   invitationBlocksCreated    InvitationBlock[] @relation("InvitationBlockOwner")
   invitationBlocksReceived   InvitationBlock[] @relation("InvitationBlockTarget")
   discoveryProfile           DiscoveryProfile?
+  discoveryMatchPreferences  DiscoveryMatchPreferences?
+  discoveryMatchPreferenceGuard DiscoveryMatchPreferenceGuard?
   discoveryConnectionsLow    DiscoveryConnection[]       @relation("DiscoveryLowUser")
   discoveryConnectionsHigh   DiscoveryConnection[]       @relation("DiscoveryHighUser")
   discoveryInvitationsSent   DiscoveryConnection[]       @relation("DiscoveryInviter")
@@ -136,6 +138,36 @@ model User {
   proposedDates              ChatDatePlan[]
 
   @@map("user")
+}
+
+enum MatchGender {
+  WOMAN
+  MAN
+  NONBINARY
+  ANOTHER_GENDER
+}
+
+model DiscoveryMatchPreferences {
+  ownerId        String @id
+  birthDate      DateTime @db.Date
+  gender         MatchGender
+  meetAllGenders Boolean
+  meetGenders    MatchGender[]
+  minAge         Int
+  maxAge         Int?
+  revision       String @db.Uuid
+  owner          User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([gender, birthDate])
+}
+
+model DiscoveryMatchPreferenceGuard {
+  ownerId         String @id
+  correctionUntil DateTime?
+  reenrollUntil   DateTime?
+  owner           User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([correctionUntil, reenrollUntil])
 }
 
 model RelationshipInvite {

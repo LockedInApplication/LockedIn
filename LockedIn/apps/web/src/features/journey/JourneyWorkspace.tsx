@@ -11,6 +11,7 @@ import NextActionCard from "./components/NextActionCard";
 import { useWorkspaceNavigation, navigateWorkspaceUrl } from "./use-workspace-navigation";
 import { notificationDestination, type NotificationItem } from "@/features/notifications";
 import { useQuietRefresh } from "@/features/notifications/use-quiet-refresh";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BrandLogo from "@/components/brandLogo";
@@ -24,6 +25,7 @@ import {
   journeyRequest,
 } from "@/lib/journey";
 import styles from "@/app/journey/journey.module.scss";
+import actionStyles from "./shared-space-actions.module.scss";
 import guidanceStyles from "./next-action.module.scss";
 import ConversationSuggestionView from "../conversations/ConversationSuggestionView";
 import conversationStyles from "../conversations/conversation-library.module.scss";
@@ -297,8 +299,10 @@ export default function JourneyWorkspace() {
             <span className={styles.eyebrow}>TOGETHER</span>
             <h1>Your shared space starts here.</h1>
             <p>This is where you’ll find your shared roadmap and check-ins once you both choose to build a space together. Your chats stay in Inbox.</p>
-            <button type="button" onClick={()=>router.push("/connections")}>Go to Inbox</button>{" "}
-            <button type="button" onClick={()=>router.push("/discover")}>Meet someone new</button>
+            <div className={actionStyles.actions}>
+              <Link className={actionStyles.primary} href="/connections">Go to Inbox <span aria-hidden="true">→</span></Link>
+              <Link href="/discover">Meet someone new <span aria-hidden="true">→</span></Link>
+            </div>
           </section>
         ) : activeView === "conversations" ? (
           <ConversationLibrary

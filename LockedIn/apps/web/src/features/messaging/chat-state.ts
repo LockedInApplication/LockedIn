@@ -1,12 +1,13 @@
 import { messagingRequest, type ChatRequest } from "./messaging.client";
 import type { ChatMessage, ChatPage } from "./messaging.types";
 export type { ChatMessage, ChatPage } from "./messaging.types";
-export function readThroughSequence(items: ChatMessage[], visible: boolean, followingLatest: boolean, hasDeferred: boolean, shown: (message: ChatMessage) => boolean): string | null {
+export function readThroughSequence(items: ChatMessage[], visible: boolean, followingLatest: boolean, hasDeferred: boolean, shown: (message: ChatMessage) => boolean, separateDates = false): string | null {
   if (!visible || hasDeferred) return null;
-  // A long self-sent reply can cover the newest incoming bubble at the bottom.
-  // Let scrolling that bubble into view clear it without marking past it.
-  if (!followingLatest && items.at(-1)?.author !== "self") return null;
-  const latest = items.findLast(message => message.author === "partner");
+  // A long self-sent reply or a date breadcrumb can cover the newest unread
+  // text at the bottom. Let scrolling that bubble back into view clear it.
+  const last = items.at(-1);
+  if (!followingLatest && last?.author !== "self" && !(separateDates && last?.datePlanEvent)) return null;
+  const latest = items.findLast(message => message.author === "partner" && (!separateDates || !message.datePlanEvent));
   return latest && shown(latest) ? latest.sequence : null;
 }
 const unique = (items: ChatMessage[]) => [...new Map(items.map(m => [m.id,m])).values()];

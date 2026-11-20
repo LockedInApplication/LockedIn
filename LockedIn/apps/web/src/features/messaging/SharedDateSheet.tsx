@@ -22,6 +22,7 @@ type Selection = { name: string; ticket: string } | (DatePlanVenue & { address?:
 type Props = {
   userId: string; conversationId: string; spotsId?: string; target: DateSheetTarget; partnerName: string;
   busy: boolean; error: string; onClose: () => void; clearError: () => void;
+  summaryUnavailable: boolean; retrySummary: () => void; sharedSearchRequested: boolean;
   act: (action: DatePlanAction) => Promise<DatePlanReply | null>; exportCalendar: (id: string) => Promise<void>;
   showPlan: (id: string) => void; currentPlanId?: string; renderReport: (message: ChatMessage) => ReactNode;
 };
@@ -29,7 +30,10 @@ type Props = {
 export default function SharedDateSheet(props: Props) {
   const { target, onClose } = props;
   return <DatePlanDialog title={target.kind === "plan" ? "Your date plan" : "Plan a date"} onClose={onClose} className={styles.dateSheet}>
-    {target.kind === "plan" ? <DatePlanDetailView key={target.planId} {...props} planId={target.planId}/>
+    {target.kind === "loading-summary" ? (props.summaryUnavailable
+      ? <p role="status">Couldn’t load your date plan. <button type="button" onClick={props.retrySummary}>Retry</button></p>
+      : <p role="status">Loading your date plan…</p>)
+      : target.kind === "plan" ? <DatePlanDetailView key={target.planId} {...props} planId={target.planId}/>
       : <DateInviteComposer {...props} shared={target.kind === "shared" ? target.venue : undefined}/>}
     {props.error ? <p role="alert">{props.error}</p> : null}
   </DatePlanDialog>;
@@ -129,16 +133,18 @@ function makeRequest() {
   return { signal: controller.signal, abort: () => controller.abort() };
 }
 
-function DatePlanDetailView({ userId, conversationId, planId, spotsId, partnerName, busy, act, clearError, exportCalendar, currentPlanId, showPlan, renderReport }: Props & { planId: string }) {
+function DatePlanDetailView({ userId, conversationId, planId, spotsId, partnerName, busy, act, clearError, exportCalendar, currentPlanId, showPlan, renderReport, sharedSearchRequested }: Props & { planId: string }) {
   const path = `/api/messaging/conversations/${conversationId}/date-plans/${planId}`;
   const [detail, setDetail] = useState<DatePlanDetail>();
   const [unavailable, setUnavailable] = useState(false);
   const [counter, setCounter] = useState<number | null>(null);
   const [preview, setPreview] = useState(false);
   const [report, setReport] = useState<ChatMessage | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const pending = useRef<AbortController | null>(null);
   const mounted = useRef(false);
   const receipt = useRef<bigint>(BigInt(0));
+  const retryVisibleReceipt = useRef<(() => void) | null>(null);
   const updateSummary = useRef<HTMLParagraphElement>(null);
   const refresh = useCallback(() => {
     if (!mounted.current) return;
@@ -146,7 +152,11 @@ function DatePlanDetailView({ userId, conversationId, planId, spotsId, partnerNa
     const request = new AbortController();
     pending.current = request;
     void messagingRequest<DatePlanDetail>(userId, path, { signal: request.signal }).then(value => {
-      if (!request.signal.aborted && value.plan.id === planId) { setDetail(value); setUnavailable(false); }
+      if (!request.signal.aborted && value.plan.id === planId) {
+        setDetail(value);
+        setUnavailable(false);
+        retryVisibleReceipt.current?.();
+      }
     }).catch(() => {
       if (!request.signal.aborted) { setUnavailable(true); setDetail(undefined); }
     });
@@ -183,12 +193,15 @@ function DatePlanDetailView({ userId, conversationId, planId, spotsId, partnerNa
         }).catch(() => {}).finally(() => { reading = false; });
     };
     const frame = requestAnimationFrame(mark);
+    retryVisibleReceipt.current = mark;
     document.addEventListener("visibilitychange", mark);
     window.addEventListener("focus", mark);
+    window.addEventListener("online", mark);
     dialog.addEventListener("scroll", mark, { passive: true });
     return () => {
+      retryVisibleReceipt.current = null;
       request.abort(); cancelAnimationFrame(frame); document.removeEventListener("visibilitychange", mark);
-      window.removeEventListener("focus", mark); dialog.removeEventListener("scroll", mark);
+      window.removeEventListener("focus", mark); window.removeEventListener("online", mark); dialog.removeEventListener("scroll", mark);
     };
   }, [canCounter, partnerSequence, path, preview, report, userId]);
   if (unavailable) return <p role="status">Couldn’t open this date plan. <button type="button" onClick={refresh}>Retry</button></p>;
@@ -212,6 +225,12 @@ function DatePlanDetailView({ userId, conversationId, planId, spotsId, partnerNa
       onCounter={current => { clearError(); setCounter(current.revision); }} onCalendar={id => void exportCalendar(id)}/>
     {!detail.canAct && (plan.state === "pending" || plan.state === "confirmed") ? <p className={styles.muted}>This date has passed.</p> : null}
     {spotsId ? <button type="button" onClick={() => setPreview(true)}>View place</button> : null}
+    {spotsId && detail.canAct ? <section aria-label="Date spot search">
+      <button type="button" aria-expanded={searchOpen} onClick={() => setSearchOpen(open => !open)}>
+        {sharedSearchRequested ? "Shared search request" : "Browse date spots"}
+      </button>
+      {searchOpen ? <DateSpots userId={userId} conversationId={spotsId} open shared={null} clearShared={noAction}/> : null}
+    </section> : null}
     {currentPlanId && currentPlanId !== planId ? <button type="button" onClick={() => showPlan(currentPlanId)}>View current date</button> : null}
     <details className={styles.dateActivity}><summary>Date activity</summary><ol>
       {detail.activity.map(entry => entry.datePlanEvent ? <li key={entry.id}>

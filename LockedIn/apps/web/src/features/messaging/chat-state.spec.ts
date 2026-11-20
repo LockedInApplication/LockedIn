@@ -16,6 +16,18 @@ describe("shared chat state and request ownership", () => {
     expect(readThroughSequence([self],true,true,false,shown)).toBeNull();
     expect(readThroughSequence([],true,true,false,shown)).toBeNull();
   });
+  it("can mark the newest visible text behind an unread date invite without marking the invite", () => {
+    const text = message("12");
+    const invite = { ...message("13"), datePlanEvent: {
+      id: "plan", action: "propose" as const, sourceMessageId: "venue", venueName: "Gallery",
+      startsAt: "2026-11-21T12:00:00Z", timeZone: "UTC", state: "pending" as const, revision: 1,
+    } };
+    const entries = [text, invite];
+    expect(readThroughSequence(entries, true, true, false, () => true, true)).toBe("12");
+    expect(readThroughSequence(entries, true, false, false, row => row.id === text.id, true)).toBe("12");
+    expect(readThroughSequence(entries, true, true, false, row => row.id === invite.id, true)).toBeNull();
+    expect(readThroughSequence(entries, true, true, false, () => true)).toBe("13");
+  });
   it("keeps loaded history on overlapping refresh and removes duplicate messages", () => {
     expect(mergeLatestMessages({ items: [message("1"),message("2")], nextCursor: "1" },{ items: [message("2"),message("3")], nextCursor: null })).toEqual({ items: [message("1"),message("2"),message("3")], nextCursor: "1" });
     expect(prependMessages({ items: [message("2"),message("3")], nextCursor: "2" },{ items: [message("1"),message("2")], nextCursor: null }).items.map(m => m.id)).toEqual(["1","2","3"]);

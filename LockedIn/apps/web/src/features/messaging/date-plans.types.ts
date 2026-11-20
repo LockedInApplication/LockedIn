@@ -15,4 +15,4 @@ export type DatePlanUpdate = { planId: string; action: DatePlanEvent["action"] }
 export type DatePlanDetail = { plan: DatePlanView; activity: ChatMessage[]; canAct: boolean };
 export type DatePlanVenue = { id: string; name: string };
 export type DatePlanVenues = { items: DatePlanVenue[]; nextCursor: string | null };
-export type DateSheetTarget = { kind: "browse" } | { kind: "plan"; planId: string } | { kind: "shared"; venue: DatePlanVenue };
+export type DateSheetTarget = { kind: "loading-summary" } | { kind: "browse" } | { kind: "plan"; planId: string } | { kind: "shared"; venue: DatePlanVenue };

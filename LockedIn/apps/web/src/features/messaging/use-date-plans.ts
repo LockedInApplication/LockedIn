@@ -13,10 +13,17 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
   const installed = useRef<typeof snapshot>(undefined);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [problem, setProblem] = useState<{ key: string; message: string }>();
+  const [summaryProblem, setSummaryProblem] = useState<string>();
+  const [summaryVerified, setSummaryVerified] = useState<string>();
+  const errorScope = useRef(0);
   const lifetime = useRef<AbortController | null>(null);
   const reading = useRef<AbortController | null>(null);
   const writing = useRef<AbortController | null>(null);
   const retry = useRef<{ key: string; payload: string; requestId: string } | null>(null);
+  const clearError = useCallback(() => {
+    errorScope.current++;
+    setProblem(undefined);
+  }, []);
 
   useEffect(() => {
     const current = new AbortController();
@@ -47,16 +54,21 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
     reading.current = controller;
     const { signal } = controller;
     void messagingRequest<{ activePlan: DatePlanView | null; unreadUpdate: DatePlanUpdate | null; sharedSearchRequested?: boolean }>(userId, path + "?presentation=sheet", { signal }).then(result => {
-      if (!signal.aborted) install(result.activePlan, result);
+      if (!signal.aborted) {
+        install(result.activePlan, result);
+        setSummaryProblem(undefined);
+        setSummaryVerified(key);
+      }
     }).catch(error => {
       if (signal.aborted) return;
       if (error instanceof JourneyApiError && [401, 403, 404, 409].includes(error.status)) {
         install(null, { unreadUpdate: null });
       }
+      setSummaryProblem(key);
     }).finally(() => {
       if (reading.current === controller) reading.current = null;
     });
-  }, [install, path, userId]);
+  }, [install, key, path, userId]);
   useChatRefresh({ userId, onRefresh: refresh });
 
   const act = useCallback(async (action: DatePlanAction) => {
@@ -66,6 +78,7 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
     reading.current = null;
     writing.current = controller;
     const { signal } = controller;
+    const scope = errorScope.current;
     const payload = JSON.stringify(action);
     if (retry.current?.key !== key || retry.current.payload !== payload) retry.current = { key, payload, requestId: crypto.randomUUID() };
     setBusyKey(key); setProblem(undefined);
@@ -83,7 +96,9 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
           install(null);
           signalChatRefresh(userId);
         }
-        setProblem({ key, message: error instanceof Error ? error.message : "Could not update the date plan. Try again." });
+        if (errorScope.current === scope) {
+          setProblem({ key, message: error instanceof Error ? error.message : "Could not update the date plan. Try again." });
+        }
       }
       return null;
     } finally {
@@ -95,6 +110,7 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
   const exportCalendar = useCallback(async (planId: string) => {
     const signal = lifetime.current?.signal;
     if (!path || !signal) return;
+    const scope = errorScope.current;
     setProblem(undefined);
     try {
       const { contents, filename } = await messagingRequest<{ contents: string; filename: string }>(userId, path + "/" + encodeURIComponent(planId) + "/calendar", { signal });
@@ -107,7 +123,9 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
       if (!signal.aborted) {
-        setProblem({ key, message: error instanceof Error ? error.message : "Could not download the calendar file. Try again." });
+        if (errorScope.current === scope) {
+          setProblem({ key, message: error instanceof Error ? error.message : "Could not download the calendar file. Try again." });
+        }
         refresh();
       }
     }
@@ -117,8 +135,9 @@ export function useDatePlans(userId: string, conversationId: string | undefined,
     activePlan: path && snapshot?.key === key ? snapshot.plan : null,
     unreadUpdate: path && snapshot?.key === key ? snapshot.unread : null,
     sharedSearchRequested: !!(path && snapshot?.key === key && snapshot.sharedSearchRequested),
+    summaryStatus: summaryProblem === key ? "unavailable" as const : summaryVerified === key ? "ready" as const : "loading" as const,
     error: path && problem?.key === key ? problem.message : "",
     busy: path !== null && busyKey === key, refresh, act, exportCalendar,
-    clearError: () => setProblem(undefined),
+    clearError,
   };
 }

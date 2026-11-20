@@ -64,6 +64,7 @@ try {
     const chat = base + (discovery ? "/connections/" : "/messages/") + id;
     const endpoint = "/api/messaging/conversations/" + id + "/date-plans";
     const name = discovery ? "discovery" : "direct";
+    const reviewErrors = [];
     const composer = page => page.getByRole("textbox",{name:"Message",exact:true});
     const dialog = page => page.getByRole("dialog").filter({has:page.getByRole("button",{name:"Close",exact:true})});
     const button = (scope, label) => scope.getByRole("button",{name:label,exact:true});
@@ -111,6 +112,18 @@ try {
     await card(first,"Suggested date time").getByText("Waiting for their reply",{exact:true}).waitFor();
     const plan = (await request(proposer,"GET",endpoint)).body.value.activePlan;
     assert.equal(await prisma.discoveryMessage.count({where:{conversationId:id}}),count+1,"The invite writes just one row");
+    const spotsPath = "/api/messaging/conversations/" + id + "/date-spots";
+    const search = await request(recipient,"POST",spotsPath,{action:"start",preferences:{areaId:sampleArea.areaId,interests:["art"]}});
+    assert.equal(search.status,200);
+    const respond = dialog(first).getByText("Shared search request",{exact:true});
+    try {
+      await respond.waitFor({timeout:2500}); await respond.click();
+      await button(dialog(first),"Not now").click({timeout:2500});
+      assert.equal(await dialog(first).getByRole("button",{name:"Choose this place",exact:true}).count(),0);
+    } catch {
+      reviewErrors.push("An active date must let a newer client respond to an older client's shared search");
+      await request(recipient,"POST",spotsPath,{action:"cancel",id:search.body.value.request.id});
+    }
     await button(dialog(first),"Close").click();
     await invites(first).waitFor();
     const viewport = first.getByRole("region",{name:"Scrollable conversation",exact:true});
@@ -128,7 +141,16 @@ try {
     const bell = second.getByRole("button",{name:/Notifications, (?!0 unread)\d+ unread/});
     await bell.click();
     const dateUpdates = second.getByRole("list",{name:"Date updates",exact:true});
+    const readPath = endpoint + "/" + plan.id + "/read";
+    await second.route("**"+readPath,route=>route.fulfill({status:503,json:{error:"Synthetic receipt failure"}}),{times:1});
+    const unreadFailed=second.waitForResponse(response=>new URL(response.url()).pathname===readPath&&response.status()===503);
     await button(dateUpdates,"Open date").click();
+    await unreadFailed;
+    try {
+      const recovered=second.waitForResponse(response=>new URL(response.url()).pathname===readPath&&response.status()===200,{timeout:2500});
+      await second.evaluate(()=>window.dispatchEvent(new Event("online")));
+      await recovered;
+    } catch { reviewErrors.push("A visible date receipt did not retry after reconnecting"); }
     await button(card(second,"Suggested date time"),"Suggest another time").click();
     assert.equal(new URL(second.url()).searchParams.get("date"),plan.id);
     await submitTime(second,4,"19","Send new time");
@@ -148,9 +170,24 @@ try {
     const ics = readFileSync(await download.path(),"utf8");
     assert.match(ics,/\r\nLOCATION:Date Test Gallery\r\n/);
     assert(!/ATTENDEE|Synthetic meetup area/.test(ics));
+    await button(dialog(second),"Close").click();
     await button(card(first,"Date confirmed"),"Cancel date").click();
-    await card(second,"Date canceled").waitFor();
-    assert.equal(await button(card(second,"Date canceled"),"Cancel date").count(),0);
+    await card(first,"Date canceled").waitFor();
+    let releaseSummary;
+    const summaryDelay=new Promise(resolve=>{releaseSummary=resolve;});
+    const holdSummary=async route=>{ await summaryDelay; await route.continue(); };
+    await second.route("**"+endpoint+"?presentation=sheet",holdSummary);
+    try {
+      await second.reload(); await composer(second).waitFor();
+      await header(second).click();
+      if (await dialog(second).getByText("Loading your date plan…",{exact:true}).count()!==1) reviewErrors.push("Header treats a loading summary as an empty plan");
+      releaseSummary();
+      try {
+        await card(second,"Date canceled").waitFor({timeout:2500});
+        assert.equal(await button(card(second,"Date canceled"),"Cancel date").count(),0);
+      } catch { reviewErrors.push("Header opened before summary did not resolve to the unread cancellation"); }
+    } finally { releaseSummary(); await second.unroute("**"+endpoint+"?presentation=sheet",holdSummary); }
+    await button(dialog(second),"Close").click();
     await button(dialog(first),"Close").click();
     await invites(first).click();
     await card(first,"Date canceled").waitFor();
@@ -196,6 +233,30 @@ try {
       assert.equal(await dialog(first).isVisible(),false,"A late send response does not reopen a closed sheet");
       await first.unroute("**"+endpoint,holdCreation);
       await header(first).click();
+      let failed, resume;
+      const failureArrived = new Promise(resolve=>{failed=resolve;});
+      const redirectFailure = new Promise(resolve=>{resume=resolve;});
+      const holdFailure = async route => {
+        if (route.request().method()!=="POST" || route.request().postDataJSON()?.action!=="withdraw") return route.continue();
+        failed();
+        await redirectFailure;
+        await route.fulfill({status:503,json:{error:"Synthetic action failure"}});
+      };
+      await first.route("**"+endpoint,holdFailure);
+      try {
+        await button(card(first,"Suggested date time"),"Withdraw").click();
+        await failureArrived;
+        await first.keyboard.press("Escape");
+        await dialog(first).waitFor({state:"hidden"});
+        await invites(first).first().click();
+        await card(first,"Date canceled").waitFor();
+        const refresh=first.waitForResponse(response=>new URL(response.url()).pathname===endpoint&&response.request().method()==="GET");
+        resume();
+        await refresh;
+        await first.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        if (await dialog(first).getByText("Synthetic action failure",{exact:true}).count()) reviewErrors.push("A delayed action failure appeared on a different plan");
+      } finally { resume(); await first.unroute("**"+endpoint,holdFailure); }
+      await button(dialog(first),"View current date").click();
       await button(card(first,"Suggested date time"),"Withdraw").click();
       await card(first,"Date suggestion withdrawn").waitFor();
       await button(dialog(first),"Close").click();
@@ -209,6 +270,7 @@ try {
       await first.getByText("Suggested date spot: " + sampleVenue.name,{exact:true}).waitFor();
     } finally { process.env.DATE_PLANS_ENABLED = "true"; }
     assert.equal(await button(first,"Refresh when ready").count(),0);
+    assert.deepEqual(reviewErrors,[]);
     console.log("PASS " + name + " date sheet: place photos, one invite, notifications, counter, confirmation, calendar, cancellation, provider outage, flag off, focus and draft");
   }
   const invite=await prisma.relationshipInvite.create({data:{inviterId:a.id,inviteeId:b.id,expiresAt:new Date(Date.now()+60000)}});
@@ -337,7 +399,13 @@ try {
   await prisma.discoveryMessage.createMany({data:Array.from({length:12},(_,i)=>({conversationId:source,connectionId:source,senderId:c.id,requestId:randomUUID(),text:"Discovery history "+i}))});
   await verifyDatePlanning({first:pc,second:pd,proposer:c,recipient:d,id:source,discovery:true});
   const ready={ready:true,consentVersion:1,exclusiveConsent:true};assert.equal((await request(c,"POST",`/api/discovery/connections/${source}/readiness`,ready)).status,200);assert.equal((await request(d,"POST",`/api/discovery/connections/${source}/readiness`,ready)).status,200);
-  await pc.goto(`${base}/messages/${source}`);await pc.getByText("Discovery history survives",{exact:true}).waitFor();await pc.getByRole("button",{name:"View Discovery Drew’s profile",exact:true}).click();await pc.getByRole("dialog").getByRole("heading",{name:"Discovery Drew",exact:true}).waitFor();await pc.getByRole("button",{name:"← Back to chat",exact:true}).click();
+  await pc.goto(`${base}/messages/${source}`);
+  const promoted = pc.getByRole("region",{name:"Scrollable conversation",exact:true});
+  await promoted.getByText("Sheet history 37",{exact:true}).waitFor({state:"attached"});
+  const preserved = promoted.getByText("Discovery history survives",{exact:true});
+  if (!await preserved.count()) await promoted.getByRole("button",{name:"Load older messages",exact:true}).click();
+  await preserved.waitFor();
+  await pc.getByRole("button",{name:"View Discovery Drew’s profile",exact:true}).click();await pc.getByRole("dialog").getByRole("heading",{name:"Discovery Drew",exact:true}).waitFor();await pc.getByRole("button",{name:"← Back to chat",exact:true}).click();
   await pc.screenshot({path:path.join(artifacts,"promoted-chat.png"),fullPage:true});
   assert.deepEqual(errors,[],"No browser runtime errors");console.log("PASS existing-space backfill, Discovery transcript/promotion and authorized public-profile dialog");
 } finally {

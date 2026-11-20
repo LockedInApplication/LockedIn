@@ -97,14 +97,14 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
     const dialog = document.querySelector("dialog[open]");
     if (!node || ended.current || (dialog && !dialog.contains(node))) return null;
     const entries = renderedPage.current?.items ?? [];
-    return readThroughSequence(sheet ? entries.filter(item => !item.datePlanEvent) : entries, document.visibilityState === "visible", followLatest.current && atLatest(node), !!deferredLatest.current, message => {
+    return readThroughSequence(entries, document.visibilityState === "visible", followLatest.current && atLatest(node), !!deferredLatest.current, message => {
       const item = node.querySelector(`[data-message-id="${CSS.escape(message.id)}"]`);
       if (!item) return false;
       const bounds = node.getBoundingClientRect(), rect = item.getBoundingClientRect();
       const screen = document.documentElement;
       return Math.max(rect.top, bounds.top, 0) < Math.min(rect.bottom, bounds.bottom, screen.clientHeight)
         && Math.max(rect.left, bounds.left, 0) < Math.min(rect.right, bounds.right, screen.clientWidth);
-    });
+    }, sheet);
   }, [sheet]);
   const checkRead = useChatRead(userId,conversationId,displayedSequence,sheet);
 
@@ -136,6 +136,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
     anchor.current = visible ? { id: visible.dataset.messageId!, offset: visible.getBoundingClientRect().top - top } : null;
   }, []);
   const datePlans = useDatePlans(userId, closed ? undefined : datePlansConversationId, rememberPosition);
+  const clearDateError = datePlans.clearError;
   const lastSpotOutage = useRef(false);
   const updateVenueAvailability = useCallback((available: boolean) => {
     if (lastSpotOutage.current === !available) return;
@@ -283,9 +284,11 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   }
   const openLinkedDate = useCallback((id: string) => {
     dateOrigin.current ??= chatRoot.current?.querySelector<HTMLElement>("[data-date-toggle]") ?? null;
+    clearDateError();
     setDatePanel({ kind: "plan", planId: id });
-  }, []);
+  }, [clearDateError]);
   function closeDate() {
+    clearDateError();
     setDatePanel(null);
     const url = new URL(window.location.href);
     if (url.searchParams.has("date")) { url.searchParams.delete("date"); window.history.replaceState(null, "", url); }
@@ -300,6 +303,16 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
   const currentDate = datePlans.activePlan;
   const update = datePlans.unreadUpdate;
   const targetId = update?.planId ?? currentDate?.id;
+  const loadingSummary = datePanel?.kind === "loading-summary";
+  const summaryReady = datePlans.summaryStatus === "ready";
+  useEffect(() => {
+    if (!loadingSummary || !summaryReady) return;
+    const frame = requestAnimationFrame(() => {
+      setDatePanel(current => current?.kind === "loading-summary"
+        ? (targetId ? { kind: "plan", planId: targetId } : { kind: "browse" }) : current);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [loadingSummary, summaryReady, targetId]);
   const dateLabel = update ? (update.action === "propose" ? "Date invite" : update.action === "counter" ? "New time proposed" : "View date update")
     : currentDate ? (currentDate.state === "pending" && currentDate.proposer === "partner" ? (currentDate.revision > 1 ? "New time proposed" : "Date invite") : "View date")
     : "Plan a date";
@@ -318,7 +331,8 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       <h2>Messages</h2>
       {sheet && !closed ? <button data-date-toggle type="button" aria-haspopup="dialog" aria-expanded={!!datePanel}
         aria-label={update ? dateLabel + " · unread update" : datePlans.sharedSearchRequested ? dateLabel + " · shared search requested" : undefined}
-        disabled={busy} onClick={event => openDate(targetId ? { kind: "plan", planId: targetId } : { kind: "browse" }, event.currentTarget)}>
+        disabled={busy} onClick={event => openDate(!summaryReady ? { kind: "loading-summary" }
+          : targetId ? { kind: "plan", planId: targetId } : { kind: "browse" }, event.currentTarget)}>
         {dateLabel}{showDot ? <span className={chatStyles.inviteDot} aria-hidden="true"/> : null}</button> : null}
     </div>{profileAction}
     {sheet && !closed ? <Suspense><DateSheetLink onOpen={openLinkedDate}/></Suspense> : null}
@@ -354,6 +368,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       {datePanel && datePlansConversationId ? <SharedDateSheet key={datePanel.kind === "shared" ? datePanel.venue.id : undefined}
         target={datePanel} userId={userId} conversationId={datePlansConversationId} spotsId={dateSpotsConversationId}
         partnerName={partner.publicName} onClose={closeDate} busy={busy || datePlans.busy} error={datePlans.error} clearError={datePlans.clearError}
+        summaryUnavailable={datePlans.summaryStatus === "unavailable"} retrySummary={datePlans.refresh} sharedSearchRequested={datePlans.sharedSearchRequested}
         act={datePlans.act} exportCalendar={datePlans.exportCalendar} currentPlanId={currentDate?.id} renderReport={reportContent}
         showPlan={planId => openDate({ kind: "plan", planId })}/> : null}
       {actionError ? <p role="alert">{actionError}</p> : null}

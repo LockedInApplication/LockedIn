@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.scss";
 import Script from "next/script";
 import { profileHistoryBootstrap } from "@/features/profile/profile-history-bootstrap";
+import VerifiedMemberGate from "@/features/auth/VerifiedMemberGate";
 
 export const metadata: Metadata = {
   title: "LockedIn | Build the relationship you both choose",
@@ -20,7 +21,7 @@ export default function RootLayout({
         <Script id="profile-history-guard" strategy="beforeInteractive">
           {profileHistoryBootstrap}
         </Script>
-        {children}
+        <VerifiedMemberGate>{children}</VerifiedMemberGate>
       </body>
     </html>
   );

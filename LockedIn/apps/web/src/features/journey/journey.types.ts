@@ -5,7 +5,7 @@ import type {
   ConversationPack,
   IntentionQuestion,
 } from "@/features/conversations/conversation.types";
-import type { JourneyNextStep, JourneyProposal } from "@/features/roadmap/roadmap.types";
+import type { JourneyNextStep, JourneyProposal, SimplePlan } from "@/features/roadmap/roadmap.types";
 
 export type JourneySession = {
   id: string;
@@ -48,6 +48,7 @@ export type JourneyOverview = {
     partner: { name: string; email: string; avatarPreset?:string };
   } | null;
   session: JourneySession | null;
+  simplePlans?: SimplePlan[] | null;
   checkInHistory: CheckInSnapshot[];
   conversationPacks: ConversationPack[];
   conversationSelection: {

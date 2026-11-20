@@ -64,13 +64,7 @@ export default function Signup({ onError }: SignupProps) {
         return;
       }
 
-      const session = await authClient.getSession();
-      if (session.data) {
-        router.push("/journey");
-        return;
-      }
-
-      router.push(`/verify-email?pending=1&email=${encodeURIComponent(email)}`);
+      router.push("/verify-email?pending=1");
     } catch (error) {
       console.error("Error during sign up:", error);
       onError("An error occurred during sign up. Please try again.");

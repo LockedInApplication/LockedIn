@@ -2,6 +2,7 @@ import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { notificationCopy } from "./notification.catalog.js";
 import { createHash } from "node:crypto";
+import { pairClosure } from "../messaging/messaging-conversation.service.js";
 export type NotificationTx = Prisma.TransactionClient;
 // Intentionally select only metadata. Private content is not needed for event derivation.
 export function notificationSnapshot(tx: NotificationTx, id: string) {
@@ -50,12 +51,19 @@ export async function markNotificationRead(userId: string, id: bigint) {
     return true;
 }
 export async function notificationFingerprint(userId: string) {
-    const [result,unread,connections,profile]=await prisma.$transaction([
+    const [result,unread,connections,profile,plans]=await prisma.$transaction([
         prisma.notification.aggregate({ where: eligibleNotifications(userId), _count: true, _max: { id: true, updatedAt: true } }),
         prisma.notification.count({where:unreadNotifications(userId)}),
         prisma.discoveryConnection.findMany({where:{OR:[{userLowId:userId},{userHighId:userId}]},orderBy:{id:"asc"},select:{id:true,state:true,expiresAt:true,updatedAt:true,consentVersion:true,lowReadinessVersion:true,highReadinessVersion:true}}),
         prisma.discoveryProfile.findUnique({where:{ownerId:userId},select:{publicationVersion:true,pausedAt:true,suspendedAt:true}}),
+        prisma.roadmapPlan.aggregate({where:{relationship:{status:"ACTIVE",members:{some:{userId}}}},_count:true,_sum:{version:true}}),
     ]);
-    const metadata=createHash("sha256").update(JSON.stringify({connections,profile})).digest("hex");
+    // A safety change can hide even a Roadmap with no pending proposal to cancel.
+    const pair = plans._count ? await prisma.relationship.findFirst({
+        where:{status:"ACTIVE",members:{some:{userId}},roadmapPlans:{some:{}}},
+        select:{members:{select:{userId:true}}},
+    }) : null;
+    const restriction = pair?.members.length === 2 ? await pairClosure(prisma, pair.members[0]!.userId, pair.members[1]!.userId) : null;
+    const metadata=createHash("sha256").update(JSON.stringify({connections,profile,plans,restriction})).digest("hex");
     return `${result._count}:${result._max.id ?? 0}:${result._max.updatedAt?.toISOString() ?? ""}:${unread}:${metadata}`;
 }

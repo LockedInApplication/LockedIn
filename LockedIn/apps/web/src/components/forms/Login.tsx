@@ -5,6 +5,7 @@ import styles from "../styles/authForms.module.scss";
 import { authClient } from "@/utils/authCLient";
 import { ERROR_MESSAGES } from "./errorCode";
 import { useRouter } from "next/navigation";
+import { safeMemberReturnTo, verificationPath } from "@/features/auth/member-entry";
 
 type LoginProps = {
   onError: (message: string) => void;
@@ -30,19 +31,15 @@ export default function Login({ onError }: LoginProps) {
     const password = formData.get("password") as string;
 
     try {
+      const requestedPath = new URLSearchParams(window.location.search).get("returnTo");
       const result = await authClient.signIn.email({
         email,
         password,
       });
 
       if (result?.error) {
-        if (
-          result.error.code === "EMAIL_NOT_VERIFIED" ||
-          result.error.status === 403
-        ) {
-          onError(
-            "Your email is not verified. Please check your inbox for a new verification link.",
-          );
+        if (result.error.code === "EMAIL_NOT_VERIFIED") {
+          router.push(verificationPath(requestedPath));
           return;
         }
 
@@ -50,8 +47,7 @@ export default function Login({ onError }: LoginProps) {
         return;
       }
 
-      const requestedPath = new URLSearchParams(window.location.search).get("returnTo");
-      router.push(requestedPath?.startsWith("/") ? requestedPath : "/journey");
+      router.push(safeMemberReturnTo(requestedPath));
     } catch (error) {
       console.error("Error during sign in:", error);
       onError("Error during sign in");

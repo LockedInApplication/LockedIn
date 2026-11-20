@@ -1,5 +1,7 @@
 # Email verification entry points: handoff
 
+**Current rollout note:** The mandatory member gate supersedes the former Profile/Discovery-only prompts described below. Unverified sessions are redirected to `/verify-email` with a validated member return path, and the API rejects member actions. Sign-in, signup, verification/resend, password recovery, and sign-out remain reachable. Confirm actual verification email delivery with a controlled account before shipping the gate. The results below describe the earlier optional-entry implementation, not the new release.
+
 ## User flow
 
 Unverified signed-in users have **Verify email** in Profile & settings → Account security and on the unavailable Discovery screen. Both use `/verify-email?pending=1`. Profile navigation retains unsaved-change confirmation. Verified accounts do not see those actions; normal login and all existing Discovery eligibility gates remain unchanged.

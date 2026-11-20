@@ -24,6 +24,7 @@ export const notificationCatalog: Record<string, {
     MEANING_APPROVE: { title: "Your shared wording is ready to review", message: "Read the current version. It needs both people’s approval.", view: "atlas" },
     CHAPTER_COMPLETE: { title: "A chapter you built together", message: "You both approved your shared meaning. It is saved in your history.", view: "atlas" },
     STEP_PROPOSED: { title: "A new next-step suggestion", message: "Review the suggestion. Nothing is agreed until you accept.", view: "roadmap" },
+    ROADMAP_PLAN_REPLY: { title: "A plan needs your reply", message: "Open your roadmap to see the suggestion.", view: "roadmap" },
     STEP_ACCEPTED: { title: "Your next step was accepted", message: "A new agreement is on your shared roadmap.", view: "roadmap" },
     REFLECTIONS_READY: { title: "Your reflections are ready", message: "You have both reflected on this step. Revisit it together.", view: "roadmap" },
 };

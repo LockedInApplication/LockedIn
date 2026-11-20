@@ -21,3 +21,14 @@ export type JourneyNextStep = {
   ownReflection: { outcome: string; note: string | null } | null;
   partnerReflection: { submitted: boolean; outcome: string | null };
 };
+export type SimplePlan = {
+  id: string;
+  title: string;
+  note: string | null;
+  day: string | null;
+  status: "PENDING" | "ACCEPTED" | "PASSED" | "WITHDRAWN" | "DONE" | "CANCELED";
+  version: number;
+  yours: boolean;
+  proposerName: string;
+  resolvedBy: string | null;
+};

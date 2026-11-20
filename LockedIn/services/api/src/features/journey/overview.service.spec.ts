@@ -7,6 +7,10 @@ const repository = vi.hoisted(() => ({
   intentionSession: { findMany: vi.fn() },
   conversationChoice: { findMany: vi.fn() },
   meaningChapter: { findMany: vi.fn() },
+  invitationBlock: { findFirst: vi.fn() },
+  discoveryProfile: { findUnique: vi.fn() },
+  discoveryModerationAudit: { findFirst: vi.fn() },
+  roadmapPlan: { findMany: vi.fn() },
 }));
 vi.mock("../../lib/prisma.js", () => ({ prisma: repository }));
 
@@ -23,6 +27,8 @@ beforeEach(() => {
   repository.intentionSession.findMany.mockResolvedValue([]);
   repository.conversationChoice.findMany.mockResolvedValue([]);
   repository.meaningChapter.findMany.mockResolvedValue([]);
+  repository.invitationBlock.findFirst.mockResolvedValue(null);
+  repository.roadmapPlan.findMany.mockResolvedValue([]);
 });
 
 describe("buildJourneyOverview", () => {
@@ -36,6 +42,7 @@ describe("buildJourneyOverview", () => {
     expect(overview.user).toEqual(user);
     expect(overview.relationship).toBeNull();
     expect(overview.session).toBeNull();
+    expect(overview.simplePlans).toEqual([]);
     expect(overview.conversationSelection).toBeNull();
     expect(overview.checkInHistory).toEqual([]);
     expect(overview.pendingInvites).toEqual([]);

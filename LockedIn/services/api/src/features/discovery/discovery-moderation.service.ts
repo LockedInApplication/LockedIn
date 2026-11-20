@@ -6,6 +6,7 @@ import { lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryRestoreSchema, discoveryReviewSchema } from "./discovery.schemas.js";
 import { accountSuspended } from "../messaging/messaging-safety.service.js";
 import { closeUnbackfilledRelationshipChatsUnderLock } from "../messaging/messaging-lifecycle.service.js";
+import { cancelRestrictedRoadmapProposals } from "../roadmap/simple-plan-safety.js";
 const denied = { ok: false as const, status: 403, error: "Moderator access is required." };
 const missing = { ok: false as const, status: 404, error: "This moderation record is not available." };
 const conflict = { ok: false as const, status: 409, error: "This review has already been handled." };
@@ -39,6 +40,7 @@ export async function reviewDiscoveryReport(moderatorId: string, reportId: strin
       await tx.notification.updateMany({ where: { resolvedAt: null, discoveryConnection: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }], state: "CLOSED" } }, data: { resolvedAt: new Date() } });
       await tx.chatConversation.updateMany({ where: { closedAt: null, OR: [{ userLowId: report.reportedUserId },{ userHighId: report.reportedUserId }] }, data: { closedAt: new Date(), closureReason: "SUSPENSION" } });
       await tx.dateSpotRequest.deleteMany({ where: { conversation: { OR: [{ userLowId: report.reportedUserId }, { userHighId: report.reportedUserId }] } } });
+      await cancelRestrictedRoadmapProposals(tx, report.reportedUserId);
     }
     await tx.discoveryModerationAudit.create({ data: { moderatorId, targetUserId: report.reportedUserId, reportId, action: parsed.data.action, requestId: parsed.data.requestId, reason: report.reason } });
     await tx.discoveryReport.update({ where: { id: reportId }, data: { resolvedAt: new Date() } });

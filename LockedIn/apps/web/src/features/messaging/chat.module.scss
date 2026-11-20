@@ -61,10 +61,52 @@
   button { margin-bottom: 3px; }
 }
 .chat .newMessages { display: block; margin: .5rem auto 0; border-radius: 999px; background: #deeee6; }
+.composerTools {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0 .75rem;
+}
+.toolToggle { align-self: start; margin-top: .75rem; }
+.toolToggle button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; }
+.inviteDot { width: .5rem; height: .5rem; border-radius: 50%; background: #743d88; }
+.toolPanel { grid-column: 1 / -1; padding-top: .65rem; min-width: 0; }
+.planActions { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; }
+.chat button.quietAction { border-color: transparent; background: transparent; padding-inline: .6rem; text-decoration: underline; text-underline-offset: .18em; }
+.planCard { display: grid; gap: .35rem; padding-block: .45rem; }
+.planStatus { justify-self: start; width: fit-content; padding: .2rem .45rem; border-radius: .35rem; background: #efe3f5; color: #4e345e; font-size: .85rem; }
+.planStatus[data-state="confirmed"] { background: #deeee6; color: #264d43; }
+.planStatus[data-state="canceled"], .planStatus[data-state="declined"], .planStatus[data-state="withdrawn"] { background: #eee8e4; color: #50464d; }
+.planCard p, .planDialog p { margin: 0; }
+.venueName { font-weight: 700; }
+.planTime { overflow-wrap: anywhere; }
+.planDialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  box-sizing: border-box;
+  width: min(30rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  border: 1px solid #9d8f9e;
+  border-radius: 1rem;
+  padding: 1.1rem;
+  color: #211a32;
+  background: #fffdf8;
+  box-shadow: 0 10px 40px #211a323b;
+  &::backdrop { background: #211a3266; }
+  &[open] { display: grid; gap: .8rem; }
+  h3 { margin: 0; font-size: 1.2rem; }
+}
+.planDialogTitle { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.planFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+.planFields input { min-width: 0; }
 @media (max-width: 450px) {
   .chat .composer { grid-template-columns: minmax(0, 1fr); }
+  .composerTools { grid-template-columns: minmax(0, 1fr); }
+  .toolToggle { margin-top: .5rem; }
   .viewport { height: clamp(12rem, 48dvh, 28rem); }
 }
+@media (max-width: 360px) { .planFields { grid-template-columns: minmax(0, 1fr); } }
 .messages {
   display: grid;
   gap: .65rem;

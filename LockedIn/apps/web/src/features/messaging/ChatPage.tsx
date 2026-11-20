@@ -53,7 +53,7 @@ export function ConversationContent({ userId,metadata,onAccessEnded }: { userId:
   return <><h1><ProfileAvatar name={metadata.partner.publicName} preset={metadata.partner.avatarPreset}/> Conversation with {metadata.partner.publicName}</h1>
     {!metadata.canChat ? <section role="status">{metadata.unavailableReason === "VERIFY_EMAIL" ? <><h2>Verify your email</h2><p>Verify your account email before using Messages.</p><Link href="/profile">Profile &amp; verification</Link></> : <p>This chat is unavailable.</p>}</section> : <>
       {metadata.profileConnectionId ? <button type="button" aria-label={`View ${metadata.partner.publicName}’s profile`} onClick={() => setProfileOpen(true)}>View {metadata.partner.publicName}’s profile</button> : null}
-      <Chat conversationId={metadata.id} userId={userId} partner={metadata.partner} onAccessEnded={onAccessEnded} dateSpotsConversationId={metadata.dateSpotsConversationId}
+      <Chat conversationId={metadata.id} userId={userId} partner={metadata.partner} onAccessEnded={onAccessEnded} dateSpotsConversationId={metadata.dateSpotsConversationId} datePlansConversationId={metadata.datePlansConversationId}
         openingContext={metadata.opening ? <details><summary>How this conversation started</summary><p>{metadata.opening.questionText}</p><blockquote>{metadata.opening.hello}</blockquote></details> : undefined}/>
       <details><summary>Safety &amp; contact controls</summary><MessageSafetyActions userId={userId} conversationId={metadata.id} onBlocked={onAccessEnded}/></details>
       {profileOpen && metadata.profileConnectionId ? <ConnectedProfileView userId={userId} connectionId={metadata.profileConnectionId} onClose={() => setProfileOpen(false)}/> : null}

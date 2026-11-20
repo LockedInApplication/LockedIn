@@ -12,8 +12,9 @@ type Reply = Suggestions | { status: "request"; request: DateRequest | null } | 
   | { status: "shared" | "forgotten" };
 type Detail = { venue: VenueDetails; spot?: Spot } | null;
 
-export default function DateSpots({ userId, conversationId, shared, clearShared }: {
-  userId: string; conversationId: string; shared: { id: string } | null; clearShared: () => void;
+export default function DateSpots({ userId, conversationId, open, shared, clearShared, onIncoming }: {
+  userId: string; conversationId: string; open: boolean; shared: { id: string } | null; clearShared: () => void;
+  onIncoming: (incoming: boolean) => void;
 }) {
   const path = `/api/messaging/conversations/${conversationId}/date-spots`;
   const [state, setState] = useState<DateSpotState | null>(null);
@@ -137,13 +138,17 @@ export default function DateSpots({ userId, conversationId, shared, clearShared 
   function closeDetail() { setDetail(null); clearShared(); setError(""); }
   const areaLabel = state?.areas.find(area => area.areaId === state.areaId)?.label;
   const incoming = request?.state === "pending" && request.from === "partner";
+  useEffect(() => { onIncoming(incoming); }, [onIncoming, incoming]);
+  if (!open && !shared) return null;
 
   return <div className={styles.planner} aria-label="Date spots">
-    <div className={styles.actions}>
-      <button type="button" disabled={busy} onClick={() => void choose("solo")}>Find a date spot</button>
-      <button type="button" disabled={busy} onClick={goMutual}>Best spot for us</button>
-    </div>
-    <p className={styles.muted}>Only the place you share appears in chat. Starting areas stay private.</p>
+    {!shared ? <>
+      <div className={styles.actions}>
+        <button type="button" disabled={busy} onClick={goMutual}>{mutualReady ? "See picks for both of you" : incoming ? "Respond to shared search" : request ? "View shared search request" : "Find together"}</button>
+        <button type="button" disabled={busy} onClick={() => void choose("solo")}>Browse on my own</button>
+      </div>
+      <p className={styles.muted}>Only the place you share appears in chat. Starting areas stay private.</p>
+    </> : null}
     {note ? <p role="status">{note}</p> : null}
     {error ? <p role="alert">{error}</p> : null}
     {detail ? <div ref={detailsPanel}><DateSpotVenue key={detail.venue.name} venue={detail.venue} reason={detail.spot?.reason}
@@ -187,7 +192,6 @@ export default function DateSpots({ userId, conversationId, shared, clearShared 
         <h3>Request sent</h3><p>Waiting for your match. You can still look for places on your own.</p>
         <div><button type="button" disabled={busy} onClick={() => void removeRequest()}>Withdraw request</button></div>
       </section> : null}
-      {!form && mode !== "mutual" && request?.state === "ready" ? <button type="button" disabled={busy} onClick={goMutual}>See our date spots</button> : null}
       {!form && busy && !results ? <p role="status">{mode === "solo" || mutualReady ? "Looking for places…" : "One moment…"}</p> : null}
       {!form && mode === "mutual" && mutualReady && error && !results ? <div className={styles.actions}>
         <button type="button" disabled={busy} onClick={() => void run({ action:"mutual",id:mutualReady })}>Try again</button>

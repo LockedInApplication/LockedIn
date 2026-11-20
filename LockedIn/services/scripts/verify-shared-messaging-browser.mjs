@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
-import { mkdtempSync, openSync, closeSync } from "node:fs";
+import { mkdtempSync, openSync, closeSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,9 @@ const { chromium } = await import(process.env.LOCKEDIN_PLAYWRIGHT_MODULE || "pla
 const freePort = () => new Promise((resolve,reject) => { const s=createServer(); s.once("error",reject); s.listen(0,"127.0.0.1",()=>{const port=s.address().port;s.close(e=>e?reject(e):resolve(port));}); });
 const webPort=await freePort(), apiPort=await freePort(), base=`http://127.0.0.1:${webPort}`;
 Object.assign(process.env,{APP_URL:base,BETTER_AUTH_URL:`http://127.0.0.1:${apiPort}`,SHARED_MESSAGING_ENABLED:"true",DISCOVERY_CHAT_ENABLED:"true",DISCOVERY_ENABLED:"true",DISCOVERY_ACCESS_MODE:"pilot",DISCOVERY_MODERATOR_USER_IDS:"shared-browser-moderator",DISCOVERY_AREAS_JSON:'[{"id":"pilot-city","label":"Pilot city"}]',RESEND_API_KEY:"",RESEND_FROM_EMAIL:""});
+const sampleArea = { areaId:"date-test",label:"Synthetic meetup area",latitude:40.75,longitude:-73.97 };
+const sampleVenue = { id:"date-test-gallery",name:"Date Test Gallery",address:"1 Public Way",categories:["entertainment.culture.gallery"],latitude:40.746,longitude:-73.955 };
+Object.assign(process.env,{DATE_PLANS_ENABLED:"true",DATE_SPOTS_ENABLED:"true",DATE_SPOTS_GEOAPIFY_API_KEY:"local-fixture-only",DATE_SPOT_AREAS_JSON:JSON.stringify([sampleArea])});
 const services=path.resolve(path.dirname(fileURLToPath(import.meta.url)),".."), web=path.resolve(services,"../apps/web");
 const artifacts=mkdtempSync(path.join(tmpdir(),"lockedin-shared-chat-browser-")), log=openSync(path.join(artifacts,"preview.log"),"a");
 console.log(`Shared chat browser artifacts: ${artifacts}`);
@@ -31,7 +34,10 @@ try {
   }
   process.env.DISCOVERY_PILOT_USER_IDS=users.map(u=>u.id).join(",");
   const [a,b,c,d,e,f]=users;
-  api=await(await import("../api/src/app.ts")).buildServer(); await api.listen({port:apiPort,host:"127.0.0.1"});
+  api=await(await import("../api/src/app.ts")).buildServer({dateSpotProvider:{
+    search:async()=>[sampleVenue],
+    details:async id=>id===sampleVenue.id ? {name:sampleVenue.name,address:sampleVenue.address,mapsUrl:"https://www.openstreetmap.org/",website:null,hours:[],photos:[]} : null,
+  }}); await api.listen({port:apiPort,host:"127.0.0.1"});
   const env={...process.env,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",API_PROXY_URL:`http://127.0.0.1:${apiPort}`,NEXT_PUBLIC_API_URL:""};
   build=spawn(process.execPath,[path.join(web,"node_modules/next/dist/bin/next"),"build","--webpack"],{cwd:web,env,stdio:["ignore",log,log]});
   await new Promise((resolve,reject)=>{build.once("error",reject);build.once("exit",code=>code===0?resolve():reject(Error(`Build failed (${code}); see preview.log`)));});
@@ -44,6 +50,141 @@ try {
   async function pageFor(u) { const context=await browser.newContext({viewport:{width:393,height:852},reducedMotion:"reduce"});await context.addCookies([u.cookie]);const page=await context.newPage();page.setDefaultTimeout(20000);page.on("pageerror",error=>errors.push(error.message));contexts.set(u.id,context);return page; }
   const pa=await pageFor(a),pb=await pageFor(b),pc=await pageFor(c),pd=await pageFor(d);
   async function request(u,method,route,data) {const response=await contexts.get(u.id).request.fetch(base+route,{method,headers:{origin:base,"x-messaging-owner":u.id,"x-discovery-owner":u.id},...(data===undefined?{}:{data})});return {status:response.status(),body:await response.json()};}
+  async function verifyDatePlanning({ first, second, proposer, recipient, id, discovery = false }) {
+    const chat = base + (discovery ? "/connections/" : "/messages/") + id;
+    const endpoint = "/api/messaging/conversations/" + id + "/date-plans";
+    const name = discovery ? "discovery" : "direct";
+    const composer = page => page.getByRole("textbox",{name:"Message",exact:true});
+    const textOfSpot = "Suggested date spot: " + sampleVenue.name;
+    const spot = page => page.locator("[data-message-id]").filter({hasText:textOfSpot});
+    const card = (page,label) => page.getByRole("region",{name:label,exact:true});
+    const planTools = first.getByRole("button",{name:"Plan a date",exact:true});
+    const button = (scope, name) => scope.getByRole("button",{name,exact:true});
+    const proposedTime = (day,hour) => {
+      const date = new Date(Date.now() + day * 86_400_000).toISOString().slice(0,10);
+      return {date, time:hour + ":30"};
+    };
+    async function fillTime(page,title,day,hour) {
+      const form = page.getByRole("dialog",{name:title,exact:true});
+      const {date,time} = proposedTime(day,hour);
+      await form.getByLabel("Day",{exact:true}).fill(date);
+      await form.getByLabel("Time",{exact:true}).fill(time);
+      await button(form,"Send suggestion").click();
+      await form.waitFor({state:"hidden"});
+    }
+    await first.goto(chat); await composer(first).waitFor();
+    await second.goto(chat); await composer(second).waitFor();
+    await planTools.waitFor();
+    assert.equal(await button(first,"Find together").count(),0);
+    await planTools.click();
+    await button(first,"Find together").waitFor();
+    await button(first,"Browse on my own").click();
+    await first.getByRole("combobox",{name:"Starting area",exact:true}).selectOption(sampleArea.areaId);
+    await button(first,"Show places").click();
+    await first.getByRole("button",{name:new RegExp(sampleVenue.name)}).click();
+    await first.getByRole("region",{name:"Venue details",exact:true}).getByRole("heading",{name:sampleVenue.name,exact:true}).waitFor();
+    await button(first,"Share in chat").click();
+    await spot(first).waitFor();
+    await spot(second).waitFor();
+    await second.waitForFunction(async()=>((await (await fetch("/api/messaging/unread")).json()).value?.count ?? -1)===0);
+    await second.goto(base + (discovery ? "/connections" : "/journey"));
+    const view = button(spot(first),"View place");
+    await view.click();
+    await first.getByRole("region",{name:"Venue details",exact:true}).getByRole("heading",{name:sampleVenue.name,exact:true}).waitFor();
+    await button(first,"← Back").click();
+    assert(await view.evaluate(el=>el===document.activeElement),"Closing the venue returns focus");
+    const suggest = button(spot(first),"Suggest a time");
+    for (const width of [320,393,1280]) {
+      await first.setViewportSize({width,height:852});
+      await suggest.focus();
+      await suggest.press("Enter");
+      const dialog = first.getByRole("dialog",{name:"Suggest a time",exact:true});
+      await dialog.waitFor();
+      assert(await dialog.getByLabel("Day",{exact:true}).evaluate(el=>el===document.activeElement),"The first date field receives focus");
+      assert(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1));
+      assert(await dialog.evaluate(el=>{
+        const rect=el.getBoundingClientRect();
+        return Math.abs(rect.left+rect.width/2-innerWidth/2)<6 && Math.abs(rect.top+rect.height/2-innerHeight/2)<6;
+      }),"Date picker stays centered at width "+width);
+      if (discovery) await first.screenshot({path:path.join(artifacts,"date-picker-"+width+".png")});
+      await first.keyboard.press("Escape");
+      await dialog.waitFor({state:"hidden"});
+      await first.waitForFunction(()=>document.activeElement?.textContent==="Suggest a time");
+    }
+    await composer(first).fill("Keep this unfinished message");
+    await suggest.click();
+    await fillTime(first,"Suggest a time",3,"18");
+    await card(first,"Suggested date time").getByText("Waiting for their reply",{exact:true}).waitFor();
+    const unread = second.getByRole("button",{name:/Notifications, (?!0 unread)\d+ unread/});
+    await unread.click();
+    const unreadChat = second.getByRole("list",{name:"Unread conversations",exact:true});
+    await button(unreadChat,"Open chat").click();
+    const reply = card(second,"Suggested date time");
+    await reply.waitFor();
+    const scroll = first.getByRole("region",{name:"Scrollable conversation",exact:true});
+    await scroll.evaluate(el=>{el.scrollTop=0;el.dispatchEvent(new Event("scroll",{bubbles:true}));});
+    const readAnchor = await scroll.locator("[data-message-id]").first().evaluate(el=>({id:el.dataset.messageId,offset:el.getBoundingClientRect().top-el.closest("[role=region]").getBoundingClientRect().top}));
+    await button(reply,"Suggest another time").click();
+    await fillTime(second,"Suggest another time",4,"19");
+    const counter = card(first,"Suggested another time");
+    await counter.waitFor({state:"attached"});
+    const offset = await scroll.locator('[data-message-id="'+readAnchor.id+'"]').evaluate(el=>el.getBoundingClientRect().top-el.closest("[role=region]").getBoundingClientRect().top);
+    assert(Math.abs(offset-readAnchor.offset)<5,"A quiet counter keeps the scroll anchor");
+    assert.equal(await composer(first).inputValue(),"Keep this unfinished message");
+    assert.equal(await button(card(first,"Suggested date time"),"Confirm").count(),0);
+    let confirmer = first;
+    if (discovery) {
+      // A second tab submits a later counter just before this tab's confirm reaches the server.
+      await first.route("**"+endpoint,async route=>{
+        const data=route.request().postDataJSON();
+        if (route.request().method()==="POST" && data?.action==="confirm") {
+          const utc = proposedTime(5,"20");
+          const saved = await request(proposer,"POST",endpoint,{ action:"counter",planId:data.planId,revision:data.revision,requestId:randomUUID(),
+            time:{localTime:utc.date+"T"+utc.time,startsAt:utc.date+"T"+utc.time+":00.000Z",timeZone:"UTC"} });
+          assert.equal(saved.status,200);
+        }
+        await route.continue();
+      });
+      await button(counter,"Confirm").click();
+      await first.getByText("This date plan changed. Check the latest plan and try again.",{exact:true}).waitFor();
+      await first.unroute("**"+endpoint);
+      await card(first,"Suggested another time").last().getByText("Waiting for their reply",{exact:true}).waitFor();
+      assert.equal(await button(counter.first(),"Confirm").count(),0);
+      assert.equal(await composer(first).inputValue(),"Keep this unfinished message");
+      confirmer = second;
+    }
+    await button(card(confirmer,"Suggested another time").last(),"Confirm").click();
+    await card(first,"Date confirmed").waitFor();
+    const calendarButton = button(card(second,"Date confirmed"),"Add to calendar");
+    await calendarButton.waitFor();
+    const downloadable = second.waitForEvent("download");
+    await calendarButton.click();
+    const download = await downloadable;
+    assert.equal(download.suggestedFilename(),"lockedin-date.ics");
+    const ics = readFileSync(await download.path(),"utf8");
+    assert.match(ics,/\r\nLOCATION:Date Test Gallery\r\n/);
+    const meta = (await request(recipient,"GET",endpoint)).body.value.activePlan;
+    assert(ics.includes("DTSTART:"+meta.startsAt.replace(/[-:]/g,"").replace(".000Z","Z")));
+    assert(!/ATTENDEE|Synthetic meetup area/.test(ics));
+    await button(card(first,"Date confirmed"),"Cancel date").click();
+    await card(second,"Date canceled").waitFor();
+    await button(card(second,"Date confirmed"),"Add to calendar").waitFor({state:"detached"});
+    assert.equal(await composer(first).inputValue(),"Keep this unfinished message");
+    process.env.DATE_SPOTS_ENABLED = "false";
+    try {
+      await first.reload(); await composer(first).waitFor();
+      const oldSpot = spot(first);
+      await button(oldSpot,"Suggest a time").waitFor();
+      assert.equal(await button(oldSpot,"View place").count(),0);
+      assert.equal(await button(first,"Find together").count(),0);
+      await button(oldSpot,"Suggest a time").click();
+      await fillTime(first,"Suggest a time",6,"17");
+      await button(card(first,"Suggested date time").last(),"Withdraw").click();
+      await card(first,"Date suggestion withdrawn").waitFor();
+    } finally { process.env.DATE_SPOTS_ENABLED = "true"; }
+    assert.equal(await button(first,"Refresh when ready").count(),0);
+    console.log("PASS " + name + " date plans: composer, venue details, suggestion, unread, counter, confirmation, export, cancellation and planning with search off");
+  }
   const invite=await prisma.relationshipInvite.create({data:{inviterId:a.id,inviteeId:b.id,expiresAt:new Date(Date.now()+60000)}});
   await pb.goto(`${base}/journey?invite=${invite.token}`,{waitUntil:"domcontentloaded"});
   await pb.getByRole("button",{name:"Accept invitation",exact:true}).click();
@@ -140,6 +281,7 @@ try {
   await jump.click();
   await viewport.getByText("Long catch-up 180",{exact:true}).waitFor();
   console.log("PASS multi-page catch-up preserves the reading anchor; very large gaps require an explicit jump");
+  await verifyDatePlanning({first:pa,second:pb,proposer:a,recipient:b,id});
   // A stale owner header cannot turn an account switch into a wrong-account send.
   await pa.getByRole("textbox",{name:"Message",exact:true}).fill("DO NOT LEAK");
   await contexts.get(a.id).clearCookies(); await contexts.get(a.id).addCookies([c.cookie]);
@@ -166,6 +308,8 @@ try {
   assert.equal((await request(d,"POST",`/api/discovery/connections/${source}/accept`,{})).status,200);
   await pc.getByRole("textbox",{name:"Message",exact:true}).fill("Discovery history survives");await pc.getByRole("button",{name:"Send message",exact:true}).click();await pc.getByText("Discovery history survives",{exact:true}).waitFor();
   assert.equal(await pc.getByText("Refresh when ready",{exact:true}).count(),0);
+  await prisma.discoveryMessage.createMany({data:Array.from({length:12},(_,i)=>({conversationId:source,connectionId:source,senderId:c.id,requestId:randomUUID(),text:"Discovery history "+i}))});
+  await verifyDatePlanning({first:pc,second:pd,proposer:c,recipient:d,id:source,discovery:true});
   const ready={ready:true,consentVersion:1,exclusiveConsent:true};assert.equal((await request(c,"POST",`/api/discovery/connections/${source}/readiness`,ready)).status,200);assert.equal((await request(d,"POST",`/api/discovery/connections/${source}/readiness`,ready)).status,200);
   await pc.goto(`${base}/messages/${source}`);await pc.getByText("Discovery history survives",{exact:true}).waitFor();await pc.getByRole("button",{name:"View Discovery Drew’s profile",exact:true}).click();await pc.getByRole("dialog").getByRole("heading",{name:"Discovery Drew",exact:true}).waitFor();await pc.getByRole("button",{name:"← Back to chat",exact:true}).click();
   await pc.screenshot({path:path.join(artifacts,"promoted-chat.png"),fullPage:true});

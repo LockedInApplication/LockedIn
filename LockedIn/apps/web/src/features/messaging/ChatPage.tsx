@@ -1,13 +1,12 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/utils/authCLient";
 import MemberChrome from "@/features/journey/components/MemberChrome";
 import { notificationDestination } from "@/features/notifications";
-import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import { ConnectedProfileView } from "@/features/discovery/ConnectedProfile";
-import Chat from "./Chat";
+import Chat, { ChatIdentity } from "./Chat";
 import MessageSafetyActions from "./MessageSafetyActions";
 import { messagingRequest } from "./messaging.client";
 import type { ConversationMetadata } from "./messaging.types";
@@ -15,15 +14,16 @@ import { useChatRefresh } from "./use-chat-refresh";
 import { JourneyApiError } from "@/lib/journey";
 import styles from "./chat.module.scss";
 
-export default function ChatPage({ conversationId }: { conversationId: string }) {
+export default function ChatPage({ conversationId, fromTogether = false }: { conversationId: string; fromTogether?: boolean }) {
   const session = authClient.useSession(), router = useRouter();
-  useEffect(() => { if (!session.isPending && !session.data?.user) router.replace(`/login?returnTo=${encodeURIComponent(`/messages/${conversationId}`)}`); },[session.isPending,session.data?.user,router,conversationId]);
+  const returnTo = `/messages/${encodeURIComponent(conversationId)}${fromTogether ? "?from=together" : ""}`;
+  useEffect(() => { if (!session.isPending && !session.data?.user) router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`); },[session.isPending,session.data?.user,router,returnTo]);
   if (session.isPending || !session.data?.user) return <main><p role="status">Opening Messages…</p></main>;
-  return <AccountChat key={`${session.data.user.id}:${conversationId}`} userId={session.data.user.id} name={session.data.user.name || "Your account"} conversationId={conversationId}/>;
+  return <AccountChat key={`${session.data.user.id}:${conversationId}`} userId={session.data.user.id} name={session.data.user.name || "Your account"} conversationId={conversationId} fromTogether={fromTogether} returnTo={returnTo}/>;
 }
-function AccountChat({ userId,name,conversationId }: { userId: string; name: string; conversationId: string }) {
+function AccountChat({ userId,name,conversationId,fromTogether,returnTo }: { userId: string; name: string; conversationId: string; fromTogether: boolean; returnTo: string }) {
   const router = useRouter(), [metadata,setMetadata] = useState<ConversationMetadata | null>(null), [error,setError] = useState("");
-  const expired = useCallback(() => router.replace(`/login?returnTo=${encodeURIComponent(`/messages/${conversationId}`)}`),[router,conversationId]);
+  const expired = useCallback(() => router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`),[router,returnTo]);
   const [revision,setRevision] = useState(0);
   const retry = useCallback(() => setRevision(v => v+1),[]);
   useEffect(() => {
@@ -37,25 +37,31 @@ function AccountChat({ userId,name,conversationId }: { userId: string; name: str
   useChatRefresh({userId,onRefresh:retry});
   const ended = useCallback(() => { setMetadata(m => m ? { ...m,canChat:false,unavailableReason:"UNAVAILABLE" } : m); },[]);
   const signOut = async () => { const result = await authClient.signOut(); if (result.error) { setError("Could not sign out. Try again."); return; } router.replace("/login"); };
+  const destination = fromTogether ? "Together" : "Inbox";
+  const backAction = <Link className={styles.backLink} href={fromTogether ? "/journey" : "/connections"} aria-label={`Back to ${destination}`}>
+    <span aria-hidden="true">←</span><strong className={styles.backLabel}>{destination}</strong>
+  </Link>;
   return <MemberChrome className={styles.page} user={{name}} userId={userId} onNavigate={path => router.push(path)} onSignOut={signOut}
     onOpenNotification={async item => { router.push(notificationDestination(item)); return true; }} onActivity={retry} onExpired={expired}>
-    <main className={styles.main}><Link href="/connections">← Inbox</Link>
-      <ChatPageBody userId={userId} metadata={metadata} error={error} retry={retry} onAccessEnded={ended}/>
+    <main className={styles.main}>
+      <ChatPageBody userId={userId} metadata={metadata} error={error} retry={retry} onAccessEnded={ended} backAction={backAction}/>
     </main>
   </MemberChrome>;
 }
-export function ChatPageBody({userId,metadata,error,retry,onAccessEnded}:{userId:string;metadata:ConversationMetadata|null;error:string;retry:()=>void;onAccessEnded:()=>void}) {
-  return <>{error ? <section role="alert"><p>{error}</p><button onClick={retry}>Try again</button></section> : null}{metadata ? <ConversationContent userId={userId} metadata={metadata} onAccessEnded={onAccessEnded}/> : !error ? <p role="status">Loading conversation…</p> : null}</>;
+export function ChatPageBody({userId,metadata,error,retry,onAccessEnded,backAction}:{userId:string;metadata:ConversationMetadata|null;error:string;retry:()=>void;onAccessEnded:()=>void;backAction?:ReactNode}) {
+  return <>{!metadata ? backAction : null}{error ? <section role="alert"><p>{error}</p><button onClick={retry}>Try again</button></section> : null}{metadata ? <ConversationContent userId={userId} metadata={metadata} onAccessEnded={onAccessEnded} backAction={backAction}/> : !error ? <p role="status">Loading conversation…</p> : null}</>;
 }
-export function ConversationContent({ userId,metadata,onAccessEnded }: { userId: string; metadata: ConversationMetadata; onAccessEnded: () => void }) {
+export function ConversationContent({ userId,metadata,onAccessEnded,backAction }: { userId: string; metadata: ConversationMetadata; onAccessEnded: () => void; backAction?: ReactNode }) {
   const [profileOpen,setProfileOpen] = useState(false);
-  return <><h1><ProfileAvatar name={metadata.partner.publicName} preset={metadata.partner.avatarPreset}/> Conversation with {metadata.partner.publicName}</h1>
-    {!metadata.canChat ? <section role="status">{metadata.unavailableReason === "VERIFY_EMAIL" ? <><h2>Verify your email</h2><p>Verify your account email before using Messages.</p><Link href="/profile">Profile &amp; verification</Link></> : <p>This chat is unavailable.</p>}</section> : <>
-      {metadata.profileConnectionId ? <button type="button" aria-label={`View ${metadata.partner.publicName}’s profile`} onClick={() => setProfileOpen(true)}>View {metadata.partner.publicName}’s profile</button> : null}
+  if (!metadata.canChat) return <>
+    <div className={styles.chatHeader}>{backAction}<ChatIdentity partner={metadata.partner}/></div>
+    <section role="status">{metadata.unavailableReason === "VERIFY_EMAIL" ? <><h2>Verify your email</h2><p>Verify your account email before using Messages.</p><Link href="/profile">Profile &amp; verification</Link></> : <p>This chat is unavailable.</p>}</section>
+  </>;
+  return <>
       <Chat conversationId={metadata.id} userId={userId} partner={metadata.partner} onAccessEnded={onAccessEnded} dateSpotsConversationId={metadata.dateSpotsConversationId} datePlansConversationId={metadata.datePlansConversationId}
-        openingContext={metadata.opening ? <details><summary>How this conversation started</summary><p>{metadata.opening.questionText}</p><blockquote>{metadata.opening.hello}</blockquote></details> : undefined}/>
+        backAction={backAction} onViewProfile={metadata.profileConnectionId ? () => setProfileOpen(true) : undefined}
+        openingContext={metadata.opening ? <details><summary>How you started talking</summary><p>{metadata.opening.questionText}</p><blockquote>{metadata.opening.hello}</blockquote></details> : undefined}/>
       <details><summary>Safety &amp; contact controls</summary><MessageSafetyActions userId={userId} conversationId={metadata.id} onBlocked={onAccessEnded}/></details>
       {profileOpen && metadata.profileConnectionId ? <ConnectedProfileView userId={userId} connectionId={metadata.profileConnectionId} onClose={() => setProfileOpen(false)}/> : null}
-    </>}
   </>;
 }

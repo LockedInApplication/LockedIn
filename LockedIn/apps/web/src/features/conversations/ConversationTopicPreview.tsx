@@ -35,10 +35,7 @@ export default function ConversationTopicPreview({
       >
         ← All topics
       </button>
-      <div className={styles.suggestion}>
-        <span className={styles.icon} aria-hidden>
-          {pack.icon}
-        </span>
+      <div className={styles.topicPreview}>
         <h2 tabIndex={-1} ref={headingRef}>
           {pack.title}
         </h2>

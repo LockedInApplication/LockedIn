@@ -25,21 +25,24 @@ export default function ConversationLibrary({
 }: ConversationLibraryProps) {
   const [preview, setPreview] = useState<ConversationPack | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const previousTopic = useRef<string | null>(null);
+  const returnTo = useRef<string | null>(null);
   const section = useRef<HTMLElement>(null);
   useEffect(() => {
     if (preview) {
-      previousTopic.current = preview.key;
       heading.current?.focus();
-    } else if (previousTopic.current)
+    } else if (returnTo.current)
       section.current
-        ?.querySelector<HTMLButtonElement>(
-          `[data-topic="${CSS.escape(previousTopic.current)}"]`,
-        )
+        ?.querySelector<HTMLButtonElement>(returnTo.current)
         ?.focus({ preventScroll: true });
   }, [preview]);
   const partner = selection?.partnerChoice,
     own = selection?.ownChoice;
+  const suggested = packs.find(pack => pack.key === partner?.packKey);
+  const topics = partner?.submitted && canStart && suggested ? packs.filter(pack => pack.key !== suggested.key) : packs;
+  function openTopic(pack: ConversationPack, source: "suggestion" | "list") {
+    returnTo.current = source === "suggestion" ? "[data-review-suggestion]" : `[data-topic="${CSS.escape(pack.key)}"]`;
+    setPreview(pack);
+  }
   const name = (key: string | null) =>
     key === null
       ? "Either conversation"
@@ -61,26 +64,19 @@ export default function ConversationLibrary({
       className={styles.library}
       aria-label="Conversation topics"
     >
-      <h2>What’s on your mind?</h2>
-      <p>Pick a topic to suggest to {partner?.name ?? "your partner"}.</p>
+      <h2>Pick a topic</h2>
+      <p>Suggest a topic to {partner?.name ?? "your partner"}. You’ll each answer privately once you agree.</p>
       {partner?.submitted ? (
         <aside className={styles.suggestion}>
           <span className={styles.kicker}>{partner.name} suggested</span>
-          <h3>{name(partner.packKey)}</h3>
-          {partner.packKey === null ? (
-            <p>They’re happy for you to choose a topic.</p>
-          ) : null}
-          <button
-            type="button"
-            disabled={busy || !canStart}
-            onClick={() => {
-              const pack = packs.find((p) => p.key === partner.packKey);
-              if (pack) setPreview(pack);
-            }}
-            hidden={partner.packKey === null}
-          >
-            Review suggestion →
-          </button>
+          {suggested ? <button className={styles.topic} type="button" data-review-suggestion
+            disabled={busy || !canStart} onClick={() => openTopic(suggested, "suggestion")}>
+            <span><strong>{suggested.title}</strong><small>{suggested.description}</small></span>
+            <span aria-hidden="true">›</span>
+          </button> : <>
+            <h3>{name(partner.packKey)}</h3>
+            {partner.packKey === null ? <p>They’re happy for you to choose a topic.</p> : null}
+          </>}
         </aside>
       ) : null}
       {own?.submitted ? (
@@ -111,28 +107,25 @@ export default function ConversationLibrary({
           ) : null}
         </div>
       ) : null}
-      <h3>Explore topics</h3>
+      {topics.length ? <><h3>Explore topics</h3>
       <div className={styles.topics}>
-        {packs.map((pack) => (
+        {topics.map((pack) => (
           <button
             className={styles.topic}
             key={pack.key}
             data-topic={pack.key}
             type="button"
             disabled={busy}
-            onClick={() => setPreview(pack)}
+            onClick={() => openTopic(pack, "list")}
           >
-            <span className={styles.icon} aria-hidden>
-              {pack.icon}
-            </span>
             <span>
               <strong>{pack.title}</strong>
-              <small>{pack.questionCount} private prompts · View topic</small>
+              <small>{pack.description || `${pack.questionCount} private prompts`}</small>
             </span>
             <span aria-hidden>›</span>
           </button>
         ))}
-      </div>
+      </div></> : null}
       <button
         type="button"
         className={styles.secondary}

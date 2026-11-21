@@ -14,6 +14,14 @@ const props: ConversationLibraryProps = {
       accent: "mint",
       questionCount: 3,
     },
+    {
+      key: "support",
+      title: "Support",
+      description: "What helps you feel heard.",
+      icon: "◎",
+      accent: "mint",
+      questionCount: 3,
+    },
   ],
   selection: {
     ownChoice: { submitted: false, packKey: null },
@@ -26,13 +34,15 @@ const props: ConversationLibraryProps = {
   onWithdraw: () => {},
 };
 describe("compact conversation browser", () => {
-  it("places partner review before topic browsing and defers details", () => {
+  it("places the partner’s suggestion before flat, descriptive topic rows", () => {
     const html = renderToStaticMarkup(
       createElement(ConversationLibrary, props),
     );
     expect(html.indexOf("Evans")).toBeLessThan(html.indexOf("Explore topics"));
-    expect(html).toContain("View topic");
-    expect(html).not.toContain("A longer description.");
+    expect(html).toContain("data-review-suggestion");
+    expect(html).toContain('data-topic="support"');
+    expect(html).not.toContain('data-topic="direction"');
+    expect(html).toContain("A longer description.");
     expect(html).toContain("How choosing together works");
     expect(html).toContain("Either works for me");
   });

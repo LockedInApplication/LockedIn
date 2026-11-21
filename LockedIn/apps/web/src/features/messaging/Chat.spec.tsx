@@ -18,6 +18,18 @@ describe("reusable bounded conversation", () => {
     expect(html).not.toMatch(/<details[^>]*\bopen/);
     expect(renderToStaticMarkup(<ChatTranscript {...props}/>)).not.toContain("Opening reply");
   });
+  it("groups consecutive text messages but preserves each message, its timestamp and its report action", () => {
+    const messages = ["2026-11-17T12:00:00Z", "2026-11-17T12:01:00Z", "2026-11-17T12:01:01Z", "2026-11-18T12:02:00Z"].map((createdAt, index) => ({
+      id: `message-${index}`, sequence: String(index + 1), author: "partner" as const, text: `Text ${index}`, createdAt,
+      ...(index === 2 ? { dateSpot: true as const } : {}),
+    }));
+    const html = renderToStaticMarkup(<ChatTranscript items={messages} partnerName="Sam" busy={false} onReport={() => {}}/>);
+    expect(html.match(/data-grouped="true"/g)).toHaveLength(1);
+    expect(html).toMatch(/data-message-id="message-1"[^>]*data-grouped="true"/);
+    expect(html.match(/data-message-id=/g)).toHaveLength(4);
+    expect(html.match(/<time /g)).toHaveLength(4);
+    expect(html.match(/aria-label="Message actions"/g)).toHaveLength(4);
+  });
   it("keeps reporting inside a keyboard-accessible closed action menu", () => {
     const html = renderToStaticMarkup(<MessageActions busy={false} onReport={() => {}}/>);
     expect(html).toContain("<summary"); expect(html).toContain("Report message"); expect(html).not.toMatch(/<details[^>]*\bopen/);

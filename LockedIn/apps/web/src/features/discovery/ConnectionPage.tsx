@@ -11,6 +11,7 @@ import BuildTogetherPanel from "./BuildTogetherPanel";
 import ConnectionStatus from "./ConnectionStatus";
 import DiscoverySafetyActions,{type DiscoveryReportSource} from "./DiscoverySafetyActions";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import chatStyles from "@/features/messaging/chat.module.scss";
 import styles from "./discovery.module.scss";
 export default function ConnectionPage({connectionId}:{connectionId:string}){return <DiscoveryShell><Connection key={connectionId} id={connectionId}/></DiscoveryShell>;}
 function Connection({id}:{id:string}){
@@ -44,12 +45,16 @@ function Starter({connection,setConnection,onRefresh}:{connection:DiscoveryConne
     catch(error){setNotice(error instanceof Error?error.message:"Contact blocked. Refresh to load its current history.");}
     onRefresh();
   };
-  return <><button disabled={busy} onClick={()=>void leave("/connections")}>← Inbox</button>{notice?<p role="status" className={styles.notice}>{notice}</p>:null}
+  const backAction=<button className={chatStyles.backLink} type="button" aria-label="Back to Inbox" disabled={busy} onClick={()=>void leave("/connections")}>
+    <span aria-hidden="true">←</span><strong className={chatStyles.backLabel}>Inbox</strong>
+  </button>;
+  return <>{!canChat ? backAction : null}{notice?<p role="status" className={styles.notice}>{notice}</p>:null}
     {connection.state==="PENDING"?<section className={styles.card}><p className={styles.eyebrow}>{connection.inviter==="partner"?"Wants to connect":"Waiting for acceptance"}</p><h1>{connection.topic.text}</h1><p>From {connection.senderSnapshot.publicName}</p><p className={styles.quote}>{connection.hello}</p>{connection.inviter==="partner"?<>
       {!connection.canAccept?<p>This invitation can’t be accepted right now.</p>:null}
       <div className={styles.actions}>{connection.canAccept?<button className={styles.primary} disabled={busy} onClick={()=>void run(`${url}/accept`,{})}>Accept and chat</button>:null}<button disabled={busy} onClick={()=>void run(`${url}/decline`,{})}>Decline quietly</button></div>
-    </>:<><p>Your invitation has been sent. Once accepted, your reply opens the conversation. Invitations expire after seven days.</p><button disabled={busy} onClick={()=>void run(`${url}/withdraw`,{})}>Withdraw invitation</button></>}<details><summary>What acceptance means</summary><p>Acceptance lets you message each other. It does not create a full shared workspace.</p></details></section>:<><p className={styles.eyebrow}>Your connection</p><h1>Conversation with {partnerName}</h1></>}
-    {canChat ? <DiscoveryChat key={connection.id} connectionId={connection.id} opening={connection} onBlocked={onBlocked} dateSpotsConversationId={connection.dateSpotsConversationId} datePlansConversationId={connection.datePlansConversationId}/> : connected ? <p role="status">Messaging is currently unavailable for this connection.</p> : null}
+    </>:<><p>Your invitation has been sent. Once accepted, your reply opens the conversation. Invitations expire after seven days.</p><button disabled={busy} onClick={()=>void run(`${url}/withdraw`,{})}>Withdraw invitation</button></>}<details><summary>What acceptance means</summary><p>Acceptance lets you message each other. It does not create a full shared workspace.</p></details></section>:!canChat?<><p className={styles.eyebrow}>Your connection</p><h1>Conversation with {partnerName}</h1></>:null}
+    {canChat ? <DiscoveryChat key={connection.id} connectionId={connection.id} opening={connection} onBlocked={onBlocked} backAction={backAction}
+      onViewProfile={connected?()=>setProfileOpen(true):undefined} dateSpotsConversationId={connection.dateSpotsConversationId} datePlansConversationId={connection.datePlansConversationId}/> : connected ? <p role="status">Messaging is currently unavailable for this connection.</p> : null}
     {profileOpen?<ConnectedProfile connectionId={connection.id} onClose={()=>setProfileOpen(false)} onBlocked={()=>void onBlocked()}/>:null}
     <ConnectionStatus connection={connection} sharedSpaceEnded={sharedSpaceEnded}/>
     {!sharedSpaceEnded?<BuildTogetherPanel connection={connection} busy={busy} currentRelationshipId={me.currentRelationshipId} onChoose={ready=>void chooseBuild(ready)} onOpen={()=>void leave("/journey")}/>:null}

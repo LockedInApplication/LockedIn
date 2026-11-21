@@ -2,11 +2,14 @@
   max-width: 720px;
   margin: 0 auto;
   padding: 24px;
-  color: #211831;
+  color: var(--ink);
   h2 {
     font-size: clamp(1.6rem, 4vw, 2.1rem);
     line-height: 1.15;
     margin: 8px 0 12px;
+    font-family: var(--font-serif);
+    font-weight: 550;
+    letter-spacing: -.025em;
     overflow-wrap: anywhere;
   }
   h3 {
@@ -15,7 +18,7 @@
   }
   p {
     line-height: 1.5;
-    color: #685e70;
+    color: var(--member-muted, var(--stone-500));
   }
   button,
   summary {
@@ -31,77 +34,57 @@
   }
   button:focus-visible,
   summary:focus-visible {
-    outline: 3px solid #aa83c5;
+    outline: 3px solid var(--focus-ring);
     outline-offset: 3px;
   }
   details {
     margin: 20px 0;
   }
   summary {
-    color: #503260;
+    color: var(--action);
     min-height: 44px;
   }
 }
 .suggestion {
-  background: #e7f3e8;
-  border: 2px solid #211831;
-  border-radius: 20px;
-  padding: 20px;
-  box-shadow: 0 4px 0 #d6e0cd;
+  background: var(--stone-50);
+  border-radius: 12px;
+  padding: 12px 14px;
   margin: 18px 0;
-  button {
-    border: 0;
-    background: none;
-    color: #503260;
-    font-weight: 700;
-    padding: 10px 0;
-    text-align: left;
-  }
+  h3 { margin-block: .25rem; }
+  p { margin: .25rem 0; }
+  .topic { border-bottom: 0; padding-block: 5px; }
 }
 .kicker {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #72518a;
+  color: var(--forest);
   overflow-wrap: anywhere;
 }
-.topics {
-  display: grid;
-  gap: 10px;
-}
+.topics { border-block-start: 1px solid var(--member-divider, var(--brand-rule)); }
 .topic {
-  display: flex;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .5rem;
   align-items: center;
   width: 100%;
-  padding: 14px;
-  background: #fffaf2;
-  border: 1px solid #d9d0dd;
-  border-radius: 14px;
-  color: #211831;
+  padding: .7rem 4px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--member-divider, var(--brand-rule));
+  color: var(--ink);
   text-align: left;
+  &:hover:not(:disabled), &:active:not(:disabled) { background: var(--member-hover, var(--paper)); }
   strong {
     display: block;
     overflow-wrap: anywhere;
   }
   small {
     display: block;
-    color: #685e70;
+    overflow-wrap: anywhere;
+    color: var(--member-muted, var(--stone-500));
     margin-top: 3px;
   }
-  span:nth-child(2) {
-    flex: 1;
-    min-width: 0;
-  }
-}
-.icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  background: #ffda6e;
-  border-radius: 12px;
-  flex-shrink: 0;
-  font-size: 1.4rem;
+  > span:last-child { color: var(--forest); font-size: 1.25rem; }
 }
 .own {
   display: flex;
@@ -115,34 +98,33 @@
     background: none;
     border: 0;
     text-decoration: underline;
-    color: #503260;
+    color: var(--action);
   }
 }
 .library .primary {
   display: block;
-  background: #503260;
-  color: white;
-  border: 2px solid #211831;
-  border-radius: 12px;
+  background: var(--action);
+  color: var(--on-action);
+  border: 0;
+  border-radius: 999px;
   width: 100%;
   padding: 14px;
   margin-top: 20px;
   text-align: center;
-  box-shadow: 0 4px 0 #211831;
 }
 .secondary {
   width: 100%;
   background: none;
-  border: 1px solid #ac9bb5;
-  color: #503260;
-  border-radius: 12px;
+  border: 1px solid var(--brand-rule);
+  color: var(--action);
+  border-radius: 999px;
   padding: 12px;
   margin-top: 18px;
 }
 .back {
   background: none;
   border: 0;
-  color: #503260;
+  color: var(--action);
   padding: 8px 0;
 }
 .privacy {
@@ -151,25 +133,26 @@
 .compactMain {
   padding-top: 20px !important;
 }
+.backToTogether {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: .4rem;
+  border-radius: 999px;
+  color: var(--action);
+  font-size: .9rem;
+  font-weight: 650;
+  text-decoration: none;
+  &:hover { background: var(--member-hover, var(--stone-50)); }
+  &:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+}
+.topicPreview { margin-block: .5rem 1.25rem; }
 .focused {
   max-width: 560px;
   margin: 0 auto;
 }
-.compactIntro {
-  padding: 16px 24px !important;
-  h1 {
-    font-size: 1.4rem !important;
-    margin: 0 !important;
-  }
-  p {
-    display: none !important;
-  }
-}
 @media (max-width: 600px) {
   .library {
-    padding: 16px;
-  }
-  .suggestion {
     padding: 16px;
   }
 }

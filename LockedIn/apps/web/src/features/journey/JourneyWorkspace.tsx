@@ -265,19 +265,33 @@ export default function JourneyWorkspace() {
             <h1>Build the relationship you both choose.</h1>
             <p>Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept.</p>
           </div>}
-          <div className={styles.memberCard}>
+          {isHome ? <div className={guidanceStyles.homePair}>
+            <div className={guidanceStyles.pairAvatars}>
+              <ProfileAvatar name={overview.user.name || overview.user.email} preset={overview.user.avatarPreset}/>
+              <ProfileAvatar name={overview.relationship.partner.name} preset={overview.relationship.partner.avatarPreset}/>
+            </div>
+            <strong>You &amp; {overview.relationship.partner.name}</strong>
+            <RelationshipMessages messaging={overview.messaging} confirmLeave={() => !busy && confirmDiscard()}/>
+          </div> : <div className={styles.memberCard}>
             <ProfileAvatar name={overview.user.name || overview.user.email} preset={overview.user.avatarPreset}/>
             <div>
               <strong>{overview.user.name || "Your space"}</strong>
               <span>{overview.relationship ? `Connected with ${overview.relationship.partner.name}` : "Start privately"}</span>
             </div>
             {overview.relationship?<ProfileAvatar name={overview.relationship.partner.name} preset={overview.relationship.partner.avatarPreset}/>:null}
-          </div>
+          </div>}
         </section>:null}
 
         {isHome ? <NextActionCard overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction} /> : null}
-        {!suggestionReference && overview.relationship ? <WorkspaceNav active={activeView} onChange={setActiveView} /> : null}
-        {overview.relationship ? <RelationshipMessages messaging={overview.messaging}/> : null}
+        {!suggestionReference && overview.relationship ? (
+          activeView === "conversations"
+            ? <Link className={conversationStyles.backToTogether} href="/journey"
+                onNavigate={event => { event.preventDefault(); setActiveView("home"); }}>← Together</Link>
+            : <WorkspaceNav active={activeView} onChange={setActiveView} />
+        ) : null}
+        {overview.relationship && !isHome && activeView !== "conversations"
+          ? <RelationshipMessages messaging={overview.messaging} confirmLeave={() => !busy && confirmDiscard()}/>
+          : null}
 
         {overview.relationship && !suggestionReference && (activeView === "home" || activeView === "roadmap" || activeView === "conversations") ? (
           <TinyLantern

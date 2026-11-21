@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { JourneyApiError } from "@/features/journey/journey.client";
+import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import { ChatSession, loadChatRefresh, mergeLatestMessages, prependMessages, readThroughSequence, type ChatMessage as Message, type ChatPage as Page } from "./chat-state";
 import { messagingRequest, type ChatRequest } from "./messaging.client";
 import { useChatRefresh } from "./use-chat-refresh";
@@ -14,24 +15,57 @@ import SharedDateSheet from "./SharedDateSheet";
 import { useDatePlans } from "./use-date-plans";
 import type { DatePlanEvent, DateSheetTarget } from "./date-plans.types";
 import type { ChatPartner } from "./messaging.types";
-import styles from "./chat.module.scss";
 import chatStyles from "./chat.module.scss";
 
-type ChatProps = { conversationId: string; userId: string; partner: ChatPartner; onAccessEnded: () => void; openingContext?: ReactNode; profileAction?: ReactNode; busy?: boolean; ariaLabel?: string; request?: ChatRequest; messagesPath?: string; renderReport?: (message: Message, onBlocked: () => void) => ReactNode; dateSpotsConversationId?: string; datePlansConversationId?: string };
+type ChatProps = { conversationId: string; userId: string; partner: ChatPartner; onAccessEnded: () => void; openingContext?: ReactNode; backAction?: ReactNode; onViewProfile?: () => void; busy?: boolean; ariaLabel?: string; request?: ChatRequest; messagesPath?: string; renderReport?: (message: Message, onBlocked: () => void) => ReactNode; dateSpotsConversationId?: string; datePlansConversationId?: string };
 export default function Chat(props: ChatProps) {
   return <ChatBody key={props.userId + ":" + props.conversationId} {...props}/>;
 }
 
-export function ChatTranscript({items, partnerName, busy, onReport, openingContext, onViewPlace, onSuggestTime, activeDate, renderDateEvent, onOpenDate}: {
-  items: Message[]; partnerName: string; busy: boolean; onReport: (message: Message) => void; openingContext?: ReactNode;
+function isGrouped(earlier: Message | undefined, later: Message | undefined, earlierDate?: Date, laterDate?: Date) {
+  if (!earlier || !later || !earlierDate || !laterDate || earlier.author !== later.author
+    || earlier.dateSpot || later.dateSpot || earlier.datePlanEvent || later.datePlanEvent) return false;
+  const elapsed = laterDate.getTime() - earlierDate.getTime();
+  return elapsed >= 0 && elapsed <= 5 * 60_000 && earlierDate.toDateString() === laterDate.toDateString();
+}
+
+export function ChatIdentity({ partner, onViewProfile, busy }: { partner: ChatPartner; onViewProfile?: () => void; busy?: boolean }) {
+  const name = <><ProfileAvatar name={partner.publicName} preset={partner.avatarPreset}/><span>{partner.publicName}</span></>;
+  return <h1 className={chatStyles.chatIdentity} aria-label={partner.publicName}>
+    {onViewProfile ? <button type="button" aria-label={`View ${partner.publicName}’s profile`} disabled={busy} onClick={onViewProfile}>
+      {name}<span aria-hidden="true" className={chatStyles.chevron}>⌄</span>
+    </button> : name}
+  </h1>;
+}
+
+export function ChatTranscript({items, partnerName, partnerAvatar, busy, onReport, openingContext, onViewPlace, onSuggestTime, activeDate, renderDateEvent, onOpenDate}: {
+  items: Message[]; partnerName: string; partnerAvatar?: string; busy: boolean; onReport: (message: Message) => void; openingContext?: ReactNode;
   onViewPlace?: (id: string, origin: HTMLButtonElement) => void; onSuggestTime?: (message: Message, origin: HTMLButtonElement) => void;
   activeDate?: boolean; renderDateEvent?: (event: DatePlanEvent) => ReactNode;
   onOpenDate?: (id: string, origin: HTMLButtonElement) => void;
 }) {
   const shown = onOpenDate ? items.filter(item => !item.datePlanEvent || item.datePlanEvent.action === "propose") : items;
-  return <>{openingContext}{shown.length ? <ol className={chatStyles.messages} role="log" aria-label="Conversation messages" aria-relevant="additions">{shown.map(message => <li key={message.id} data-message-id={message.id} className={message.author === "self" ? chatStyles.mine : undefined}>
-    <div className={chatStyles.messageMeta}><strong>{message.author === "self" ? "You" : partnerName}</strong>
-    {message.author === "partner" && !(onOpenDate && message.datePlanEvent) ? <MessageActions busy={busy} onReport={() => onReport(message)}/> : null}</div>
+  const dates = shown.map(message => new Date(message.createdAt));
+  const now = new Date();
+  const today = now.toDateString();
+  return <>{openingContext ? <div className={chatStyles.opening}>{openingContext}</div> : null}
+    {shown.length ? <ol className={chatStyles.messages} role="log" aria-label="Conversation messages" aria-relevant="additions">{shown.map((message, index) => {
+      const date = dates[index];
+      const day = date.toDateString();
+      const grouped = isGrouped(shown[index - 1], message, dates[index - 1], date);
+      const hasNext = isGrouped(message, shown[index + 1], date, dates[index + 1]);
+      const mine = message.author === "self";
+      return <Fragment key={message.id}>
+    {day !== dates[index - 1]?.toDateString() ? <li className={chatStyles.day}>
+      {day === today ? "Today" : date.toLocaleDateString([], { month: "short", day: "numeric", ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) })}
+    </li> : null}
+    <li data-message-id={message.id} className={`${chatStyles.messageRow} ${mine ? chatStyles.mine : ""}`} data-grouped={grouped || undefined}>
+      {!mine ? <div className={chatStyles.sender}>
+        {!grouped ? <ProfileAvatar name={partnerName} preset={partnerAvatar}/> : null}
+      </div> : null}
+      <div className={chatStyles.messageBody}>
+        <span className={chatStyles.srOnly}>{mine ? "You" : partnerName}: </span>
+        <div className={chatStyles.bubble}>
     {message.datePlanEvent && onOpenDate ? <button className={chatStyles.dateBreadcrumb} type="button" data-plan-id={message.datePlanEvent.id}
       disabled={busy} onClick={event => onOpenDate(message.datePlanEvent!.id, event.currentTarget)}>Open date invite <span aria-hidden="true">↗</span></button>
       : message.datePlanEvent && renderDateEvent ? renderDateEvent(message.datePlanEvent) : <p>{message.text}</p>}
@@ -39,8 +73,13 @@ export function ChatTranscript({items, partnerName, busy, onReport, openingConte
       {onViewPlace ? <button type="button" disabled={busy} onClick={event => onViewPlace(message.id, event.currentTarget)}>View place</button> : null}
       {onSuggestTime ? <button className={chatStyles.quietAction} type="button" disabled={busy} onClick={event => onSuggestTime(message, event.currentTarget)}>{activeDate ? "View current date plan" : "Suggest a time"}</button> : null}
     </div> : null}
-    <time className={chatStyles.timestamp} dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</time>
-  </li>)}</ol> : <p>Send a message to keep the conversation going.</p>}</>;
+        </div>
+        <time className={hasNext ? chatStyles.srOnly : chatStyles.timestamp} dateTime={message.createdAt}>{date.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</time>
+      </div>
+      {!mine && !(onOpenDate && message.datePlanEvent) ? <MessageActions busy={busy} onReport={() => onReport(message)}/> : null}
+    </li>
+  </Fragment>;
+  })}</ol> : <p className={chatStyles.empty}>Send a message to keep the conversation going.</p>}</>;
 }
 
 const accessEnded = (error: unknown) => error instanceof JourneyApiError && [401, 403, 404].includes(error.status);
@@ -54,7 +93,7 @@ function DateSheetLink({ onOpen }: { onOpen: (id: string) => void }) {
   return null;
 }
 
-function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, profileAction, busy = false, ariaLabel = "Chat", request = messagingRequest, messagesPath, renderReport, dateSpotsConversationId, datePlansConversationId }: ChatProps) {
+function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, backAction, onViewProfile, busy = false, ariaLabel = "Messages", request = messagingRequest, messagesPath, renderReport, dateSpotsConversationId, datePlansConversationId }: ChatProps) {
   const path = messagesPath ?? `/api/messaging/conversations/${conversationId}/messages`;
   const [page, setPage] = useState<Page | null>(null);
   const [draft, setDraft] = useState("");
@@ -326,24 +365,24 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       message={message} onBlocked={onReportBlocked}/>;
   }
 
-  return <section ref={chatRoot} className={`${styles.card} ${chatStyles.chat}`} aria-label={ariaLabel}>
+  return <section ref={chatRoot} className={chatStyles.chat} aria-label={ariaLabel}>
     <div className={chatStyles.chatHeader}>
-      <h2>Messages</h2>
-      {sheet && !closed ? <button data-date-toggle type="button" aria-haspopup="dialog" aria-expanded={!!datePanel}
+      {backAction}
+      <ChatIdentity partner={partner} onViewProfile={!closed ? onViewProfile : undefined} busy={busy}/>
+      {sheet && !closed ? <button className={chatStyles.dateToggle} data-date-toggle type="button" aria-haspopup="dialog" aria-expanded={!!datePanel}
         aria-label={update ? dateLabel + " · unread update" : datePlans.sharedSearchRequested ? dateLabel + " · shared search requested" : undefined}
         disabled={busy} onClick={event => openDate(!summaryReady ? { kind: "loading-summary" }
           : targetId ? { kind: "plan", planId: targetId } : { kind: "browse" }, event.currentTarget)}>
         {dateLabel}{showDot ? <span className={chatStyles.inviteDot} aria-hidden="true"/> : null}</button> : null}
-    </div>{profileAction}
+    </div>
     {sheet && !closed ? <Suspense><DateSheetLink onOpen={openLinkedDate}/></Suspense> : null}
     {closed ? <p role="status">This chat is no longer available.</p> : <>
-      <p className={styles.muted}>You’re connected. Reported messages can be reviewed by moderators.</p>
       {!page && !syncError ? <p role="status">Loading messages…</p> : null}
       {syncError ? <p role="alert">{syncError} <button type="button" onClick={() => refresh.current?.()}>Retry</button></p> : null}
       {page ? <div ref={viewport} className={chatStyles.viewport} role="region" aria-label="Scrollable conversation" tabIndex={0}
         onScroll={event => { const node = event.currentTarget; followLatest.current = !deferredLatest.current && atLatest(node); if (followLatest.current) setNewMessages(false); checkRead(); }}>
       {page?.nextCursor ? <button type="button" disabled={loadingOlder} onClick={() => void loadOlder()}>{loadingOlder ? "Loading…" : "Load older messages"}</button> : null}
-      <ChatTranscript items={page.items} partnerName={partner.publicName} busy={busy} onReport={setReport} openingContext={openingContext}
+      <ChatTranscript items={page.items} partnerName={partner.publicName} partnerAvatar={partner.avatarPreset} busy={busy} onReport={setReport} openingContext={openingContext}
         onViewPlace={dateSpotsConversationId && !spotsOutage ? (id, origin) => {
           const message = page.items.find(item => item.id === id);
           if (sheet && message) sharedTarget(message, origin);
@@ -359,10 +398,12 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       </div> : null}
       {page ? <ChatDateTools userId={userId} dateSpotsConversationId={sheet ? undefined : dateSpotsConversationId} activePlan={null}
         sharedPlace={sharedPlace} clearSharedPlace={clearSharedPlace} onVenueAvailability={updateVenueAvailability} onCurrentPlan={() => {}}>
-        <form className={`${styles.form} ${chatStyles.composer}`} onSubmit={event => { event.preventDefault(); void send(); }}>
-        <label>Message<textarea rows={2} maxLength={2000} value={draft} disabled={sending || busy} placeholder="Write a message…" onChange={event => setDraft(event.target.value)}/></label>
-        <button className={styles.primary} type="submit" disabled={!draft.trim() || sending || busy}>{sending ? "Sending…" : "Send message"}</button>
-        <p className={styles.muted}>Up to 2,000 characters. Unsent messages aren’t saved when you leave.</p>
+        <form className={chatStyles.composer} onSubmit={event => { event.preventDefault(); void send(); }}>
+        <label><span className={chatStyles.srOnly}>Message</span><textarea rows={1} maxLength={2000} value={draft} disabled={sending || busy} placeholder="Write a message…" onChange={event => setDraft(event.target.value)}/></label>
+        <button className={chatStyles.send} type="submit" aria-label={sending ? "Sending…" : "Send message"} disabled={!draft.trim() || sending || busy}>
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+        </button>
+        <p className={chatStyles.muted}>Up to 2,000 characters. Unsent messages aren’t saved when you leave.</p>
         </form>
       </ChatDateTools> : null}
       {datePanel && datePlansConversationId ? <SharedDateSheet key={datePanel.kind === "shared" ? datePanel.venue.id : undefined}

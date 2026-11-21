@@ -18,6 +18,7 @@
   &:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 }
 .messageMeta { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.messageMeta strong { min-inline-size: 0; overflow-wrap: anywhere; }
 .chat .messageActions, .messageActions {
   position: relative;
   margin: 0;
@@ -125,6 +126,7 @@
 .planFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
 .planFields input { min-width: 0; }
 @media (max-width: 450px) {
+  .main { padding-inline: 16px; }
   .chat .composer { grid-template-columns: minmax(0, 1fr); }
   .composerTools { grid-template-columns: minmax(0, 1fr); }
   .toolToggle { margin-top: .5rem; }

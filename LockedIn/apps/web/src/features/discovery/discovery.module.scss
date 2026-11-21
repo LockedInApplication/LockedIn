@@ -5,12 +5,15 @@
 .main h2 {font-size:1.45rem;line-height:1.2;margin:0 0 12px;}
 .main p {line-height:1.6;}
 .nav,.actions {display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.actions > button {flex:0 0 auto;}
+.actions > [role="alert"] {flex:0 0 100%;}
 .browseActions {align-items:flex-end;}
 .areaPicker {display:grid;gap:4px;min-inline-size:min(100%, 14rem);max-inline-size:100%;}
-.browseActions > button,.areaPicker select {min-height:48px;}
+.areaPicker select {min-height:48px;}
 @media(max-width:700px){.browseActions {align-items:stretch;}.areaPicker {flex:0 0 100%;}}
 .nav {border-bottom:1px solid var(--stone-100);padding-bottom:18px;margin-bottom:24px;}
 .main button,.main a,.explore {min-height:44px;}
+.main :is(.browseActions,.locationActions) > button {min-height:48px;}
 .main button,.explore {font:inherit;cursor:pointer;border:1px solid var(--stone-300);border-radius:10px;padding:10px 16px;background:var(--paper);color:var(--action);font-weight:650;}
 .main button:disabled {opacity:.5;cursor:not-allowed;}
 .main button.profileName {font:inherit;letter-spacing:inherit;line-height:inherit;border:0;padding:0;background:transparent;color:var(--action);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.12em;}
@@ -63,5 +66,8 @@
 .main details {margin-top:16px;}
 .main a {color:var(--action);display:inline-flex;align-items:center;}
 .explore {background:transparent;white-space:nowrap;font-size:.9rem;}
-@media(max-width:700px){.main{padding:18px 16px 44px;}.card{padding:18px;border-radius:12px;}.grid{grid-template-columns:1fr;gap:0;}.nav{gap:6px;margin-bottom:18px;padding-bottom:14px;}.nav button{font-size:.85rem;padding:8px 10px;}.main h1{font-size:2rem;}.radar{gap:8px;padding:12px;}.actions>button{flex:1;}.profile>span{flex:none;}}
+@media(max-width:700px){.main{padding:18px 16px 44px;}.card{padding:18px;border-radius:12px;}.grid{grid-template-columns:1fr;gap:0;}.nav{gap:6px;margin-bottom:18px;padding-bottom:14px;}.nav button{font-size:.85rem;padding:8px 10px;}.radar{gap:8px;padding:12px;}.profile>span{flex:none;}}
+@media(max-width:700px){
+  .locationActions {display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;}
+}
 @media(prefers-reduced-motion:reduce){.page *{scroll-behavior:auto!important;animation:none!important;transition:none!important;}}

@@ -30,8 +30,13 @@ it("preserves the workspace navigation when viewing a destination", () => {
   expect(html).toContain('aria-current="page"');
 });
 
-it("shows progress without any clickable milestones", () => {
+it("renders the illustrated map without any clickable milestones", () => {
   const html = renderToStaticMarkup(<SharedJourneyPath session={null} historyCount={0} partnerName="Jordan" />);
+  expect(html).toContain('viewBox="0 0 600 760" aria-hidden="true"');
+  const paths = [...html.matchAll(/<path[^>]+d="([^"]+)"/g)].map(match => match[1]);
+  expect(paths).toHaveLength(2);
+  expect(paths[0]).toBe(paths[1]);
+  expect(html).toContain('stroke-dashoffset="85"');
   expect(html.match(/<li\b/g)).toHaveLength(6);
   expect(html.match(/aria-current="step"/g)).toHaveLength(1);
   expect(html).toContain("Reflect privately");

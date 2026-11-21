@@ -9,9 +9,10 @@ import { useEffect, useRef, useState } from "react";
 
 type authPageType = {
   page: "login" | "signup";
+  returnTo: string;
 };
 
-export default function AuthPage({ page }: authPageType) {
+export default function AuthPage({ page, returnTo }: authPageType) {
   const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(false);
   const clearMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -84,9 +85,9 @@ export default function AuthPage({ page }: authPageType) {
             <h2>{page === "login" ? "Welcome back." : "Create your space."}</h2>
             <div>
               {page === "login" ? (
-                <Login onError={handleFormError} />
+                <Login onError={handleFormError} returnTo={returnTo} />
               ) : (
-                <Signup onError={handleFormError} />
+                <Signup onError={handleFormError} returnTo={returnTo} />
               )}
             </div>
           </div>

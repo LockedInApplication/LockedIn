@@ -5,13 +5,14 @@ import styles from "../styles/authForms.module.scss";
 import { authClient } from "@/utils/authCLient";
 import { ERROR_MESSAGES } from "./errorCode";
 import { useRouter } from "next/navigation";
-import { safeMemberReturnTo, verificationPath } from "@/features/auth/member-entry";
+import { authEntryLink, safeMemberReturnTo, verificationPath } from "@/features/auth/member-entry";
 
 type LoginProps = {
   onError: (message: string) => void;
+  returnTo: string;
 };
 
-export default function Login({ onError }: LoginProps) {
+export default function Login({ onError, returnTo }: LoginProps) {
   const router = useRouter();
   function getErrorMessage(code?: string) {
     if (!code) {
@@ -31,7 +32,6 @@ export default function Login({ onError }: LoginProps) {
     const password = formData.get("password") as string;
 
     try {
-      const requestedPath = new URLSearchParams(window.location.search).get("returnTo");
       const result = await authClient.signIn.email({
         email,
         password,
@@ -39,7 +39,7 @@ export default function Login({ onError }: LoginProps) {
 
       if (result?.error) {
         if (result.error.code === "EMAIL_NOT_VERIFIED") {
-          router.push(verificationPath(requestedPath));
+          router.push(verificationPath(returnTo));
           return;
         }
 
@@ -47,7 +47,7 @@ export default function Login({ onError }: LoginProps) {
         return;
       }
 
-      router.push(safeMemberReturnTo(requestedPath));
+      router.push(safeMemberReturnTo(returnTo));
     } catch (error) {
       console.error("Error during sign in:", error);
       onError("Error during sign in");
@@ -83,7 +83,7 @@ export default function Login({ onError }: LoginProps) {
         <button type="submit">Log In</button>
         <div className={`${styles.title} ${styles.highlight}`}>
           Don&apos;t have an account?
-          <Link href="/signup" className={styles.linkText}>
+          <Link href={authEntryLink("/signup", returnTo)} className={styles.linkText}>
             Sign up
           </Link>
         </div>

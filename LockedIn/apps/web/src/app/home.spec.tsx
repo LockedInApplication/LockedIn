@@ -2,16 +2,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import Home from "./page";
 
-it("keeps the public journey and signup entry points alongside the demo", () => {
+it("gives the homepage one primary signup link and keeps invite, sign-in and app entry points", () => {
   const html = renderToStaticMarkup(<Home />);
-  expect(html).toContain('href="/journey"');
-  expect(html).toContain('href="/signup"');
-  expect(html).toContain('href="/login"');
+  expect(html.match(/href="\/signup"/g)).toHaveLength(1);
+  expect(html).toMatch(/<a[^>]*href="\/signup"[^>]*>Join LockedIn<\/a>/);
+  expect(html).toMatch(/<a[^>]*href="\/connections\?compose=invite"[^>]*>Invite someone you know<\/a>/);
+  expect(html).toMatch(/<a[^>]*href="\/login"[^>]*>Sign in<\/a>/);
+  expect(html).toMatch(/<a[^>]*href="\/journey"[^>]*>Open LockedIn<\/a>/);
+  expect(html).toContain('href="#main-content"');
+  expect(html).toMatch(/<main id="main-content" tabindex="-1"/);
   for (const section of ["how-it-works", "preview", "trust"]) {
     expect(html).toContain(`href="#${section}"`);
     expect(html).toContain(`id="${section}"`);
   }
-  expect(html).toMatch(/src="\/lockedin-coffee-hello\.webp"/);
 });
 
 it("renders a labeled, private-by-design demo with no submission form", () => {
@@ -25,9 +28,14 @@ it("renders a labeled, private-by-design demo with no submission form", () => {
   expect(html).not.toContain("<form");
 });
 
-it("offers a native control for pausing homepage motion", () => {
+it("loads a responsive, high-priority hero from local assets without reading decorative imagery aloud", () => {
   const html = renderToStaticMarkup(<Home />);
-  expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*aria-label="Pause homepage motion"/);
+  expect(html).toContain('srcSet="/home/blue-hour-portrait.webp"');
+  expect(html).toContain('/home/blue-hour-1024.webp 1024w, /home/blue-hour-1536.webp 1536w');
+  const photo = html.match(/<img[^>]*src="\/home\/blue-hour-1536\.webp"[^>]*>/)?.[0];
+  expect(photo).toContain('alt=""');
+  expect(photo).toContain('loading="eager"');
+  expect(photo).toMatch(/fetchpriority="high"/i);
 });
 
 it("gives the footer privacy link a focusable destination with a matching label", () => {

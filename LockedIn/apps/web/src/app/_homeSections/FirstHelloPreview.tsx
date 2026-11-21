@@ -28,7 +28,7 @@ export default function FirstHelloPreview() {
   const example = previews[choice];
 
   return (
-    <section id="preview" className={`${styles.wrap} ${styles.preview} ${styles.reveal}`} aria-labelledby="preview-title">
+    <section id="preview" className={`${styles.wrap} ${styles.preview}`} aria-labelledby="preview-title" tabIndex={-1}>
       <div className={styles.previewCopy}>
         <p className={styles.kicker}>Try it · No account needed</p>
         <h2 id="preview-title">A Sunday you’d <em>happily repeat.</em></h2>

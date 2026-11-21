@@ -7,14 +7,16 @@ import styles from "../styles/authForms.module.scss";
 import { authClient } from "@/utils/authCLient";
 import { ERROR_MESSAGES } from "./errorCode";
 import { SIGNUP_PASSWORD_HINT, validateSignupFields } from "./signup-fields";
+import { authEntryLink, safeMemberReturnTo, verificationPath } from "@/features/auth/member-entry";
 
 type SignupProps = {
   onError: (message: string) => void;
+  returnTo?: string;
 };
 
 type FieldError = Extract<ReturnType<typeof validateSignupFields>, { ok: false }>;
 
-export default function Signup({ onError }: SignupProps) {
+export default function Signup({ onError, returnTo = "/journey" }: SignupProps) {
   const router = useRouter();
   const [fieldError, setFieldError] = useState<FieldError | null>(null);
   const validateEmail = (email: string) => {
@@ -49,11 +51,13 @@ export default function Signup({ onError }: SignupProps) {
     }
 
     try {
+      const destination = safeMemberReturnTo(returnTo);
+      const verification = destination === "/journey" ? "/verify-email" : verificationPath(destination);
       const result = await authClient.signUp.email({
         email: email,
         password: password,
         name: fields.name,
-        callbackURL: `${window.location.origin}/verify-email`,
+        callbackURL: new URL(verification, window.location.origin).href,
       });
 
       if (result.error) {
@@ -65,7 +69,7 @@ export default function Signup({ onError }: SignupProps) {
         return;
       }
 
-      router.push("/verify-email?pending=1");
+      router.push(destination === "/journey" ? "/verify-email?pending=1" : verification);
     } catch (error) {
       console.error("Error during sign up:", error);
       onError("An error occurred during sign up. Please try again.");
@@ -167,7 +171,7 @@ export default function Signup({ onError }: SignupProps) {
         <button type="submit">Sign Up</button>
         <div className={`${styles.title} ${styles.highlight}`}>
           Already have an account?
-          <Link href="/login" className={styles.linkText}>
+          <Link href={authEntryLink("/login", returnTo)} className={styles.linkText}>
             Log in
           </Link>
         </div>

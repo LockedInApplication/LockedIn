@@ -29,10 +29,19 @@ it("uses the selected Courtyard canvas and contrast-safe text and buttons", () =
   expect(contrast(rootColor(css, "focus-ring"), rootColor(css, "paper"))).toBeGreaterThanOrEqual(3);
 });
 
-it("applies Figtree to controls and lets homepage headings inherit the same display font", () => {
+it("keeps the Courtyard font outside the public homepage and uses local display type for the hero", () => {
   expect(css).toMatch(/--font-sans:\s*"Figtree"/);
   expect(css).toMatch(/--font-display:\s*var\(--font-sans\)/);
-  expect(home).toMatch(/\.page h1,\s*\.page h2\s*\{[^}]*font-family: var\(--font-display\)/);
+  expect(home).toMatch(/\.hero h1,\s*\.page h2\s*\{[^}]*font-family: var\(--home-heading\)/);
+  expect(home).toContain('/fonts/barlow-condensed-latin-600.woff2');
+});
+
+it("keeps the homepage CTA and section copy contrast-safe", () => {
+  for (const color of ["home-action", "home-action-hover"]) {
+    expect(contrast("#ffffff", rootColor(home, color))).toBeGreaterThanOrEqual(4.5);
+  }
+  expect(contrast(rootColor(home, "home-muted"), rootColor(home, "home-frost"))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(rootColor(home, "home-ice"), rootColor(home, "home-night"))).toBeGreaterThanOrEqual(4.5);
 });
 
 it("keeps the idle field outline visible against both the card and the page", () => {

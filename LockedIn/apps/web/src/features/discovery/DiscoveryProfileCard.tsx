@@ -15,14 +15,14 @@ export default function DiscoveryProfileCard({ profile, area, photoIds = [], onR
   const answers = profileAnswers(profile);
   const { heightCm, languages, pets, familyPlans } = profile.about ?? {};
   const avatar = <div className={styles.fallback}><ProfileAvatar name={profile.publicName} preset={profile.avatarPreset}/></div>;
-  const photo = (id: string | undefined, index: number) => {
+  const photo = (id: string, index: number) => {
     const prompt = profile.photoPrompts?.find(item => item.photoId === id);
     return <div className={styles.visual}>
-      <div className={id ? styles.frame : `${styles.frame} ${styles.avatarFrame}`}>
-        {id ? <DiscoveryPhotoImage key={id} id={id} className={styles.photo} alt={`Photo ${index + 1} of ${profile.publicName}`} fallback={avatar}/> : avatar}
+      <div className={styles.frame}>
+        <DiscoveryPhotoImage key={id} id={id} className={styles.photo} alt={`Photo ${index + 1} of ${profile.publicName}`} fallback={avatar}/>
       </div>
       {prompt ? <p className={styles.caption}>{photoPrompts[prompt.key]}</p> : null}
-      {id && onReply ? <button type="button" onClick={() => onReply({ photo: id })}>Reply to photo {index + 1}</button> : null}
+      {onReply ? <button type="button" onClick={() => onReply({ photo: id })}>Reply to photo {index + 1}</button> : null}
     </div>;
   };
   const answerCard = (item: typeof answers[number]) => <section key={item.key} className={styles.prompt}>
@@ -30,9 +30,12 @@ export default function DiscoveryProfileCard({ profile, area, photoIds = [], onR
     {onReply ? <button type="button" onClick={() => onReply({ prompt: item.key })}>Reply to this answer</button> : null}
   </section>;
   return <div className={styles.story}>
-      {photo(photos[0], 0)}
-      <div><h2>{profile.publicName}</h2>{area ? <p className={common.muted}>{area}</p> : null}</div>
+      <div className={styles.identity}>
+        <ProfileAvatar name={profile.publicName} preset={profile.avatarPreset}/>
+        <div><h2>{profile.publicName}</h2>{area ? <p className={common.muted}>{area}</p> : null}</div>
+      </div>
       <p className={styles.intention}>{profile.intention === "LONG_TERM" ? "Looking for a long-term relationship" : "Open to a long-term relationship"}</p>
+      {photos[0] ? photo(photos[0], 0) : null}
       {answers[0] ? answerCard(answers[0]) : null}
       {profile.bio || heightCm || languages?.length || pets || familyPlans ? <section><h3>About me</h3>
         {profile.bio ? <p className={common.quote}>{profile.bio}</p> : null}

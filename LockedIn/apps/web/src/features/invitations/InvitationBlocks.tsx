@@ -13,7 +13,7 @@ export default function InvitationBlocks({
     revision,
   );
   return (
-    <section className={managementStyles.section} aria-labelledby="own-invitation-blocks">
+    <section className={managementStyles.inlineSection} aria-labelledby="own-invitation-blocks">
       <h2 id="own-invitation-blocks">People you’ve blocked from invitations</h2>
       <p className={managementStyles.note}>
         These settings are private to you. They only affect invitations, not any

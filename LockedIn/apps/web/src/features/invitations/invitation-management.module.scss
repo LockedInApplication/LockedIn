@@ -18,3 +18,12 @@
 .headerButton { border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 750; color: #4b335f; cursor: pointer; padding: 6px 0; }
 .headerButton:focus-visible { outline: 3px solid #719fe7; outline-offset: 3px; }
 @media(max-width:600px) { .heading { flex-direction: column; gap: 8px; } .headerButton { font-size: 11px; } .section { margin: 18px 0; } }
+.inlineSection {
+  composes: section;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}

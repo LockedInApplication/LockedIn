@@ -13,8 +13,7 @@
   overflow-anchor: none;
   scrollbar-gutter: stable;
   padding: .5rem;
-  border-block: 1px solid var(--stone-100);
-  border-radius: .5rem;
+  border-block: 1px solid var(--member-divider, var(--brand-rule));
   &:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 }
 .messageMeta { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
@@ -51,7 +50,7 @@
   }
   button { white-space: normal; }
 }
-.timestamp { display: block; color: var(--stone-500); font-size: .75rem; text-align: end; }
+.timestamp { display: block; color: var(--member-muted, var(--stone-500)); font-size: .75rem; text-align: end; }
 .chat .composer {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: .5rem .75rem;
@@ -143,8 +142,7 @@
     max-width: min(85%, 36rem);
     min-width: min(10rem, 100%);
     box-sizing: border-box;
-    border: 1px solid var(--stone-100);
-    background: var(--paper);
+    background: var(--member-hover, var(--paper));
     border-radius: .85rem;
     padding: .65rem .8rem;
   }
@@ -152,7 +150,7 @@
   .mine { justify-self: end; background: var(--stone-50); }
 }
 
-.card {border:1px solid var(--stone-100);background:var(--paper);padding:24px;border-radius:16px;margin:18px 0;overflow-wrap:anywhere;}
+.card {padding-block:18px;margin:18px 0;border-block-start:1px solid var(--member-divider, var(--brand-rule));overflow-wrap:anywhere;}
 .chat {color:var(--ink);}
 .chat button,.safety button {font:inherit;cursor:pointer;border:1px solid var(--stone-300);border-radius:10px;padding:10px 16px;background:var(--paper);color:var(--action);font-weight:650;min-height:44px;}
 .chat button:disabled,.safety button:disabled {opacity:.5;cursor:not-allowed;}
@@ -166,5 +164,4 @@
 .chat .primary {background:var(--action);color:var(--on-action);border-color:var(--action);}
 .safety {margin-top:1rem;}
 .safety p {overflow-wrap:anywhere;}
-@media(max-width:700px){.card{padding:18px;border-radius:12px;}}
 

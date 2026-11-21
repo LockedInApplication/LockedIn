@@ -87,9 +87,9 @@ export default function InboxList({ compose }: { compose: boolean }) {
 
 type InboxRow = Pick<ReturnType<typeof inboxEntries>["chats"][number], "href" | "partner" | "status" | "detail" | "unread">;
 export function InboxRows({ rows, onOpen }: { rows: InboxRow[]; onOpen: (href: string) => Promise<boolean> }) {
-  return <ul className={inboxStyles.rows}>{rows.map(({ href, partner, status, detail, unread }) =>
+  return <ul className={inboxStyles.rows} role="list">{rows.map(({ href, partner, status, detail, unread }) =>
     <li key={href}>
-      <button type="button" className={unread ? inboxStyles.unread : undefined} onClick={() => void onOpen(href)}>
+      <button type="button" className={`${inboxStyles.row}${unread ? ` ${inboxStyles.unread}` : ""}`} onClick={() => void onOpen(href)}>
         <ProfileAvatar name={partner.publicName} preset={partner.avatarPreset}/>
         <span className={inboxStyles.text}><strong>{partner.publicName}</strong><span>{detail}</span></span>
         <span className={inboxStyles.status}>{unread ? "New message" : status}</span>

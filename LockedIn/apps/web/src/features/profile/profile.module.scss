@@ -25,11 +25,8 @@
   }
 }
 .card {
-  padding: clamp(20px, 4vw, 32px);
-  margin: 20px 0;
-  border: 1px solid var(--brand-rule);
-  border-radius: var(--r);
-  background: var(--paper);
+  padding-block: clamp(20px, 4vw, 28px);
+  border-block-start: 1px solid var(--member-divider, var(--brand-rule));
   h2 {
     font-size: clamp(1.25rem, 2.5vw, 1.375rem);
     font-weight: 650;
@@ -56,7 +53,7 @@
   padding: 0;
 }
 .settingList > li + li {
-  border-block-start: 1px solid var(--brand-rule);
+  border-block-start: 1px solid var(--member-divider, var(--brand-rule));
 }
 .settingRow {
   display: grid;
@@ -72,15 +69,15 @@
   background: transparent;
   color: var(--ink);
   cursor: pointer;
-  &:active { background: var(--brand-canvas); }
+  &:active { background: var(--member-hover, var(--brand-canvas)); }
   svg { color: var(--brand-muted); }
 }
 @media (hover: hover) {
-  .settingRow:hover { background: var(--brand-canvas); }
+  .settingRow:hover { background: var(--member-hover, var(--brand-canvas)); }
 }
 .settingCopy { display: grid; gap: 3px; }
 .settingTitle { font-weight: 650; line-height: 1.35; }
-.settingDescription { color: var(--brand-muted); font-size: .875rem; line-height: 1.45; }
+.settingDescription { color: var(--member-muted, var(--brand-muted)); font-size: .875rem; line-height: 1.45; }
 .field {
   display: grid;
   gap: 8px;

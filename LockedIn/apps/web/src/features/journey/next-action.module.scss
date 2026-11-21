@@ -3,14 +3,12 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: clamp(14px, 3vw, 24px);
-  padding: clamp(18px, 3vw, 30px);
-  border: 1px solid var(--brand-rule);
-  border-radius: var(--r);
+  padding-block: clamp(16px, 2.8vw, 26px);
+  border-block: 1px solid var(--member-divider, var(--brand-rule));
   color: var(--ink);
-  background: var(--paper);
 }
 
-.card[data-waiting="true"] { background: var(--stone-50); }
+.card[data-waiting="true"] .kicker { color: var(--forest); }
 .kicker { display: flex; align-items: center; gap: 10px; color: var(--plum); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.06em; }
 .kicker > span { font-size: 1rem; }
 .card h2 { margin: 8px 0; font: 550 clamp(1.55rem, 3vw, 2.25rem)/1.15 var(--font-serif); letter-spacing: -.025em; }
@@ -23,7 +21,7 @@
   min-height: 48px;
   padding: 14px 20px;
   border: 1px solid var(--action);
-  border-radius: var(--control-radius);
+  border-radius: 999px;
   color: var(--on-action);
   background: var(--action);
   font: inherit;
@@ -37,6 +35,8 @@
 
 .home .homeIntro { align-items: center; gap: 12px; margin-block-end: 20px; }
 .home .homeIntro h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.1; }
+.home .homeIntro > div { min-inline-size: 0; max-inline-size: 100%; padding: 4px 0; border: 0; background: transparent; }
+.homeIntro > div > div { min-inline-size: 0; overflow-wrap: anywhere; }
 .currentAction { margin-block: 24px; scroll-margin-top: 96px; }
 .currentAction:focus-visible { outline: 3px solid var(--plum); outline-offset: 8px; border-radius: 8px; }
 

@@ -1,21 +1,26 @@
-.story { display:grid; gap:20px; max-width:540px; margin-inline:auto; min-width:0; }
+.story { display:grid; gap:16px; max-width:600px; margin-inline:auto; min-width:0; }
+.identity {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  > div {min-inline-size:0;overflow-wrap:anywhere;}
+}
 .storyPart {display:contents;}
 .visual { min-width:0; display:grid; gap:8px; justify-items:start; }
 .frame { position:relative; width:100%; display:grid; place-items:center; aspect-ratio:4 / 5; overflow:hidden; border-radius:14px; background:var(--stone-50); }
-.avatarFrame { aspect-ratio:auto; min-height:144px; }
 .photo { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; }
 .fallback { display:grid; place-items:center; }
-.story h2 { font-size:clamp(1.65rem, 4vw, 2.5rem); margin:0 0 4px; }
+.story h2 { font-size:clamp(1.25rem, 3vw, 1.8rem); margin:0 0 2px; }
 .story h3 { margin:0 0 5px; font-size:.95rem; }
 .story p { margin:0; }
 .caption {font-weight:650;}
-.intention { width:fit-content; border-radius:10px; padding:6px 10px; background:var(--stone-50); color:var(--action); font-weight:650; }
+.intention {color:var(--member-muted, var(--stone-500));font-size:.9rem;}
 .interests { display:flex; flex-wrap:wrap; gap:6px; padding:0; margin:0; list-style:none; }
 .interests li { border:1px solid var(--stone-100); border-radius:999px; padding:4px 10px; }
 .prompt {
-  border-inline-start: 3px solid currentColor;
+  border-block-start: 1px solid var(--member-divider, var(--brand-rule));
   display: grid;
   gap: .5rem;
   justify-items: start;
-  padding-inline-start: 1rem;
+  padding-block-start: .875rem;
 }

@@ -1,6 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { fileURLToPath } from "node:url";
+import { compile } from "sass";
 import { beforeEach, expect, it, vi } from "vitest";
 import VerifyEmailPage from "@/app/verify-email/page";
+import styles from "./email-verification.module.scss";
 
 const state = vi.hoisted(() => ({ query: "", user: null as null | { id: string; email: string; emailVerified: boolean } }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(state.query), useRouter: () => ({ push() {} }) }));
@@ -36,4 +39,13 @@ it("shows an expired-link error alongside a usable resend form", () => {
   const html = renderToStaticMarkup(<VerifyEmailPage />);
   expect(html).toContain("invalid or expired");
   expect(html).toContain("Resend verification email");
+});
+
+it("gives resend its own grid row with at least 24px below the labeled email field", () => {
+  state.query = "pending=1";
+  const html = renderToStaticMarkup(<VerifyEmailPage />);
+  expect(html).toContain(`<form class="${styles.resend}"`);
+  expect(html).toMatch(/<form[^>]*>\s*<div[^>]*><label[^>]*>Email address<\/label><input[^>]*\/><\/div><button[^>]*>Resend verification email<\/button><\/form>/);
+  const css = compile(fileURLToPath(new URL("./email-verification.module.scss", import.meta.url))).css;
+  expect(css).toMatch(/\.resend\s*\{[^}]*gap:\s*(?:24px|1\.5rem)/);
 });

@@ -2,14 +2,14 @@
   width: min(42rem, calc(100vw - 2rem));
   max-height: 90dvh;
   padding: 0;
-  border: 1px solid #817088;
+  border: 1px solid var(--stone-300);
   border-radius: 1rem;
-  color: #231a34;
-  background: #fffcf6;
+  color: var(--ink);
+  background: var(--paper);
   overflow-y: auto;
   overscroll-behavior: contain;
-  &::backdrop { background: #231a3499; }
+  &::backdrop { background: #242f2a99; }
 }
-.header { position: sticky; top: 0; z-index: 1; padding: 1rem; background: #fffcf6; border-bottom: 1px solid #d6cbd8; h2 { font-size: 1.1rem; margin: .75rem 0 0; } }
+.header { position: sticky; top: 0; z-index: 1; padding: 1rem; background: var(--paper); border-bottom: 1px solid var(--stone-100); h2 { font-size: 1.1rem; margin: .75rem 0 0; } }
 .body { padding: 1rem; }
 @media (max-width: 40rem) { .dialog { width: calc(100vw - 1rem); max-height: 94dvh; } }

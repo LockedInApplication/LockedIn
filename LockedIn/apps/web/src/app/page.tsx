@@ -36,8 +36,8 @@ export default function Home() {
         <section className={`${styles.wrap} ${styles.hero}`} aria-labelledby="hero-title">
           <div className={styles.heroCopy}>
             <p className={styles.kicker}><span className={styles.dot} /> Dating with intention</p>
-            <h1 id="hero-title"><span>A better hello.</span>{" "}<em>A closer us.</em></h1>
-            <p className={styles.intro}>Reply to something that made you smile. Or invite someone you already know and pick up where you left off.</p>
+            <h1 id="hero-title"><span>Start with</span>{" "}<em>a hello.</em></h1>
+            <p className={styles.intro}>Reply to something that catches your eye, or invite someone you already know.</p>
             <div className={styles.actions}>
               <Link href="/signup" className={styles.primary}>Get started <span aria-hidden="true">↗</span></Link>
               <a href="#preview" className={styles.secondary}>Try a first hello <span aria-hidden="true">↓</span></a>

@@ -1,16 +1,50 @@
-.page { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; background: #f5f0e6; color: #21182f; }
-.card { width: 100%; max-width: 480px; padding: 24px; border: 1px solid #d6ccd7; border-radius: 12px; background: #fffdf8; overflow-wrap: anywhere;
-  h1 { font-size: clamp(1.8rem, 6vw, 2.4rem); line-height: 1.12; margin: 16px 0; }
-  p { line-height: 1.5; margin: 16px 0; }
-  form { display: grid; gap: 12px; margin: 24px 0 12px; }
-  input, button, a { font: inherit; }
-  input, button { min-height: 44px; width: 100%; padding: 12px; border: 1px solid #796781; border-radius: 8px; }
-  input { min-width: 0; color: inherit; background: white; }
-  button { cursor: pointer; color: #4b315f; background: #fffdf8; font-weight: 650; }
-  button:disabled { cursor: wait; opacity: .65; }
-  a { display: inline-flex; align-items: center; min-height: 44px; color: #4b315f; }
-  :focus-visible { outline: 3px solid #8667b3; outline-offset: 3px; }
-  .primary { background: #4b315f; color: white; text-align: center; justify-content: center; padding: 12px; border-radius: 8px; }
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--cream);
+  color: var(--ink);
 }
-.brand, .hint { font-size: .875rem; color: #62586b; }
+
+.card {
+  width: min(100%, 480px);
+  display: grid;
+  gap: 24px;
+  padding: clamp(20px, 5vw, 32px);
+  border: 1px solid var(--stone-100);
+  border-radius: 12px;
+  background: var(--paper);
+  overflow-wrap: anywhere;
+
+  h1 { font: 650 clamp(1.8rem, 6vw, 2.4rem)/1.12 var(--font-display); letter-spacing: -.035em; }
+  p { line-height: 1.5; }
+  input, button, a { font: inherit; }
+  input, button { min-height: 44px; width: 100%; padding: 10px 12px; border: 1px solid var(--stone-300); border-radius: 7px; }
+  input { min-width: 0; color: inherit; background: white; }
+  button { cursor: pointer; color: var(--action); background: var(--paper); font-weight: 650; }
+  button:disabled { cursor: wait; opacity: .65; }
+  a { display: inline-flex; align-items: center; min-height: 44px; color: var(--action); text-underline-offset: .2em; }
+
+  .primary {
+    min-height: 46px;
+    background: var(--action);
+    border: 1px solid var(--action);
+    color: var(--on-action);
+    text-align: center;
+    justify-content: center;
+    padding: 10px 12px;
+    border-radius: 7px;
+    text-decoration: none;
+    font-weight: 650;
+  }
+}
+
+.intro { display: grid; gap: 10px; }
+.resend { display: grid; gap: 24px; }
+.field { display: grid; gap: 6px; }
+.field label { font-weight: 600; }
+.brand, .hint { font-size: .875rem; color: var(--stone-500); }
 .error { color: #a51d27; }
+.checkAgain { display: grid; justify-items: start; gap: 4px; }
+.accountActions { border-top: 1px solid var(--stone-100); padding-top: 10px; }

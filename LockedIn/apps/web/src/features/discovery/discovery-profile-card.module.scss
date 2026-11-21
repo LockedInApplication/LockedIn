@@ -1,7 +1,7 @@
 .story { display:grid; gap:20px; max-width:540px; margin-inline:auto; min-width:0; }
 .storyPart {display:contents;}
 .visual { min-width:0; display:grid; gap:8px; justify-items:start; }
-.frame { position:relative; width:100%; display:grid; place-items:center; aspect-ratio:4 / 5; overflow:hidden; border-radius:14px; background:#eae0ee; }
+.frame { position:relative; width:100%; display:grid; place-items:center; aspect-ratio:4 / 5; overflow:hidden; border-radius:14px; background:var(--stone-50); }
 .avatarFrame { aspect-ratio:auto; min-height:144px; }
 .photo { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; }
 .fallback { display:grid; place-items:center; }
@@ -9,9 +9,9 @@
 .story h3 { margin:0 0 5px; font-size:.95rem; }
 .story p { margin:0; }
 .caption {font-weight:650;}
-.intention { width:fit-content; border-radius:10px; padding:6px 10px; background:#eee7f2; color:#4e345e; font-weight:650; }
+.intention { width:fit-content; border-radius:10px; padding:6px 10px; background:var(--stone-50); color:var(--action); font-weight:650; }
 .interests { display:flex; flex-wrap:wrap; gap:6px; padding:0; margin:0; list-style:none; }
-.interests li { border:1px solid #d2c8ce; border-radius:999px; padding:4px 10px; }
+.interests li { border:1px solid var(--stone-100); border-radius:999px; padding:4px 10px; }
 .prompt {
   border-inline-start: 3px solid currentColor;
   display: grid;

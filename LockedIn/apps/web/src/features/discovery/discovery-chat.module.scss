@@ -7,9 +7,9 @@
   overflow-anchor: none;
   scrollbar-gutter: stable;
   padding: .5rem;
-  border-block: 1px solid #e2d9df;
+  border-block: 1px solid var(--stone-100);
   border-radius: .5rem;
-  &:focus-visible { outline: 3px solid #d45346; outline-offset: 2px; }
+  &:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 }
 .messageMeta { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .chat .messageActions, .messageActions {
@@ -26,9 +26,9 @@
     font-size: 1.4rem;
     cursor: pointer;
     &::-webkit-details-marker { display: none; }
-    &:focus-visible { outline: 3px solid #d45346; outline-offset: 2px; }
+    &:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
   }
-  &[open] summary { background: #e9e0ec; }
+  &[open] summary { background: var(--stone-50); }
   > div {
     position: absolute;
     top: 100%;
@@ -36,15 +36,15 @@
     z-index: 2;
     width: max-content;
     max-width: 15rem;
-    border: 1px solid #9d8f9e;
+    border: 1px solid var(--stone-300);
     border-radius: .65rem;
     padding: .25rem;
-    background: #fffdf8;
-    box-shadow: 0 4px 14px #211a3220;
+    background: var(--paper);
+    box-shadow: 0 4px 14px #242f2a20;
   }
   button { white-space: normal; }
 }
-.timestamp { display: block; color: #6a606c; font-size: .75rem; text-align: end; }
+.timestamp { display: block; color: var(--stone-500); font-size: .75rem; text-align: end; }
 .chat .composer {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: .5rem .75rem;
@@ -69,11 +69,11 @@
     max-width: min(85%, 36rem);
     min-width: min(10rem, 100%);
     box-sizing: border-box;
-    border: 1px solid #c7b8c8;
-    background: #fffaf3;
+    border: 1px solid var(--stone-100);
+    background: var(--paper);
     border-radius: .85rem;
     padding: .65rem .8rem;
   }
   p { margin: .3rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .mine { justify-self: end; background: #f2e8f5; }
+  .mine { justify-self: end; background: var(--stone-50); }
 }

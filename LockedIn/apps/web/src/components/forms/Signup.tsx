@@ -2,45 +2,46 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import styles from "../styles/authForms.module.scss";
 import { authClient } from "@/utils/authCLient";
 import { ERROR_MESSAGES } from "./errorCode";
+import { SIGNUP_PASSWORD_HINT, validateSignupFields } from "./signup-fields";
 
 type SignupProps = {
   onError: (message: string) => void;
 };
 
+type FieldError = Extract<ReturnType<typeof validateSignupFields>, { ok: false }>;
+
 export default function Signup({ onError }: SignupProps) {
   const router = useRouter();
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
   };
 
-  const validatePassword = (password: string) => {
-    return password.trim().length >= 6;
-  };
-
-  const validateName = (name: string) => {
-    return name.trim().length >= 2;
-  };
   async function handleSignUp(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
 
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
-    const name = formData.get("name") as string;
-
-    if (!validatePassword(password)) {
-      onError("Password is Invalid");
+    const fields = validateSignupFields({
+      firstName: formData.get("firstName") as string,
+      lastName: formData.get("lastName") as string,
+      password,
+      confirmPassword: formData.get("confirmPassword") as string,
+    });
+    if (!fields.ok) {
+      setFieldError(fields);
+      const input = form.elements.namedItem(fields.field);
+      if (input instanceof HTMLInputElement) input.focus();
       return;
     }
-
-    if (!validateName(name)) {
-      onError("Name is Invalid");
-      return;
-    }
+    setFieldError(null);
 
     if (!validateEmail(email)) {
       onError("Email is Invalid");
@@ -51,7 +52,7 @@ export default function Signup({ onError }: SignupProps) {
       const result = await authClient.signUp.email({
         email: email,
         password: password,
-        name: name,
+        name: fields.name,
         callbackURL: `${window.location.origin}/verify-email`,
       });
 
@@ -70,21 +71,61 @@ export default function Signup({ onError }: SignupProps) {
       onError("An error occurred during sign up. Please try again.");
     }
   }
+
+  function errorProps(field: FieldError["field"], hintId?: string) {
+    const invalid = fieldError?.field === field;
+    return {
+      "aria-invalid": invalid || undefined,
+      "aria-describedby": invalid ? `${field}-error` : hintId,
+    };
+  }
+
+  function renderFieldError(field: FieldError["field"]) {
+    if (fieldError?.field !== field) return null;
+    return (
+      <p id={`${field}-error`} role="alert" className={styles.fieldError}>
+        {fieldError.message}
+      </p>
+    );
+  }
+
+  function handleFieldChange(event: React.FormEvent<HTMLFormElement>) {
+    if (!fieldError || !(event.target instanceof HTMLInputElement)) return;
+    const field = event.target.name;
+    if (field === fieldError.field || (field === "password" && fieldError.field === "confirmPassword")) {
+      setFieldError(null);
+    }
+  }
+
   return (
     <div className={styles.loginContainer}>
       <p className={styles.title}>
         Start relationships built on honesty, clarity, and shared understanding.
       </p>
-      <form onSubmit={handleSignUp}>
+      <form method="post" onSubmit={handleSignUp} onChange={handleFieldChange}>
         <div className={styles.formGroup}>
-          <label htmlFor="name">Name</label>
+          <label htmlFor="firstName">First name</label>
           <input
             type="text"
-            id="name"
-            name="name"
-            placeholder="Name"
+            id="firstName"
+            name="firstName"
+            autoComplete="given-name"
+            {...errorProps("firstName")}
             required
           />
+          {renderFieldError("firstName")}
+        </div>
+        <div className={styles.formGroup}>
+          <label htmlFor="lastName">Last name</label>
+          <input
+            type="text"
+            id="lastName"
+            name="lastName"
+            autoComplete="family-name"
+            {...errorProps("lastName")}
+            required
+          />
+          {renderFieldError("lastName")}
         </div>
         <div className={styles.formGroup}>
           <label htmlFor="email">Email</label>
@@ -92,6 +133,7 @@ export default function Signup({ onError }: SignupProps) {
             type="email"
             id="email"
             name="email"
+            autoComplete="email"
             placeholder="Email"
             required
           />
@@ -102,9 +144,25 @@ export default function Signup({ onError }: SignupProps) {
             type="password"
             id="password"
             name="password"
-            placeholder="Password"
+            autoComplete="new-password"
+            {...errorProps("password", "signup-password-hint")}
             required
           />
+          {renderFieldError("password") ?? (
+            <p id="signup-password-hint" className={styles.fieldHint}>{SIGNUP_PASSWORD_HINT}</p>
+          )}
+        </div>
+        <div className={styles.formGroup}>
+          <label htmlFor="confirmPassword">Confirm password</label>
+          <input
+            type="password"
+            id="confirmPassword"
+            name="confirmPassword"
+            autoComplete="new-password"
+            {...errorProps("confirmPassword")}
+            required
+          />
+          {renderFieldError("confirmPassword")}
         </div>
         <button type="submit">Sign Up</button>
         <div className={`${styles.title} ${styles.highlight}`}>

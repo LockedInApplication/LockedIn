@@ -34,6 +34,22 @@
   cursor: pointer;
 }
 
+.fieldHint,
+.fieldError {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.fieldError {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.loginContainer input[aria-invalid="true"] {
+  border-color: var(--ink);
+}
+
 .forgotPassword {
   font-size: 0.875rem;
   color: var(--accent);

@@ -23,7 +23,7 @@ header.header {
   font-weight: 650;
   font-size: .9rem;
 }
-.tabs a:hover, .panel button:hover { background: var(--stone-50); }
+.tabs a:hover, .panel :is(a, button):hover { background: var(--stone-50); }
 .tabs a[aria-current] { background: var(--stone-50); color: var(--forest); box-shadow: inset 0 -2px var(--terracotta); }
 .badge {
   display: inline-grid;
@@ -52,7 +52,7 @@ header.header {
   color: var(--plum);
   > span:first-child { width: 40px; height: 40px; font-size: 16px; }
 }
-.tabs a:focus-visible, .avatarButton:focus-visible, .panel button:focus-visible {
+.tabs a:focus-visible, .avatarButton:focus-visible, .panel :is(a, button):focus-visible {
   outline: 3px solid var(--plum);
   outline-offset: 2px;
 }
@@ -69,11 +69,15 @@ header.header {
   background: var(--paper);
   box-shadow: var(--shadow-md);
   p { margin: 4px 8px 10px; overflow-wrap: anywhere; font-size: .85rem; color: var(--stone-500); }
-  button {
+  :is(a, button) {
+    display: flex;
+    align-items: center;
     width: 100%;
     min-height: 44px;
     padding: 10px;
     text-align: left;
+    text-decoration: none;
+    overflow-wrap: break-word;
     font: inherit;
     font-weight: 650;
     background: none;

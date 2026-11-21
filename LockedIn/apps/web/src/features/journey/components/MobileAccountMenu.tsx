@@ -1,14 +1,16 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import type { WorkspaceHeaderProps } from "./WorkspaceHeader";
 import styles from "../workspace-header.module.scss";
 export default function MobileAccountMenu({
   user,
+  onNavigate,
   onSignOut,
 }: Pick<
   WorkspaceHeaderProps,
-  "user" | "onSignOut"
+  "user" | "onNavigate" | "onSignOut"
 >) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null),
@@ -40,6 +42,7 @@ export default function MobileAccountMenu({
     trigger.current?.focus();
     void action();
   };
+  const profileHref = "/profile";
   return (
     <div className={styles.account} ref={root}>
       <button
@@ -64,6 +67,12 @@ export default function MobileAccountMenu({
           aria-label="Account options"
         >
           <p>{user?.name ?? "Your account"}</p>
+          <Link href={profileHref} onNavigate={(event) => {
+            event.preventDefault();
+            select(() => onNavigate(profileHref));
+          }}>
+            Profile &amp; settings
+          </Link>
           <button type="button" onClick={() => select(onSignOut)}>
             Sign out
           </button>

@@ -41,7 +41,7 @@ export default function WorkspaceHeader({ onSignOut, onNavigate, active, notific
       </nav>
       <div className={`${styles.headerActions} ${headerStyles.actions}`}>
         {notifications}
-        <MobileAccountMenu user={user} onSignOut={onSignOut}/>
+        <MobileAccountMenu user={user} onNavigate={onNavigate} onSignOut={onSignOut}/>
       </div>
     </header>
   );

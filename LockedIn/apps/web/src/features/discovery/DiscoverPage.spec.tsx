@@ -69,7 +69,29 @@ it("browses the confirmed metro instead of the account’s selected profile city
   expect(html).toContain("Update my location");
   expect(html).not.toContain("Explore an area");
   expect(html).not.toContain(">Distance preferences");
-  expect(state.resourceKeys.filter(Boolean)).toEqual(["profile", "areaId=new-york::0"]);
+  expect(state.resourceKeys.filter(Boolean)).toEqual(["profile", `areaId=new-york::0:${JSON.stringify(["",null,"new-york",state.location.expiresAt])}`]);
+});
+
+it("starts a worldwide nearby search with a valid check and no public area ID", () => {
+  state.canDiscover = true;
+  state.location = { required: true, mode: "worldwide", areaId: null, expiresAt: new Date(Date.now() + 3600_000).toISOString() };
+  const html = renderToStaticMarkup(<DiscoverPage />);
+  expect(html).toContain("People nearby");
+  expect(html).toContain("Update my location");
+  expect(html).not.toContain("Explore an area");
+  expect(html).not.toContain("Distance preferences");
+  expect(state.resourceKeys.filter(Boolean)).toEqual(["profile", `mode=nearby::0:${JSON.stringify(["","worldwide",null,state.location.expiresAt])}`]);
+});
+
+it("keeps Inbox and profile visibility reachable without a current worldwide check", () => {
+  state.canDiscover = true;
+  state.location = { required: true, mode: "worldwide", areaId: null, expiresAt: null };
+  const html = renderToStaticMarkup(<DiscoverPage />);
+  expect(html).toContain("Confirm my location");
+  expect(html).toContain("Go to Inbox");
+  expect(html).toContain("Manage visibility");
+  expect(html).not.toContain("supported area");
+  expect(state.resourceKeys.filter(Boolean)).toEqual(["profile"]);
 });
 
 it.each([true, false])("offers matching setup without starting a search (published: %s)", published => {

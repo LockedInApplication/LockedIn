@@ -321,7 +321,68 @@ try{
   }
   return connectionId;
   }
-  const legacyConnectionId=reviewCase==="mutual-preferences"?null:await verifyLegacyDiscovery();
+  const legacyConnectionId=["mutual-preferences","worldwide"].includes(reviewCase)?null:await verifyLegacyDiscovery();
+  if(reviewCase==="worldwide"){
+    await publish(b);await publish(c);
+    Object.assign(process.env,{DISCOVERY_ACCESS_MODE:"open",DISCOVERY_LOCATION_MODE:"worldwide",DISCOVERY_LOCATION_GENERATION:"browser-worldwide",DISCOVERY_AREAS_JSON:"[]",DISCOVERY_CHAT_ENABLED:"true"});
+    await pageA.goto(`${base}/discover/profile`);
+    await pageA.getByLabel("Public name",{exact:true}).fill(a.publicName);
+    assert.equal(await pageA.getByLabel(/Discovery city|Profile city/).count(),0);
+    await pageA.getByRole("button",{name:"Save private draft",exact:true}).click();
+    await pageA.getByText("Private draft saved. It has not been published.").waitFor();
+    await pageA.getByLabel(/I confirm I am 18 or older/).check();
+    await pageA.getByRole("button",{name:"Publish profile",exact:true}).click();
+    await pageA.getByText(/^Profile published/).waitFor();
+    const accra={latitude:5.56,longitude:-0.2,accuracy:35};
+    for(const [page,geometry] of [[pageA,accra],[pageB,{...accra,longitude:-0.4}],[pageC,{latitude:40.75,longitude:-73.99,accuracy:35}]]){
+      await page.context().setGeolocation(geometry);
+      await page.context().grantPermissions(["geolocation"],{origin:base});
+      await page.goto(`${base}/discover`);
+      await page.getByRole("button",{name:"Confirm my location",exact:true}).waitFor();
+    }
+    await pageA.evaluate(()=>{
+      const locate=navigator.geolocation.getCurrentPosition.bind(navigator.geolocation);
+      navigator.geolocation.getCurrentPosition=(success,failure,options)=>{
+        if(window.forceDiscoveryLocationDenial){failure({code:1});return;}
+        locate(success,failure,options);
+      };
+      window.forceDiscoveryLocationDenial=true;
+    });
+    const check=pageA.getByRole("button",{name:"Confirm my location",exact:true});
+    await check.click();
+    await pageA.getByRole("alert").filter({hasText:"Location permission is off"}).waitFor();
+    await pageA.getByRole("button",{name:"Go to Inbox",exact:true}).waitFor();
+    await pageA.getByRole("button",{name:"Manage visibility",exact:true}).waitFor();
+    await pageA.evaluate(()=>{window.forceDiscoveryLocationDenial=false;});
+    for(const page of [pageB,pageC,pageA]){
+      await page.getByRole("button",{name:"Confirm my location",exact:true}).click();
+      await page.getByRole("heading",{name:"People nearby",exact:true}).waitFor();
+    }
+    const list=pageA.getByRole("list",{name:"People in this area"});
+    await list.getByRole("button").filter({hasText:b.publicName}).waitFor();
+    assert.equal(await list.getByRole("button").filter({hasText:c.publicName}).count(),0);
+    assert.equal(await pageA.getByLabel("Explore an area").count(),0);
+    const getCheck=async()=>(await request(a,"GET","/api/discovery/me")).body.value.location;
+    const before=await getCheck();
+    await pageA.evaluate(()=>{window.forceDiscoveryLocationDenial=true;});
+    await pageA.getByRole("button",{name:"Update my location",exact:true}).click();
+    await pageA.getByRole("alert").filter({hasText:"Your previous check stays active until"}).waitFor();
+    assert.deepEqual(await getCheck(),before);
+    await list.getByRole("button").filter({hasText:b.publicName}).waitFor();
+    const sent=await request(a,"POST","/api/discovery/connections",{targetProfileId:b.profileId,topicKey:"support",hello:"Browser nearby check",requestId:randomUUID()});
+    assert.equal(sent.status,200);
+    const id=sent.body.value.id;
+    assert.equal((await request(b,"POST",`/api/discovery/connections/${id}/accept`,{})).status,200);
+    const viewer=await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:a.id}});
+    await prisma.discoveryLocationCheck.update({where:{profileId:viewer.id},data:{expiresAt:new Date(0)}});
+    await pageA.reload();
+    await pageA.getByRole("button",{name:"Confirm my location",exact:true}).waitFor();
+    await pageA.goto(`${base}/connections/${id}`);
+    await pageA.getByRole("textbox",{name:"Message",exact:true}).fill("Chat works after my check expires.");
+    await pageA.getByRole("button",{name:"Send message",exact:true}).click();
+    await pageA.getByText("Chat works after my check expires.",{exact:true}).waitFor();
+    console.log("PASS worldwide browser publication, permission denial, nearby browsing, failed recheck, invitation, expiry and existing chat");
+  }
   if(reviewRuns("mutual-preferences")){
     const geometry={latitude:40.75,longitude:-73.99,accuracy:30};
     Object.assign(process.env,{DISCOVERY_MATCH_PREFERENCES_REQUIRED:"true",DISCOVERY_LOCATION_REQUIRED:"true",DISCOVERY_CHAT_ENABLED:"true",DISCOVERY_VERIFIED_MARKETS_JSON:JSON.stringify([{areaId:"pilot-city",latitude:40.75,longitude:-73.99,radiusKm:35}])});

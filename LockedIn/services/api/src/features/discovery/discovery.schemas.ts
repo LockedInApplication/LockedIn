@@ -36,7 +36,7 @@ export const discoveryProfileParams = z.strictObject({ profileId: z.string().uui
 const discoveryCursorQuery = z.string().min(1).max(512).optional();
 export const discoveryCandidatesQuery = z.union([
   z.strictObject({ areaId: z.string().min(1).max(100), before: discoveryCursorQuery }),
-  z.strictObject({ mode: z.literal("distance"), before: discoveryCursorQuery }),
+  z.strictObject({ mode: z.enum(["distance", "nearby"]), before: discoveryCursorQuery }),
 ]);
 export const discoveryInvitationSchema = z.strictObject({
   targetProfileId: z.string().uuid(), topicKey: z.enum(["support", "commitment", "communication", profilePromptKey]), hello: z.string().trim().max(280), requestId: z.string().uuid(),

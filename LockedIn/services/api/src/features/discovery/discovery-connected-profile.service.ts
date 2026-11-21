@@ -3,7 +3,7 @@ import { prisma } from '../../lib/prisma.js';
 import { invitationBlockBetween } from '../invitations/invitation-access.service.js';
 import { activeLockIn } from './discovery-lock-in.js';
 import { lockDiscoveryUsers } from './discovery-locks.js';
-import { hasDiscoveryPublication, isDiscoveryAdmitted } from './discovery-profile.service.js';
+import { canUseDiscoveryHistory, hasStoredDiscoveryPublication } from './discovery-profile.service.js';
 import { publicDiscoveryProfile } from './discovery-profile.view.js';
 import { enrichPublishedPhotos } from './photos/photo-cards.service.js';
 
@@ -22,8 +22,8 @@ export async function findConnectedProfile(tx: Prisma.TransactionClient, actorId
   }, select: { id: true } });
   if (!connection || await invitationBlockBetween(tx, actorId, partner.ownerId)) return null;
   const actor = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
-  if (!await isDiscoveryAdmitted(tx, actorId, actor) || !await isDiscoveryAdmitted(tx, partner.ownerId, partner)) return null;
-  if (!hasDiscoveryPublication({ ...partner, pausedAt: null })) return null;
+  if (!await canUseDiscoveryHistory(tx, actorId, actor) || !await canUseDiscoveryHistory(tx, partner.ownerId, partner)) return null;
+  if (!hasStoredDiscoveryPublication({ ...partner, pausedAt: null })) return null;
   return partner;
 }
 

@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { getDiscoveryConfig } from "../../config/env.js";
 import type { DiscoveryCapabilities, DiscoveryContext } from "./discovery.types.js";
-import { isDiscoveryAccountAllowed } from "./discovery.config.js";
+import { isDiscoveryAccountAllowed, isDiscoveryHistoryAllowed } from "./discovery.config.js";
 import { isDiscoveryLockedIn } from './discovery-lock-in.js';
 
 export async function getDiscoveryCapabilities(context: DiscoveryContext): Promise<DiscoveryCapabilities> {
@@ -12,10 +12,11 @@ export async function getDiscoveryCapabilities(context: DiscoveryContext): Promi
     prisma.relationshipMember.findFirst({ where: { userId: context.userId, relationship: { status: "ACTIVE" } }, select: { relationshipId: true }, orderBy: { id: "asc" } }),
   ]);
   const discoveryLockedIn = await isDiscoveryLockedIn(prisma, context.userId);
-  const canChat = isDiscoveryAccountAllowed(config, context.userId) && context.emailVerified && !profile?.suspendedAt;
+  const canManageProfile = isDiscoveryAccountAllowed(config, context.userId) && context.emailVerified && !profile?.suspendedAt;
+  const canChat = isDiscoveryHistoryAllowed(config, context.userId) && context.emailVerified && !profile?.suspendedAt;
   return {
-    canDiscover: canChat && !discoveryLockedIn,
-    canChat, canManageProfile: canChat, discoveryLockedIn,
+    canDiscover: canManageProfile && !discoveryLockedIn,
+    canChat, canManageProfile, discoveryLockedIn,
     canModerate: context.emailVerified && config.moderatorUserIds.includes(context.userId),
     hasHistory: connection !== null,
     canReflect: true,

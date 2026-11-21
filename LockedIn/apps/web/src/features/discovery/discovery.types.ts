@@ -4,7 +4,8 @@ import type { familyOptions, petOptions, PhotoKey, WrittenKey } from "./discover
 export type DiscoveryAbout = { heightCm?: number; languages?: string[]; pets?: keyof typeof petOptions; familyPlans?: keyof typeof familyOptions };
 export type DiscoveryProfileInput = { publicName: string; avatarPreset: AvatarPreset; bio: string; intention: "LONG_TERM" | "OPEN_TO_LONG_TERM"; interests: string[]; pace: string | null; areaId: string; photoIds?: string[]; promptAnswer?: string; prompts?: { key: WrittenKey; answer: string }[]; photoPrompts?: { photoId: string; key: PhotoKey }[]; about?: DiscoveryAbout };
 export type PublicDiscoveryProfile = DiscoveryProfileInput & { id: string; photos?: PhotoCard[]; recommendation?: { sameArea: boolean; sameIntention: boolean; sharedInterests: string[] } };
-export type DiscoveryLocation = { required: true; areaId: string | null; expiresAt: string | null };
+export type DiscoveryLocation = { required: true; areaId: string | null; expiresAt: string | null; mode?: "worldwide" };
+export const worldwideDiscoveryArea = "nearby";
 export type DiscoveryMatching = { required: true; complete: boolean; revision?: string };
 export type DiscoveryMatchGender = "WOMAN" | "MAN" | "NONBINARY" | "ANOTHER_GENDER";
 export type DiscoveryMatchSettings = { birthDate: string; gender: DiscoveryMatchGender; meetGenders: "all" | DiscoveryMatchGender[]; minAge: number; maxAge: number | null; revision: string };

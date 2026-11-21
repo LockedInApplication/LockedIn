@@ -2,14 +2,14 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import type { DiscoveryConnection, Prisma } from "../../../generated/prisma/client.js";
 import { invitationBlockBetween } from "../invitations/invitation-access.service.js";
-import { hasDiscoveryPublication, isDiscoveryAdmitted } from "./discovery-profile.service.js";
+import { canUseDiscoveryHistory, hasDiscoveryPublication, hasStoredDiscoveryPublication, isDiscoveryAdmitted } from "./discovery-profile.service.js";
 import { publicDiscoveryProfile } from "./discovery-profile.view.js";
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import { discoveryInvitationSchema } from "./discovery.schemas.js";
 import { discoveryTopics } from "./discovery-topics.js";
 import { intentionsMatch, photoPrompts, profilePrompt, profilePromptKey, writtenPrompts } from "./discovery-matching.js";
 import { enrichPublishedPhotos } from "./photos/photo-cards.service.js";
-import { discoveryLocationRequired, discoverySearchPairEligible } from "./discovery-location.js";
+import { discoveryLocationPolicy, discoveryLocationRequired, discoverySearchPairEligible } from "./discovery-location.js";
 import { connectionAllowsChat, isDiscoveryLockedIn } from './discovery-lock-in.js';
 import { lockDiscoveryConnection, lockDiscoveryUsers } from "./discovery-locks.js";
 import { discoveryConnectionView, effectiveDiscoveryState } from "./discovery-connection.view.js";
@@ -36,18 +36,22 @@ export async function discoveryPairEligible(tx: Prisma.TransactionClient, row: D
   if (await invitationBlockBetween(tx, row.userLowId, row.userHighId)) return false;
   for (const id of [row.userLowId, row.userHighId]) {
     const profile = await tx.discoveryProfile.findUnique({ where: { ownerId: id } });
-    if (!await isDiscoveryAdmitted(tx, id, profile) || !profile || !hasDiscoveryPublication({ ...profile, pausedAt: null })) return false;
+    if (!await canUseDiscoveryHistory(tx, id, profile) || !profile || !hasStoredDiscoveryPublication({ ...profile, pausedAt: null })) return false;
   }
   return true;
 }
 async function pendingDiscoverySearchEligible(tx: Prisma.TransactionClient, row: DiscoveryConnection, now: Date) {
-  if (!discoveryMatchPreferencesRequired()) return true;
-  if (!await requireMutualDiscoveryFit(tx, row.userLowId, row.userHighId, now)) return false;
+  const matching = discoveryMatchPreferencesRequired();
+  const mode = discoveryLocationPolicy().mode;
+  const strict = matching || mode === "worldwide";
+  if (matching && !await requireMutualDiscoveryFit(tx, row.userLowId, row.userHighId, now)) return false;
   const profiles = await tx.discoveryProfile.findMany({ where: { ownerId: { in: [row.userLowId, row.userHighId] } } });
   const [left, right] = profiles;
-  return !!left && !!right && hasDiscoveryPublication(left) && hasDiscoveryPublication(right)
-    && intentionsMatch(left.publishedIntention, right.publishedIntention)
-    && await discoverySearchPairEligible(tx, left.id, right.id);
+  return !!left && !!right && await isDiscoveryAdmitted(tx, left.ownerId, left) && await isDiscoveryAdmitted(tx, right.ownerId, right)
+    && hasDiscoveryPublication(strict ? left : { ...left, pausedAt: null })
+    && hasDiscoveryPublication(strict ? right : { ...right, pausedAt: null })
+    && (!strict || intentionsMatch(left.publishedIntention, right.publishedIntention))
+    && (!(matching || mode !== "legacy") || await discoverySearchPairEligible(tx, left.id, right.id));
 }
 export async function connectionValue(tx: Prisma.TransactionClient, row: DiscoveryConnection, actorId: string) {
   const stored = await tx.discoveryConnection.findUniqueOrThrow({ where: { id: row.id }, include: { sharedResponses: { orderBy: [{ sharedAt: "asc" }, { id: "asc" }] } } });
@@ -178,11 +182,11 @@ async function transition(actorId: string, id: string, action: "accept" | "decli
         return unavailable;
       }
       if (action === "accept" && (!await discoveryPairEligible(tx, row) || await isDiscoveryLockedIn(tx, row.userLowId) || await isDiscoveryLockedIn(tx, row.userHighId))) return unavailable;
-      if (action === "accept" && discoveryLocationRequired() && !discoveryMatchPreferencesRequired()) {
-        const profiles = await tx.discoveryProfile.findMany({ where: { ownerId: { in: [row.userLowId, row.userHighId] } }, select: { id: true } });
-        if (profiles.length !== 2 || !await discoverySearchPairEligible(tx, profiles[0]!.id, profiles[1]!.id)) return { ok: false as const, status: 403, error: "This invitation is not available for local Discovery right now." };
+      if (action === "accept" && !await pendingDiscoverySearchEligible(tx, row, now)) {
+        return discoveryLocationRequired() && !discoveryMatchPreferencesRequired()
+          ? { ok: false as const, status: 403, error: "This invitation is not available for local Discovery right now." }
+          : unavailable;
       }
-      if (action === "accept" && !await pendingDiscoverySearchEligible(tx, row, now)) return unavailable;
     }
     if (action === "withdraw" && (row.inviterId !== actorId || row.state !== "PENDING")) return unavailable;
     const quota = await consumeDiscoveryQuota(tx, actorId, "mutation"); if (!quota.ok) return quota;

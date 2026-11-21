@@ -4,7 +4,7 @@ import { z } from "zod";
 import { chatParams, emptyChatInput, requireAccountMutationIdentity } from "../../lib/account-mutation-http.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
 import { prisma } from "../../lib/prisma.js";
-import { currentDiscoveryLocation } from "../discovery/discovery-location.js";
+import { currentDiscoveryLocation, discoveryLocationPolicy } from "../discovery/discovery-location.js";
 import { publicDiscoveryProfile } from "../discovery/discovery-profile.view.js";
 import { consumeDiscoveryQuota } from "../discovery/discovery-throttle.service.js";
 import { chatMissing, openConversation } from "../messaging/messaging-access.service.js";
@@ -58,7 +58,8 @@ export function registerDateSpotRoutes(server: FastifyInstance, injected?: Place
       const c = await openConversation(tx, params.data.id, user.id); if (!c) return chatMissing;
       const saved = await tx.dateSpotPreference.findUnique({ where: { userId: user.id } });
       const profile = await tx.discoveryProfile.findUnique({ where: { ownerId: user.id } });
-      const current = profile && await currentDiscoveryLocation(tx, profile.id);
+      const policy = discoveryLocationPolicy();
+      const current = profile && policy.mode === "metro" ? await currentDiscoveryLocation(tx, profile.id, new Date(), policy) : null;
       const own = profile && publicDiscoveryProfile(profile.id, profile.publishedSnapshot);
       const row = await tx.dateSpotRequest.findUnique({ where: { conversationId: c.id } });
       if (row && row.expiresAt <= new Date()) await tx.dateSpotRequest.delete({ where: { conversationId: c.id } });

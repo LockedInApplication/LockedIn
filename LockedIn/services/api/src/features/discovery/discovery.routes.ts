@@ -19,7 +19,7 @@ import { getDiscoveryGeocoder, type DiscoveryGeocoder } from "./discovery-geocod
 import { registerDiscoveryLocationRoutes } from "./discovery-location.routes.js";
 import { registerMatchPreferencesRoutes } from "./discovery-match-preferences.routes.js";
 import { discoveryMatchPreferencesRequired } from "./discovery-match-preferences.service.js";
-import { currentDiscoveryLocation, discoveryLocationRequired, noLocation } from "./discovery-location.js";
+import { currentDiscoveryLocation, discoveryLocationPolicy, publicDiscoveryLocation } from "./discovery-location.js";
 import { prisma } from "../../lib/prisma.js";
 
 export async function registerDiscoveryRoutes(server: FastifyInstance, options: { photoProvider?: PhotoProvider; discoveryGeocoder?: DiscoveryGeocoder } = {}): Promise<void> {
@@ -41,10 +41,11 @@ export async function registerDiscoveryRoutes(server: FastifyInstance, options: 
     if (!user) return;
     const capabilities = await getDiscoveryCapabilities({ userId: user.id, emailVerified: user.emailVerified });
     let location;
-    if (discoveryLocationRequired() && capabilities.canDiscover) {
-      const profile = await prisma.discoveryProfile.findUnique({ where: { ownerId: user.id }, select: { id: true } });
-      const check = profile && await currentDiscoveryLocation(prisma, profile.id);
-      location = check ? { required: true, areaId: check.areaId, expiresAt: check.expiresAt.toISOString() } : noLocation;
+    const policy = discoveryLocationPolicy();
+    if ((policy.mode === "metro" && capabilities.canDiscover) || (policy.mode === "worldwide" && capabilities.canManageProfile)) {
+      const profile = capabilities.canDiscover ? await prisma.discoveryProfile.findUnique({ where: { ownerId: user.id }, select: { id: true } }) : null;
+      const check = profile ? await currentDiscoveryLocation(prisma, profile.id, new Date(), policy) : null;
+      location = publicDiscoveryLocation(policy, check);
     }
     const matchingRequired = discoveryMatchPreferencesRequired();
     const matchingSettings = await prisma.discoveryMatchPreferences.findUnique({ where: { ownerId: user.id }, select: { revision: true } });

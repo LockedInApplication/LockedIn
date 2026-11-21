@@ -23,6 +23,8 @@ Object.assign(childEnv, { DISCOVERY_PHOTOS_ENABLED: "false", CLOUDINARY_CLOUD_NA
 childEnv.DISCOVERY_ACCESS_MODE = "pilot";
 childEnv.DISCOVERY_MATCH_PREFERENCES_REQUIRED = "false";
 childEnv.DISCOVERY_LOCATION_REQUIRED = "false";
+delete childEnv.DISCOVERY_LOCATION_MODE;
+delete childEnv.DISCOVERY_LOCATION_GENERATION;
 const temp = mkdtempSync(path.join(tmpdir(), "lockedin-discovery-harness-"));
 const admin = new Client({ connectionString: adminUrl.toString() });
 let created = false, database;

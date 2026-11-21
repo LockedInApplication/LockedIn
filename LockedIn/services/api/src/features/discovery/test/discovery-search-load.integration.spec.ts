@@ -50,7 +50,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true" || process.env.DISC
       const seen = new Set<string>();
       for (let page = 0; page < pagesPerViewer; page++) {
         const start = performance.now();
-        const result = await listDiscoveryCandidates(viewer.ownerId, null, cursor);
+        const result = await listDiscoveryCandidates(viewer.ownerId, { mode: "distance" }, cursor);
         times.push(performance.now() - start);
         if (!result.ok) { failures.push(String(result.status)); break; }
         expect(result.value.items).toHaveLength(12);

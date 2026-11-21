@@ -8,20 +8,30 @@ import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import type { DiscoveryProfileInput, DiscoveryResult } from "./discovery.types.js";
 import { draftPhotoIds, publishedPhotoIds, revokeRemovedPhotos, validPhotoSelection } from "./photos/photo-profile.service.js";
 import { getPhotoConfig } from "./photos/photo.config.js";
-import { isDiscoveryAccountAllowed } from "./discovery.config.js";
+import { isDiscoveryAccountAllowed, isDiscoveryHistoryAllowed, readDiscoveryLocationPolicy, worldwidePublicArea } from "./discovery.config.js";
 import { isDiscoveryLockedIn } from './discovery-lock-in.js';
 
-export async function isDiscoveryAdmitted(tx: Prisma.TransactionClient, actorId: string, profile: DiscoveryProfile | null) {
-  const config = getDiscoveryConfig();
-  if (!isDiscoveryAccountAllowed(config, actorId) || profile?.suspendedAt) return false;
+async function discoveryAccountVerified(tx: Prisma.TransactionClient, actorId: string, profile: DiscoveryProfile | null) {
+  if (profile?.suspendedAt) return false;
   return !!(await tx.user.findUnique({ where: { id: actorId }, select: { emailVerified: true } }))?.emailVerified;
 }
+export async function isDiscoveryAdmitted(tx: Prisma.TransactionClient, actorId: string, profile: DiscoveryProfile | null) {
+  return isDiscoveryAccountAllowed(getDiscoveryConfig(), actorId) && await discoveryAccountVerified(tx, actorId, profile);
+}
+export async function canUseDiscoveryHistory(tx: Prisma.TransactionClient, actorId: string, profile: DiscoveryProfile | null) {
+  return isDiscoveryHistoryAllowed(getDiscoveryConfig(), actorId) && await discoveryAccountVerified(tx, actorId, profile);
+}
 export type DiscoveryPublication = Pick<DiscoveryProfile, "id" | "pausedAt" | "suspendedAt" | "adultAttestedAt" | "publicationConsentedAt" | "publicationConsentVersion" | "publishedAt" | "publicationVersion" | "publishedSnapshot" | "publishedAreaId" | "publishedIntention">;
-export function hasDiscoveryPublication<T extends DiscoveryPublication>(profile: T | null): profile is T {
+export function hasStoredDiscoveryPublication<T extends DiscoveryPublication>(profile: T | null): profile is T {
   if (!profile || profile.pausedAt || profile.suspendedAt || !profile.adultAttestedAt || !profile.publicationConsentedAt || profile.publicationConsentVersion !== 1 || !profile.publishedAt || profile.publicationVersion < 1) return false;
   const safe = publicDiscoveryProfile(profile.id, profile.publishedSnapshot);
-  return !!safe && configuredArea(safe.areaId) && safe.areaId === profile.publishedAreaId && safe.intention === profile.publishedIntention;
+  return !!safe && safe.areaId === profile.publishedAreaId && safe.intention === profile.publishedIntention;
 }
+export function hasDiscoveryPublication<T extends DiscoveryPublication>(profile: T | null): profile is T {
+  return hasStoredDiscoveryPublication(profile) && (worldwidePublication() || configuredArea(profile.publishedAreaId ?? ""));
+}
+const worldwidePublication = () => readDiscoveryLocationPolicy(process.env).mode === "worldwide";
+const editableArea = (areaId: string) => worldwidePublication() ? areaId === worldwidePublicArea : configuredArea(areaId);
 export async function getOwnDiscoveryProfile(actorId: string) {
   return { ok: true as const, value: ownDiscoveryProfile(await prisma.discoveryProfile.findUnique({ where: { ownerId: actorId } })) };
 }
@@ -32,7 +42,7 @@ type ProfileResult = DiscoveryResult<ReturnType<typeof ownDiscoveryProfile>>;
 
 export async function saveDiscoveryProfileDraft(actorId: string, input: DiscoveryProfileInput, revision: number): Promise<ProfileResult> {
   const parsed = discoveryProfileSchema.safeParse(input);
-  if (!parsed.success || !configuredArea(parsed.data.areaId) || !Number.isSafeInteger(revision) || revision < 0) return invalid;
+  if (!parsed.success || !editableArea(parsed.data.areaId) || !Number.isSafeInteger(revision) || revision < 0) return invalid;
   return prisma.$transaction(async tx => {
     await lockInvitationUsers(tx, [actorId]);
     const existing = await tx.discoveryProfile.findUnique({ where: { ownerId: actorId } });
@@ -57,7 +67,7 @@ export async function publishDiscoveryProfile(actorId: string, draftRevision: nu
     if (!await isDiscoveryAdmitted(tx, actorId, existing)) return denied;
     const draft = discoveryDraft(existing);
     if (!existing || draft.revision !== draftRevision) return stale;
-    if (!draft.profile || !configuredArea(draft.profile.areaId)) return invalid;
+    if (!draft.profile || !editableArea(draft.profile.areaId)) return invalid;
     const photoIds = draft.profile.photoIds ?? [];
     const { enabled, configured } = getPhotoConfig();
     if (photoIds.length && (!enabled || !configured) && JSON.stringify(photoIds) !== JSON.stringify(publishedPhotoIds(existing))) return { ok: false, status: 409, error: "New photo publication is paused. Remove the photos from your draft to publish without them." };

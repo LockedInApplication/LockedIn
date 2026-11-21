@@ -5,7 +5,7 @@ import { discoveryRequest } from "./discovery.client";
 import type { DiscoveryLocation } from "./discovery.types";
 import styles from "./discovery.module.scss";
 
-export default function DiscoveryLocationCheck({ userId, confirmed, onChecked }: { userId: string; confirmed: boolean; onChecked: (location: DiscoveryLocation) => void }) {
+export default function DiscoveryLocationCheck({ userId, confirmed, currentExpiresAt, onChecked }: { userId: string; confirmed: boolean; currentExpiresAt?: string | null; onChecked: (location: DiscoveryLocation) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const active = useRef<AbortController | null>(null);
@@ -49,6 +49,6 @@ export default function DiscoveryLocationCheck({ userId, confirmed, onChecked }:
     <button type="button" className={confirmed ? undefined : styles.primary} disabled={busy} onClick={check}>
       {busy ? "Checking location…" : confirmed ? "Update my location" : "Confirm my location"}
     </button>
-    {error ? <p role="alert" className={styles.error}>{error}</p> : null}
+    {error ? <p role="alert" className={styles.error}>{error}{currentExpiresAt ? <> Your previous check stays active until <time dateTime={currentExpiresAt}>{new Date(currentExpiresAt).toLocaleString()}</time>. You can pause Discovery in your profile.</> : null}</p> : null}
   </>;
 }

@@ -9,10 +9,10 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import {discoveryRequest} from "./discovery.client";
 import {useDiscoveryResource} from "./use-discovery-resource";
 import {useDiscoveryNavigation} from "./use-discovery-navigation";
-import type {DiscoveryMe,DiscoveryMatchPreferencesView} from "./discovery.types";
+import type {DiscoveryMe,DiscoveryLocation,DiscoveryMatchPreferencesView} from "./discovery.types";
 import styles from "./discovery.module.scss";
 import {checkEmailVerification} from "@/features/auth/email-verification";
-type DiscoveryContext={userId:string;emailVerified:boolean|null;me:DiscoveryMe;refreshAccess:()=>void;installMatching:(value:DiscoveryMatchPreferencesView)=>void;leave:(path:string)=>Promise<boolean>;dirty:boolean;setDirty:(value:boolean)=>void;busy:boolean;setBusy:(value:boolean)=>void;confirmLeave:()=>Promise<boolean>;chatRevision:number};
+type DiscoveryContext={userId:string;emailVerified:boolean|null;me:DiscoveryMe;refreshAccess:()=>void;installLocation:(value:DiscoveryLocation)=>void;installMatching:(value:DiscoveryMatchPreferencesView)=>void;leave:(path:string)=>Promise<boolean>;dirty:boolean;setDirty:(value:boolean)=>void;busy:boolean;setBusy:(value:boolean)=>void;confirmLeave:()=>Promise<boolean>;chatRevision:number};
 const Context=createContext<DiscoveryContext|null>(null);
 export function useDiscovery(){const value=useContext(Context);if(!value)throw new Error("Discovery account context required");return value;}
 const loginPath=()=>`/login?returnTo=${encodeURIComponent(window.location.pathname+window.location.search+window.location.hash)}`;
@@ -33,6 +33,10 @@ function AccountShell({userId,name,children}:{userId:string;name:string;children
   const installAccess=me.install;
   const applyQuietly=useCallback((value:DiscoveryMe)=>{installAccess(value);setChatRevision(revision=>revision+1);},[installAccess]);
   const {invalidate:requestQuietRefresh,setBlocked:blockQuietRefresh}=useQuietRefresh(load,applyQuietly);
+  const installLocation=(value:DiscoveryLocation)=>{
+    if(me.value)installAccess({...me.value,location:value});
+    requestQuietRefresh();
+  };
   const installMatching=(value:DiscoveryMatchPreferencesView)=>{
     if(me.value)installAccess({...me.value,matching:value.required?{required:true,complete:!!value.settings,revision:value.settings?.revision}:undefined,hasSavedMatchingSettings:!value.required&&value.settings?true:undefined});
     requestQuietRefresh();
@@ -50,7 +54,7 @@ function AccountShell({userId,name,children}:{userId:string;name:string;children
       {signOutError?<p role="alert">{signOutError}</p>:null}
       {me.error?<section role="alert"><p>{me.error}</p><button onClick={me.retry}>Try again</button></section>:null}
       {!me.value&&!me.error?<p role="status">Loading your discovery access…</p>:null}
-      {me.value?<Context.Provider value={{userId,emailVerified:verification.value?.emailVerified??null,me:me.value,refreshAccess:me.retry,installMatching,leave,dirty,setDirty,busy,setBusy,confirmLeave:confirmActionDiscard,chatRevision}}>{children}</Context.Provider>:null}
+      {me.value?<Context.Provider value={{userId,emailVerified:verification.value?.emailVerified??null,me:me.value,refreshAccess:me.retry,installLocation,installMatching,leave,dirty,setDirty,busy,setBusy,confirmLeave:confirmActionDiscard,chatRevision}}>{children}</Context.Provider>:null}
     </main>
     <ConfirmDialog {...navigation.dialog} title="Leave this unfinished draft?" description="Only text you explicitly saved is kept. Nothing will be shared by leaving." confirmLabel="Leave draft" cancelLabel="Keep editing"/>
   </MemberChrome>;

@@ -18,7 +18,7 @@ function render(value: JourneyOverview, busy = false) {
 describe("the Home next-action card", () => {
   it("provides one clear action without an answer or consent form", () => {
     const html = render(overview);
-    expect(html).toContain("Choose a conversation");
+    expect(html).toContain("Pick a conversation topic");
     expect(html.match(/<button\b/g)).toHaveLength(1);
     expect(html).toContain('type="button"');
     expect(html).not.toMatch(/<(form|input|textarea)\b/);

@@ -1,38 +1,40 @@
 "use client";
 
+import Link from "next/link";
 import navStyles from "../workspace-nav.module.scss";
 import type { WorkspaceView } from "../journey.navigation";
+
+const links: Array<{ key: WorkspaceView; label: string; icon: string }> = [
+  { key: "home", label: "Home", icon: "⌂" },
+  { key: "conversations", label: "Conversations", icon: "◎" },
+  { key: "atlas", label: "Atlas", icon: "✦" },
+  { key: "roadmap", label: "Our next steps", icon: "↗" },
+  { key: "chapters", label: "Past conversations", icon: "◌" },
+];
+const secondaryLinks = links.filter(({ key }) => key !== "home" && key !== "conversations");
 
 export default function WorkspaceNav({
   active,
   onChange,
-  compact=false,
 }: {
   active: WorkspaceView;
   onChange: (view: WorkspaceView) => void;
-  compact?:boolean;
 }) {
-  const items: Array<{ key: WorkspaceView; label: string; icon: string }> = [
-    { key: "home", label: "Home", icon: "⌂" },
-    { key: "conversations", label: "Conversations", icon: "◎" },
-    { key: "atlas", label: "Understand each other", icon: "✦" },
-    { key: "roadmap", label: "Our next steps", icon: "↗" },
-    { key: "chapters", label: "Past conversations", icon: "◌" },
-  ];
+  const home = active === "home";
 
   return (
-    <nav className={`${navStyles.navigation} ${compact?navStyles.compact:''}`} aria-label="Relationship workspace">
-      {items.map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          className={active === item.key ? navStyles.active : ""}
-          aria-current={active === item.key ? "page" : undefined}
-          onClick={() => onChange(item.key)}
+    <nav className={home ? navStyles.homeLinks : `${navStyles.navigation} ${active === "conversations" ? navStyles.compact : ""}`}
+      aria-label={home ? "Together resources" : "Relationship workspace"}>
+      {(home ? secondaryLinks : links).map(({ key, label, icon }) => (
+        <Link
+          key={key}
+          href={key === "home" ? "/journey" : `/journey?view=${key}`}
+          aria-current={active === key ? "page" : undefined}
+          onNavigate={event => { event.preventDefault(); onChange(key); }}
         >
-          <span aria-hidden>{item.icon}</span>
-          {item.label}
-        </button>
+          {!home ? <span aria-hidden="true">{icon}</span> : null}
+          {label}
+        </Link>
       ))}
     </nav>
   );

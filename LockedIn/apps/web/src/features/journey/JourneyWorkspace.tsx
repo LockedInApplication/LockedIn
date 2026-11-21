@@ -30,9 +30,7 @@ import guidanceStyles from "./next-action.module.scss";
 import ConversationSuggestionView from "../conversations/ConversationSuggestionView";
 import conversationStyles from "../conversations/conversation-library.module.scss";
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
-import {useCompactWorkspace,useResponsiveActionRef} from './use-compact-workspace';
 import RelationshipMessages from "./components/RelationshipMessages";
-import TogetherDestinations from "./components/TogetherDestinations";
 import TinyLantern from "./components/TinyLantern";
 
 type Notice = { tone: "success" | "error"; message: string } | null;
@@ -49,7 +47,6 @@ export default function JourneyWorkspace() {
   const dirty=useRef(false);
   const editRevision=useRef(0);
   const busyRef=useRef(false);
-  const compactWorkspace=useCompactWorkspace();
   const [quietRevision,setQuietRevision]=useState(0);
   const [savedRefreshFailed,setSavedRefreshFailed]=useState(false);
   const refreshAfterAction=useRef(false);
@@ -70,7 +67,6 @@ export default function JourneyWorkspace() {
   const {invalidate:requestQuietRefresh,setBlocked:blockQuietRefresh}=useQuietRefresh(readQuietly,applyQuietly,quietFailure);
   const setDirty=useCallback((value:boolean)=>{if(value)editRevision.current++;dirty.current=value;blockQuietRefresh(value||busyRef.current);},[blockQuietRefresh]);
   const setBusy=useCallback((value:boolean)=>{busyRef.current=value;blockQuietRefresh(value||dirty.current);setBusyState(value);},[blockQuietRefresh]);
-  const actionRef=useResponsiveActionRef();
   useJourneyHistoryGuard(dirty,setDirty);
   const targetQuery=new URL(workspaceLocation,"http://localhost").searchParams;
   const targetWord=targetQuery.get("word");
@@ -238,9 +234,7 @@ export default function JourneyWorkspace() {
       else router.push(path);
     } },
     onOpenNotification: openNotification, onActivity: requestQuietRefresh, onExpired, onStatusChange: onInvitationUpdate };
-  const mobileHome=isHome&&compactWorkspace;
   const showAtlas = Boolean(overview.relationship && activeView === "atlas" && overview.atlas.words.length);
-  const nextAction=<NextActionCard cardRef={actionRef} overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction}/>;
 
   if(invitationManagerOpen)return <MemberChrome key={overview.user.id} {...chrome}><main className={styles.main}>
     <InvitationManager key={overview.user.id} revision={invitationRevision} onClose={()=>router.push("/connections")}/>
@@ -264,16 +258,13 @@ export default function JourneyWorkspace() {
 
   return (
     <MemberChrome key={overview.user.id} {...chrome}>
-      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${mobileHome?guidanceStyles.mobileHome:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={()=>setDirty(true)}>
-        {mobileHome?<h1 className={guidanceStyles.greeting}>Hi, {overview.user.name?.trim().split(/\s+/)[0]||'there'}.</h1>:null}
+      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${isHome?guidanceStyles.home:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={()=>setDirty(true)}>
         {overview.relationship && activeView !== "conversations" && !showAtlas ? <section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
-          {!mobileHome?<div>
+          {isHome ? <h1>Together</h1> : <div>
             <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
-            <h1>{isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>
-            <p>
-              {isHome ? "Pick up where you left off, one step at a time." : "Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept."}
-            </p>
-          </div>:null}
+            <h1>Build the relationship you both choose.</h1>
+            <p>Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept.</p>
+          </div>}
           <div className={styles.memberCard}>
             <ProfileAvatar name={overview.user.name || overview.user.email} preset={overview.user.avatarPreset}/>
             <div>
@@ -284,6 +275,10 @@ export default function JourneyWorkspace() {
           </div>
         </section>:null}
 
+        {isHome ? <NextActionCard overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction} /> : null}
+        {!suggestionReference && overview.relationship ? <WorkspaceNav active={activeView} onChange={setActiveView} /> : null}
+        {overview.relationship ? <RelationshipMessages messaging={overview.messaging}/> : null}
+
         {overview.relationship && !suggestionReference && (activeView === "home" || activeView === "roadmap" || activeView === "conversations") ? (
           <TinyLantern
             key={JSON.stringify([overview.user.id, overview.relationship.id, activeView])}
@@ -293,14 +288,6 @@ export default function JourneyWorkspace() {
             view={activeView}
           />
         ) : null}
-        {isHome ? <TogetherDestinations onNavigate={setActiveView} /> : null}
-        {mobileHome ? nextAction : null}
-        {suggestionReference?null:overview.relationship ? (
-          <WorkspaceNav active={activeView} onChange={setActiveView} compact={activeView==='conversations'} />
-        ) : null}
-
-        {overview.relationship ? <RelationshipMessages messaging={overview.messaging}/> : null}
-
         {savedRefreshFailed ? <p className={styles.notice} role="status">Your change was saved, but this view could not update. <button type="button" onClick={requestQuietRefresh}>Try updating the view</button></p> : null}
         {notice ? (
           <div className={`${styles.notice} ${notice.tone === "error" ? styles.noticeError : ""}`}>
@@ -371,19 +358,16 @@ export default function JourneyWorkspace() {
           )
         ) : (
           <>
-            {!mobileHome?nextAction:null}
+            {overview.session ? (
+              <div id="current-action" tabIndex={-1} className={guidanceStyles.currentAction}>
+                <SessionStage session={overview.session} busy={busy} runAction={runAction} onProposeNextStep={openCheckInProposal} />
+              </div>
+            ) : null}
             <SharedJourneyPath
               session={overview.session}
               historyCount={overview.checkInHistory.length}
               partnerName={overview.relationship.partner.name}
-              onNavigate={setActiveView}
-              onFocusCurrent={focusCurrentAction}
             />
-            {overview.session ? (
-              <div id="current-action" tabIndex={-1} className={`${styles.currentActionStage} ${guidanceStyles.currentAction}`}>
-                <SessionStage session={overview.session} busy={busy} runAction={runAction} onProposeNextStep={openCheckInProposal} />
-              </div>
-            ) : null}
           </>
         )}
 

@@ -1,449 +1,70 @@
-/* Interactive shared journey ------------------------------------------------ */
-
 .journeyMap {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(32, 24, 47, 0.18);
-  border-radius: 4px;
-  background:
-    radial-gradient(circle at 13% 20%, rgba(245, 166, 182, 0.34), transparent 20rem),
-    radial-gradient(circle at 91% 72%, rgba(169, 223, 203, 0.42), transparent 23rem),
-    var(--paper);
-  box-shadow: 10px 10px 0 var(--plum);
+  margin-block: 24px;
+  padding: clamp(16px, 3.2vw, 32px);
+  border: 1px solid var(--brand-rule);
+  border-radius: var(--r);
+  background: var(--paper);
 }
 
 .journeyMapHeader {
-  position: relative;
-  z-index: 5;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 30px;
-  align-items: end;
-  padding: clamp(28px, 5vw, 56px);
-  border-bottom: 1px solid rgba(32, 24, 47, 0.14);
-  background: rgba(255, 253, 248, 0.78);
-  backdrop-filter: blur(10px);
-}
-
-.journeyMapHeader h2 {
-  margin: 9px 0 8px;
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: clamp(2.35rem, 5vw, 5rem);
-  font-weight: 650;
-  line-height: 0.92;
-  letter-spacing: -0.065em;
-}
-
-.journeyMapHeader p {
-  margin: 0;
-  color: var(--stone-500);
-  font-size: 0.88rem;
-}
-
-.mapStatus {
-  display: grid;
-  justify-items: end;
-  min-width: 220px;
-  padding-left: 26px;
-  border-left: 1px solid rgba(32, 24, 47, 0.15);
-  text-align: right;
-}
-
-.mapStatus > strong {
-  margin-top: 11px;
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: 1.08rem;
-}
-
-.mapStatus > small {
-  color: var(--stone-500);
-  font-size: 0.66rem;
-}
-
-.mapPair {
-  display: flex;
-  align-items: center;
-}
-
-.mapPair > span {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 3px solid var(--paper);
-  border-radius: 50%;
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 700;
-  box-shadow: 0 0 0 1px rgba(32, 24, 47, 0.2);
-}
-
-.mapYou { z-index: 2; background: var(--accent); }
-.mapPartner { z-index: 2; background: var(--sage); }
-.mapPair i { width: 26px; height: 2px; margin-inline: -2px; background: var(--plum); }
-
-.pathCanvas {
-  position: relative;
-  width: min(100%, 1040px);
-  height: 820px;
-  margin: 0 auto;
-}
-
-.pathGlowOne,
-.pathGlowTwo {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.8;
-  pointer-events: none;
-}
-
-.pathGlowOne {
-  top: 260px;
-  left: 8%;
-  width: 76px;
-  height: 76px;
-  border: 16px solid var(--gold);
-}
-
-.pathGlowTwo {
-  right: 7%;
-  bottom: 84px;
-  width: 50px;
-  height: 50px;
-  background: var(--blush);
-}
-
-.pathSvg {
-  position: absolute;
-  inset: 24px auto auto 50%;
-  width: 600px;
-  height: 760px;
-  overflow: visible;
-  transform: translateX(-50%);
-}
-
-.pathBase,
-.pathProgress {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 18;
-}
-
-.pathBase {
-  stroke: rgba(75, 49, 95, 0.12);
-  stroke-dasharray: 3 5;
-}
-
-.pathProgress {
-  stroke: var(--plum);
-  stroke-dasharray: 100;
-  transition: stroke-dashoffset 900ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: drawJourneyPath 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  margin-block-end: 18px;
+  h2 { font: 550 clamp(1.35rem, 2.8vw, 1.75rem)/1.2 var(--font-serif); }
+  p { margin-block-start: 4px; color: var(--brand-muted); font-size: .875rem; }
 }
 
 .milestoneList {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  padding: 0;
+  display: grid;
+  gap: 12px 20px;
   list-style: none;
-}
 
-.milestone {
-  position: absolute;
-  z-index: 3;
-  width: 78px;
-  height: 78px;
-  transform: translate(-50%, -50%);
-}
-
-.milestone_0 { top: 76px; left: 50%; }
-.milestone_1 { top: 198px; left: calc(50% - 122px); }
-.milestone_2 { top: 350px; left: calc(50% + 122px); }
-.milestone_3 { top: 502px; left: calc(50% - 122px); }
-.milestone_4 { top: 654px; left: calc(50% + 122px); }
-.milestone_5 { top: 748px; left: 50%; }
-
-.milestoneButton {
-  position: relative;
-  width: 78px;
-  height: 78px;
-  padding: 0;
-  border: 0;
-  color: inherit;
-  background: transparent;
-  cursor: pointer;
+  li {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+  }
 }
 
 .milestoneNode {
-  position: relative;
-  z-index: 2;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 78px;
-  height: 78px;
-  border: 8px solid var(--paper);
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--brand-rule);
   border-radius: 50%;
-  color: var(--stone-500);
-  background: var(--stone-100);
-  box-shadow:
-    0 0 0 2px rgba(32, 24, 47, 0.15),
-    0 9px 0 rgba(32, 24, 47, 0.12);
-  transition: transform 180ms ease, box-shadow 180ms ease;
-}
-
-.milestoneNode > span {
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 750;
-}
-
-.milestoneButton:hover .milestoneNode {
-  transform: translateY(-4px) scale(1.04);
-  box-shadow:
-    0 0 0 2px rgba(32, 24, 47, 0.2),
-    0 13px 0 rgba(32, 24, 47, 0.14);
-}
-
-.milestoneCard {
-  position: absolute;
-  top: 50%;
-  display: flex;
-  align-items: flex-start;
-  flex-direction: column;
-  width: 250px;
-  padding: 15px 17px;
-  border: 1px solid rgba(32, 24, 47, 0.16);
-  border-radius: 4px;
-  color: var(--ink);
-  background: rgba(255, 253, 248, 0.94);
-  box-shadow: 4px 4px 0 rgba(75, 49, 95, 0.16);
-  text-align: left;
-  transform: translateY(-50%);
-  transition: transform 180ms ease, box-shadow 180ms ease;
-  backdrop-filter: blur(8px);
-}
-
-.milestone_0 .milestoneCard,
-.milestone_2 .milestoneCard,
-.milestone_4 .milestoneCard {
-  left: calc(100% + 18px);
-}
-
-.milestone_1 .milestoneCard,
-.milestone_3 .milestoneCard,
-.milestone_5 .milestoneCard {
-  right: calc(100% + 18px);
-  align-items: flex-end;
-  text-align: right;
-}
-
-.milestoneButton:hover .milestoneCard {
-  transform: translateY(calc(-50% - 3px));
-  box-shadow: 6px 7px 0 rgba(75, 49, 95, 0.2);
-}
-
-.milestoneCard > small {
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 0.55rem;
+  background: var(--brand-canvas);
+  color: var(--brand-muted);
+  font-size: .8rem;
   font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
-.milestoneCard > strong {
-  margin-top: 4px;
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: 1rem;
-  line-height: 1.15;
-}
+.milestoneList [data-state="complete"] .milestoneNode { background: var(--stone-50); color: var(--forest); }
+.milestoneList [aria-current="step"] .milestoneNode { background: var(--action); color: var(--on-action); }
 
-.milestoneCard > span:not(.waitingPair) {
-  margin-top: 5px;
-  color: var(--stone-500);
-  font-size: 0.67rem;
-  line-height: 1.45;
-}
-
-.milestoneCard > em {
-  margin-top: 9px;
-  color: var(--plum);
-  font-size: 0.62rem;
-  font-style: normal;
-  font-weight: 750;
-}
-
-.milestoneCard > em b { color: var(--accent); }
-
-.milestone_complete .milestoneNode {
-  color: white;
-  background: var(--plum);
-}
-
-.milestone_complete .milestoneCard > small { color: var(--success); }
-
-.milestone_current .milestoneNode {
-  color: var(--ink);
-  background: var(--gold);
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 9px 0 var(--accent);
-  animation: milestoneBreathe 2.4s ease-in-out infinite;
-}
-
-.milestone_current .milestoneCard {
-  border-color: var(--ink);
-  background: var(--gold-light);
-  box-shadow: 6px 6px 0 var(--accent);
-}
-
-.milestone_waiting .milestoneNode {
-  color: var(--ink);
-  background: var(--sage);
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 9px 0 var(--plum);
-}
-
-.milestone_waiting .milestoneCard {
-  border-color: var(--ink);
-  background: #eef8f2;
-}
-
-.milestone_upcoming { opacity: 0.58; }
-
-.waitingPair {
-  position: absolute;
-  top: -13px;
-  right: 12px;
-  display: flex;
-}
-
-.waitingPair i {
+.milestoneCopy {
   display: grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  border: 2px solid var(--paper);
-  border-radius: 50%;
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 0.46rem;
-  font-style: normal;
-  font-weight: 700;
+  gap: 2px;
+  min-inline-size: 0;
+  padding-block-start: 2px;
+  color: var(--brand-muted);
+  font-size: .875rem;
+  line-height: 1.4;
+  strong { color: var(--ink); font-weight: 650; }
+  small { font-size: .75rem; }
 }
 
-.waitingYou { z-index: 2; background: var(--accent); animation: waitingNudge 1.8s ease-in-out infinite; }
-.waitingPartner { margin-left: -7px; background: var(--sage); animation: waitingNudge 1.8s 300ms ease-in-out infinite reverse; }
-
-.currentActionStage {
-  margin-top: 42px;
-  scroll-margin-top: 155px;
+@media (min-width: 800px) {
+  .milestoneList { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-@keyframes drawJourneyPath {
-  from { stroke-dashoffset: 100; }
-}
-
-@keyframes milestoneBreathe {
-  50% {
-    transform: translateY(-5px) scale(1.04);
-    box-shadow:
-      0 0 0 6px rgba(242, 189, 77, 0.24),
-      0 9px 0 var(--accent);
-  }
-}
-
-@keyframes waitingNudge {
-  50% { transform: translateX(3px); }
-}
-
-@media (max-width: 900px) {
-  .pathCanvas { height: 950px; }
-  .pathGlowOne { left: -30px; }
-  .pathGlowTwo { right: -20px; }
-  .milestoneCard { width: 210px; }
-  .milestone_1,
-  .milestone_3 { left: calc(50% - 92px); }
-  .milestone_2,
-  .milestone_4 { left: calc(50% + 92px); }
-  .milestone_0 { top: 80px; }
-  .milestone_1 { top: 230px; }
-  .milestone_2 { top: 390px; }
-  .milestone_3 { top: 550px; }
-  .milestone_4 { top: 710px; }
-  .milestone_5 { top: 870px; }
-  .pathSvg { top: 42px; height: 830px; transform: translateX(-50%) scaleY(1.1); }
-}
-
-@media (max-width: 700px) {
-  .journeyMap { box-shadow: 6px 6px 0 var(--plum); }
-  .journeyMapHeader { grid-template-columns: 1fr; gap: 22px; }
-  .journeyMapHeader h2 { font-size: clamp(2.7rem, 14vw, 4.5rem); }
-  .mapStatus { justify-items: start; min-width: 0; padding: 18px 0 0; border-top: 1px solid rgba(32, 24, 47, 0.15); border-left: 0; text-align: left; }
-  .pathCanvas { height: auto; min-height: 0; padding: 38px 22px 48px; }
-  .pathCanvas::before {
-    position: absolute;
-    top: 56px;
-    bottom: 68px;
-    left: 59px;
-    width: 8px;
-    border-radius: 999px;
-    background: linear-gradient(var(--plum) 0 var(--mobile-progress, 38%), rgba(75, 49, 95, 0.12) var(--mobile-progress, 38%));
+@media (max-width: 799px) {
+  .milestoneList li:not(:last-child)::after {
     content: "";
-  }
-  .pathSvg { display: none; }
-  .pathGlowOne { top: 38%; right: -20px; left: auto; width: 58px; height: 58px; border-width: 12px; }
-  .pathGlowTwo { right: auto; bottom: 23%; left: -12px; }
-  .milestoneList { position: relative; display: grid; gap: 18px; }
-  .milestone,
-  .milestone_0,
-  .milestone_1,
-  .milestone_2,
-  .milestone_3,
-  .milestone_4,
-  .milestone_5 {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 100%;
-    height: auto;
-    transform: none;
-  }
-  .milestoneButton { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 14px; align-items: center; width: 100%; height: auto; text-align: left; }
-  .milestoneNode { width: 74px; height: 74px; }
-  .milestoneCard,
-  .milestone_0 .milestoneCard,
-  .milestone_1 .milestoneCard,
-  .milestone_2 .milestoneCard,
-  .milestone_3 .milestoneCard,
-  .milestone_4 .milestoneCard,
-  .milestone_5 .milestoneCard {
-    position: relative;
-    top: auto;
-    right: auto;
-    left: auto;
-    align-items: flex-start;
-    width: 100%;
-    text-align: left;
-    transform: none;
-  }
-  .milestoneButton:hover .milestoneCard { transform: translateY(-2px); }
-  .waitingPair { right: 10px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pathProgress,
-  .milestone_current .milestoneNode,
-  .waitingYou,
-  .waitingPartner {
-    animation: none;
-    transition: none;
+    position: absolute;
+    inset: 28px auto -12px 13px;
+    width: 1px;
+    background: var(--brand-rule);
   }
 }

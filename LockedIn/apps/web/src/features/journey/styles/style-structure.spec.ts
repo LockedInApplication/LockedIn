@@ -11,13 +11,12 @@ describe("Journey Sass extraction", () => {
   it("compiles the editorial cascade, including mobile and reduced-motion rules", () => {
     const result = compile(entrypoint);
     expect(createHash("sha256").update(result.css).digest("hex")).toBe(
-      "99c8dd9d4da09e8b75a63b987bb442290632cadb299de3895c641a214b5b18bd",
+      "12ad6cad8960bbeb2c8692a92dd8f4567d8035145c8e857ffdaec55cfe1a8477",
     );
     expect([...result.css.matchAll(/@media[^\{]+/g)].map((match) => match[0].trim())).toEqual([
       "@media (max-width: 900px)", "@media (max-width: 640px)",
       "@media (max-width: 900px)", "@media (max-width: 640px)",
-      "@media (max-width: 900px)", "@media (max-width: 700px)",
-      "@media (prefers-reduced-motion: reduce)",
+      "@media (min-width: 800px)", "@media (max-width: 799px)",
       "@media (max-width: 860px)", "@media (max-width: 650px)",
       "@media (prefers-reduced-motion: reduce)",
     ]);

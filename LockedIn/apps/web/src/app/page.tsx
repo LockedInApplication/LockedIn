@@ -71,9 +71,9 @@ export default function Home() {
 
         <FirstHelloPreview />
 
-        <section id="trust" className={`${styles.wrap} ${styles.trust} ${styles.reveal}`} aria-labelledby="trust-title">
+        <section id="trust" className={`${styles.wrap} ${styles.trust} ${styles.reveal}`} aria-labelledby="trust-title" tabIndex={-1}>
           <div>
-            <p className={styles.kicker}>On your terms</p>
+            <p className={styles.kicker}>Privacy &amp; choice</p>
             <h2 id="trust-title">Closeness without <em>the pressure.</em></h2>
           </div>
           <ul>

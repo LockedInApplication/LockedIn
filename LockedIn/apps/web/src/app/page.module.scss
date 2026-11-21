@@ -86,6 +86,7 @@
 .answer strong { display: block; margin-bottom: 5px; }
 
 .trust { display: grid; grid-template-columns: 1fr 1fr; gap: 35px; padding-block: 77px; align-items: center; }
+.trust:target, .trust:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 5px; }
 .trust h2 { margin-top: .18em; }
 .trust ul { list-style: none; }
 .trust li { border-bottom: 1px solid var(--home-rule); padding: 11px 0; color: var(--stone-500); }

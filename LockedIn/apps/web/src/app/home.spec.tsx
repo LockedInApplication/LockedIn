@@ -29,3 +29,13 @@ it("offers a native control for pausing homepage motion", () => {
   const html = renderToStaticMarkup(<Home />);
   expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*aria-label="Pause homepage motion"/);
 });
+
+it("gives the footer privacy link a focusable destination with a matching label", () => {
+  const html = renderToStaticMarkup(<Home />);
+  const footer = html.match(/<footer\b[^>]*>(.*?)<\/footer>/)?.[1];
+  const target = footer?.match(/<a\b[^>]*href="#([^"]+)"[^>]*>Privacy &amp; choice<\/a>/)?.[1];
+  expect(target).toBe("trust");
+  const section = html.match(/<section\b[^>]*id="trust"[^>]*>.*?<\/section>/)?.[0];
+  expect(section).toMatch(/^<section\b[^>]*tabindex="-1"/);
+  expect(section).toContain("Privacy &amp; choice");
+});

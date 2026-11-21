@@ -8,6 +8,7 @@ import ProfileDetails from "./ProfileDetails";
 import ProfileSecurity from "./ProfileSecurity";
 import ProfileNotifications from "./ProfileNotifications";
 import ProfileMatchingSettings from "./ProfileMatchingSettings";
+import ProfileSettingRow from "./ProfileSettingRow";
 import ProfileDeletion from "./ProfileDeletion";
 import InvitationBlocks from "@/features/invitations/InvitationBlocks";
 import styles from "./profile.module.scss";
@@ -101,9 +102,13 @@ function AccountProfile({ userId, name }: { userId: string; name: string }) {
             </div>
             <section className={styles.card} aria-labelledby="profile-shortcuts">
               <h2 id="profile-shortcuts">Personal settings</h2>
-              <p><button type="button" className={styles.textButton} onClick={()=>void leave("/your-space")}>Private reflection</button> · Only you can see what you write.</p>
-              {access?.canManageProfile || access?.canDiscover ? <p><button type="button" className={styles.textButton} onClick={()=>void leave("/discover/profile")}>My Discovery profile</button> · Edit what people can see or pause visibility.</p> : null}
-              <ProfileMatchingSettings userId={userId} onOpen={() => void leave("/discover/matching")} />
+              <ul className={styles.settingList} role="list">
+                <ProfileSettingRow title="Private reflection" description="Only you can see what you write." onOpen={() => void leave("/your-space")} />
+                {access?.canManageProfile || access?.canDiscover ? (
+                  <ProfileSettingRow title="My Discovery profile" description="Edit your profile or pause visibility." onOpen={() => void leave("/discover/profile")} />
+                ) : null}
+                <ProfileMatchingSettings userId={userId} onOpen={() => void leave("/discover/matching")} />
+              </ul>
             </section>
             <ProfileDetails
               profile={profile}

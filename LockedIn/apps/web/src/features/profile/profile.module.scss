@@ -10,9 +10,10 @@
 }
 .intro {
   display: flex;
-  gap: 18px;
+  gap: clamp(12px, 4vw, 18px);
   align-items: center;
-  margin: 30px 0;
+  margin: clamp(16px, 4vw, 30px) 0;
+  > div { min-width: 0; }
   h1 {
     font: 550 clamp(1.75rem, 5vw, 2.625rem) / 1.15 var(--font-serif);
     letter-spacing: -.035em;
@@ -20,6 +21,7 @@
   }
   p {
     margin: 0;
+    color: var(--brand-muted);
   }
 }
 .card {
@@ -29,8 +31,14 @@
   border-radius: var(--r);
   background: var(--paper);
   h2 {
-    font-size: 24px;
+    font-size: clamp(1.25rem, 2.5vw, 1.375rem);
+    font-weight: 650;
+    line-height: 1.3;
     margin: 0 0 12px;
+  }
+  section h2 {
+    font-size: clamp(1.0625rem, 2vw, 1.1875rem);
+    line-height: 1.35;
   }
   p {
     line-height: 1.6;
@@ -42,6 +50,37 @@
     min-width: 0;
   }
 }
+.settingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.settingList > li + li {
+  border-block-start: 1px solid var(--brand-rule);
+}
+.settingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(8px, 3vw, 16px);
+  inline-size: 100%;
+  min-block-size: 55px;
+  padding: 12px clamp(6px, 2vw, 12px);
+  border: 0;
+  border-radius: var(--control-radius);
+  text-align: start;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  &:active { background: var(--brand-canvas); }
+  svg { color: var(--brand-muted); }
+}
+@media (hover: hover) {
+  .settingRow:hover { background: var(--brand-canvas); }
+}
+.settingCopy { display: grid; gap: 3px; }
+.settingTitle { font-weight: 650; line-height: 1.35; }
+.settingDescription { color: var(--brand-muted); font-size: .875rem; line-height: 1.45; }
 .field {
   display: grid;
   gap: 8px;

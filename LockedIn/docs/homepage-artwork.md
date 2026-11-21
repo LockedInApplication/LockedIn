@@ -4,6 +4,8 @@ The homepage uses the original Blue Hour scene in `apps/web/public/home/`: two f
 
 The private-space section uses `apps/web/public/home/editorial-coffee.webp`, an optimized crop of the earlier coffee-date scene. It depicts fictional people, not a testimonial or LockedIn members.
 
+The Discovery phone preview uses `apps/web/public/home/discovery-preview-maya.webp`, cropped from that same scene. Its profile and the Atlas chapter in the Together phone are fictional examples; the previews never load member data.
+
 The homepage serves Source Serif 4 and Roboto locally. Their SIL Open Font Licenses are in `apps/web/public/fonts/source-serif-4-OFL.txt` and `apps/web/public/fonts/roboto-OFL.txt`.
 
 ## Earlier coffee-date artwork

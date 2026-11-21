@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import HomeHeader from "./_homeSections/HomeHeader";
 import HomeMotion from "./_homeSections/HomeMotion";
+import HomeProductPreviews from "./_homeSections/HomeProductPreviews";
 import styles from "./page.module.scss";
 
 export default function Home() {
@@ -43,6 +44,7 @@ export default function Home() {
             <p>Your private reflections stay yours unless you share them. You can block or report from your conversation at any time.</p>
           </div>
         </section>
+        <HomeProductPreviews />
         <HomeMotion />
       </main>
 

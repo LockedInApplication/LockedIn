@@ -1,16 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import BrandLogo from "@/components/brandLogo";
-import FirstHelloPreview from "./_homeSections/FirstHelloPreview";
+import HomeStories from "./_homeSections/HomeStories";
 import styles from "./page.module.scss";
 
 const invitePath = "/connections?compose=invite";
-
-const steps = [
-  { title: "Start with something you noticed.", detail: "Read a profile and reply to an answer that makes you curious." },
-  { title: "Turn a good chat into a plan.", detail: "Once you connect, suggest a place to meet or keep talking until you’re ready." },
-  { title: "Lock in when you’re both ready.", detail: "Choose a private space together. Discovery pauses for both of you, and your existing chats stay open." },
-];
 
 export default function Home() {
   return (
@@ -21,7 +15,6 @@ export default function Home() {
           <Link href="/" className={styles.brand}><BrandLogo className={styles.brandMark} />LockedIn</Link>
           <div className={styles.navLinks}>
             <a href="#how-it-works">How it works</a>
-            <a href="#preview">Try it</a>
             <a href="#trust">Privacy</a>
           </div>
           <Link href="/login" className={styles.navAction}>Sign in</Link>
@@ -36,8 +29,8 @@ export default function Home() {
             <Image className={styles.photo} src="/home/blue-hour-1536.webp" alt="" width={1536} height={1024} loading="eager" fetchPriority="high" unoptimized />
           </picture>
           <div className={styles.heroCopy}>
-            <h1 id="hero-title">Go from hello{" "}<em>to a real date.</em></h1>
-            <p className={styles.intro}>Meet someone new, find a place you’d both like, and make a plan together.</p>
+            <h1 id="hero-title">Go from hello{" "}<span>to a real date.</span></h1>
+            <p className={styles.intro}>Meet someone new, or invite someone you already know.</p>
             <div className={styles.actions}>
               <Link href="/signup" className={styles.primary}>Join LockedIn</Link>
               <Link href={invitePath} prefetch={false} className={styles.invite}>Invite someone you know</Link>
@@ -45,29 +38,17 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="how-it-works" className={`${styles.wrap} ${styles.process}`} aria-labelledby="process-title" tabIndex={-1}>
-          <div className={styles.sectionHead}>
-            <p className={styles.kicker}>How it works</p>
-            <h2 id="process-title">A hello is enough to start.</h2>
-          </div>
-          <ol className={styles.steps} role="list">
-            {steps.map(step => <li key={step.title}>
-              <h3>{step.title}</h3>
-              <p>{step.detail}</p>
-            </li>)}
-          </ol>
-        </section>
+        <HomeStories />
 
-        <FirstHelloPreview />
-
-        <section id="trust" className={`${styles.wrap} ${styles.trust}`} aria-labelledby="trust-title" tabIndex={-1}>
+        <section id="trust" className={styles.trust} aria-labelledby="trust-title" tabIndex={-1}>
           <div>
             <p className={styles.kicker}>Privacy &amp; choice</p>
-            <h2 id="trust-title">Closeness without <em>the pressure.</em></h2>
+            <h2 id="trust-title">A space for just you two.</h2>
+            <p className={styles.trustIntro}>If you both choose to lock in, Discovery pauses and your existing chats stay open.</p>
           </div>
           <ul role="list">
             <li><strong>You choose what to share.</strong> Private reflections stay private unless you share them.</li>
-            <li><strong>Both people get a say.</strong> Opening a shared space through Discovery is a mutual choice.</li>
+            <li><strong>Both people get a say.</strong> Make plans and check in together in your shared space.</li>
             <li><strong>You can set a boundary.</strong> Block or report from your conversation when you need to.</li>
           </ul>
         </section>

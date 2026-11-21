@@ -11,21 +11,23 @@ it("gives the homepage one primary signup link and keeps invite, sign-in and app
   expect(html).toMatch(/<a[^>]*href="\/journey"[^>]*>Open LockedIn<\/a>/);
   expect(html).toContain('href="#main-content"');
   expect(html).toMatch(/<main id="main-content" tabindex="-1"/);
-  for (const section of ["how-it-works", "preview", "trust"]) {
+  for (const section of ["how-it-works", "trust"]) {
     expect(html).toContain(`href="#${section}"`);
     expect(html).toContain(`id="${section}"`);
   }
+  expect(html).toContain('id="preview"');
+  expect(html).not.toContain('href="#preview"');
 });
 
-it("renders a labeled, private-by-design demo with no submission form", () => {
+it("shows both stories in the initial HTML without demo controls", () => {
   const html = renderToStaticMarkup(<Home />);
-  expect(html.match(/type="radio"/g)).toHaveLength(3);
-  expect(html.match(/checked=""/g)).toHaveLength(1);
-  expect(html).toContain("What sounds like you?");
-  expect(html).toContain('aria-live="polite"');
-  expect(html).toContain("Where would we grab coffee first?");
-  expect(html).toContain("Nothing is sent or saved.");
-  expect(html).not.toContain("<form");
+  expect(html.match(/<article[^>]+data-home-story=""/g)).toHaveLength(2);
+  expect(html).toContain("What record are you looking for?");
+  expect(html).toContain("Coffee this Saturday?");
+  for (const photo of ["story-record-shop", "story-coffee-date"]) {
+    expect(html).toMatch(new RegExp(`<img(?=[^>]*src="/home/${photo}\\.webp")(?=[^>]*loading="lazy")[^>]*>`));
+  }
+  expect(html).not.toMatch(/<(?:form|button|input)\b/);
 });
 
 it("loads a responsive, high-priority hero from local assets without reading decorative imagery aloud", () => {

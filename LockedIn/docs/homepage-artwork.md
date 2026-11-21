@@ -2,7 +2,9 @@
 
 The homepage uses the original Blue Hour scene in `apps/web/public/home/`: two fictional adults talking outside a record shop after rain. It was created with the built-in image generator and exported to WebP in two landscape sizes and a tighter phone crop. It does not depict LockedIn members or use artwork from the reference site.
 
-Barlow Condensed is served locally for headings. Its SIL Open Font License is in `apps/web/public/fonts/barlow-condensed-OFL.txt`.
+The two story cards use optimized crops of the Blue Hour storefront and the earlier coffee-date scene. Both depict fictional scenes, not testimonials or LockedIn members.
+
+The homepage serves Roboto locally. Its SIL Open Font License is in `apps/web/public/fonts/roboto-OFL.txt`.
 
 ## Earlier coffee-date artwork
 

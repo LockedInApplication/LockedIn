@@ -29,11 +29,17 @@ it("uses the selected Courtyard canvas and contrast-safe text and buttons", () =
   expect(contrast(rootColor(css, "focus-ring"), rootColor(css, "paper"))).toBeGreaterThanOrEqual(3);
 });
 
-it("keeps the Courtyard font outside the public homepage and uses local display type for the hero", () => {
+it("keeps Courtyard typography elsewhere and uses locally served Roboto on the homepage", () => {
   expect(css).toMatch(/--font-sans:\s*"Figtree"/);
   expect(css).toMatch(/--font-display:\s*var\(--font-sans\)/);
-  expect(home).toMatch(/\.hero h1,\s*\.page h2\s*\{[^}]*font-family: var\(--home-heading\)/);
-  expect(home).toContain('/fonts/barlow-condensed-latin-600.woff2');
+  expect(home).toMatch(/\.page\s*\{[^}]*font-family: "Roboto"/);
+  expect(home).toContain('/fonts/roboto-latin-400-700.woff2');
+  expect(home).not.toContain("Barlow Condensed");
+});
+
+it("animates the story cards only when motion is allowed", () => {
+  expect(home.match(/animation:\s*storySlide\b/g)).toHaveLength(1);
+  expect(home).toMatch(/@media \(prefers-reduced-motion: no-preference\)\s*\{[^}]*\}\s*\.storyCard\.arrive\s*\{[^}]*animation: storySlide/);
 });
 
 it("keeps the homepage CTA and section copy contrast-safe", () => {

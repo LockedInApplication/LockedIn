@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect } from "react";
 import styles from "../page.module.scss";
 
-const revealThreshold = 0.18;
+const revealThreshold = 0.15;
 
-export default function StoryMotion({ children }: { children: ReactNode }) {
-  const grid = useRef<HTMLDivElement>(null);
-
+export default function HomeMotion() {
   useEffect(() => {
-    if (!grid.current || !("IntersectionObserver" in window) ||
+    const main = document.getElementById("main-content");
+    if (!main || !("IntersectionObserver" in window) ||
       !window.matchMedia("(prefers-reduced-motion: no-preference)").matches) return;
 
     const observer = new IntersectionObserver(entries => {
@@ -20,10 +19,9 @@ export default function StoryMotion({ children }: { children: ReactNode }) {
       }
     }, { threshold: revealThreshold });
 
-    grid.current.querySelectorAll("[data-home-story]").forEach(card => observer.observe(card));
+    main.querySelectorAll("[data-home-reveal]").forEach(element => observer.observe(element));
     return () => observer.disconnect();
   }, []);
 
-  // Preserve old homepage links to the first-hello demo.
-  return <div id="preview" tabIndex={-1} className={styles.stories} ref={grid}>{children}</div>;
+  return null;
 }

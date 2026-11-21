@@ -2,13 +2,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import Home from "./page";
 
-it("gives the homepage one primary signup link and keeps invite, sign-in and app entry points", () => {
+it("keeps signup, direct invitations, sign-in and app entry points in the editorial layout", () => {
   const html = renderToStaticMarkup(<Home />);
-  expect(html.match(/href="\/signup"/g)).toHaveLength(1);
+  expect(html.match(/href="\/signup"/g)).toHaveLength(2);
   expect(html).toMatch(/<a[^>]*href="\/signup"[^>]*>Join LockedIn<\/a>/);
-  expect(html).toMatch(/<a[^>]*href="\/connections\?compose=invite"[^>]*>Invite someone you know<\/a>/);
+  expect(html).toMatch(/<a[^>]*href="\/connections\?compose=invite"[^>]*>Invite someone<\/a>/);
   expect(html).toMatch(/<a[^>]*href="\/login"[^>]*>Sign in<\/a>/);
   expect(html).toMatch(/<a[^>]*href="\/journey"[^>]*>Open LockedIn<\/a>/);
+  expect(html).toMatch(/<summary[^>]*aria-label="Navigation"/);
   expect(html).toContain('href="#main-content"');
   expect(html).toMatch(/<main id="main-content" tabindex="-1"/);
   for (const section of ["how-it-works", "trust"]) {
@@ -19,14 +20,12 @@ it("gives the homepage one primary signup link and keeps invite, sign-in and app
   expect(html).not.toContain('href="#preview"');
 });
 
-it("shows both stories in the initial HTML without demo controls", () => {
+it("renders all editorial content before JavaScript with no demo controls", () => {
   const html = renderToStaticMarkup(<Home />);
-  expect(html.match(/<article[^>]+data-home-story=""/g)).toHaveLength(2);
-  expect(html).toContain("What record are you looking for?");
-  expect(html).toContain("Coffee this Saturday?");
-  for (const photo of ["story-record-shop", "story-coffee-date"]) {
-    expect(html).toMatch(new RegExp(`<img(?=[^>]*src="/home/${photo}\\.webp")(?=[^>]*loading="lazy")[^>]*>`));
-  }
+  expect(html.match(/data-home-reveal=""/g)).toHaveLength(5);
+  expect(html).toContain("A good chat can");
+  expect(html).toContain("A space for just you two.");
+  expect(html).toMatch(/<img(?=[^>]*src="\/home\/editorial-coffee\.webp")(?=[^>]*loading="lazy")[^>]*>/);
   expect(html).not.toMatch(/<(?:form|button|input)\b/);
 });
 

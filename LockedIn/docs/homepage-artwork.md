@@ -2,9 +2,9 @@
 
 The homepage uses the original Blue Hour scene in `apps/web/public/home/`: two fictional adults talking outside a record shop after rain. It was created with the built-in image generator and exported to WebP in two landscape sizes and a tighter phone crop. It does not depict LockedIn members or use artwork from the reference site.
 
-The two story cards use optimized crops of the Blue Hour storefront and the earlier coffee-date scene. Both depict fictional scenes, not testimonials or LockedIn members.
+The private-space section uses `apps/web/public/home/editorial-coffee.webp`, an optimized crop of the earlier coffee-date scene. It depicts fictional people, not a testimonial or LockedIn members.
 
-The homepage serves Roboto locally. Its SIL Open Font License is in `apps/web/public/fonts/roboto-OFL.txt`.
+The homepage serves Source Serif 4 and Roboto locally. Their SIL Open Font Licenses are in `apps/web/public/fonts/source-serif-4-OFL.txt` and `apps/web/public/fonts/roboto-OFL.txt`.
 
 ## Earlier coffee-date artwork
 

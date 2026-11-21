@@ -29,17 +29,21 @@ it("uses the selected Courtyard canvas and contrast-safe text and buttons", () =
   expect(contrast(rootColor(css, "focus-ring"), rootColor(css, "paper"))).toBeGreaterThanOrEqual(3);
 });
 
-it("keeps Courtyard typography elsewhere and uses locally served Roboto on the homepage", () => {
+it("keeps Courtyard typography elsewhere and uses local fonts for the editorial homepage", () => {
   expect(css).toMatch(/--font-sans:\s*"Figtree"/);
   expect(css).toMatch(/--font-display:\s*var\(--font-sans\)/);
   expect(home).toMatch(/\.page\s*\{[^}]*font-family: "Roboto"/);
   expect(home).toContain('/fonts/roboto-latin-400-700.woff2');
+  expect(home).toContain('/fonts/source-serif-4-latin-500-700.woff2');
   expect(home).not.toContain("Barlow Condensed");
 });
 
-it("animates the story cards only when motion is allowed", () => {
-  expect(home.match(/animation:\s*storySlide\b/g)).toHaveLength(1);
-  expect(home).toMatch(/@media \(prefers-reduced-motion: no-preference\)\s*\{[^}]*\}\s*\.storyCard\.arrive\s*\{[^}]*animation: storySlide/);
+it("animates the editorial sections only when motion is allowed", () => {
+  const allowed = home.split("@media (prefers-reduced-motion: no-preference)")[1]?.split("@media")[0];
+  for (const name of ["editorialSlide", "connectorDraw"]) {
+    expect(allowed).toContain(`animation: ${name}`);
+    expect(home.match(new RegExp(`animation:\\s*${name}\\b`, "g"))).toHaveLength(1);
+  }
 });
 
 it("keeps the homepage CTA and section copy contrast-safe", () => {
@@ -47,7 +51,7 @@ it("keeps the homepage CTA and section copy contrast-safe", () => {
     expect(contrast("#ffffff", rootColor(home, color))).toBeGreaterThanOrEqual(4.5);
   }
   expect(contrast(rootColor(home, "home-muted"), rootColor(home, "home-frost"))).toBeGreaterThanOrEqual(4.5);
-  expect(contrast(rootColor(home, "home-ice"), rootColor(home, "home-night"))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(rootColor(home, "home-accent"), rootColor(home, "home-frost"))).toBeGreaterThanOrEqual(4.5);
 });
 
 it("keeps the idle field outline visible against both the card and the page", () => {

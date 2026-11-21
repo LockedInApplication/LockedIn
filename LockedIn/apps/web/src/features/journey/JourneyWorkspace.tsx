@@ -239,6 +239,7 @@ export default function JourneyWorkspace() {
     } },
     onOpenNotification: openNotification, onActivity: requestQuietRefresh, onExpired, onStatusChange: onInvitationUpdate };
   const mobileHome=isHome&&compactWorkspace;
+  const showAtlas = Boolean(overview.relationship && activeView === "atlas" && overview.atlas.words.length);
   const nextAction=<NextActionCard cardRef={actionRef} overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction}/>;
 
   if(invitationManagerOpen)return <MemberChrome key={overview.user.id} {...chrome}><main className={styles.main}>
@@ -263,9 +264,9 @@ export default function JourneyWorkspace() {
 
   return (
     <MemberChrome key={overview.user.id} {...chrome}>
-      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${mobileHome?guidanceStyles.mobileHome:''}`} onChangeCapture={()=>setDirty(true)}>
+      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${mobileHome?guidanceStyles.mobileHome:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={()=>setDirty(true)}>
         {mobileHome?<h1 className={guidanceStyles.greeting}>Hi, {overview.user.name?.trim().split(/\s+/)[0]||'there'}.</h1>:null}
-        {overview.relationship && activeView!=='conversations'?<section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
+        {overview.relationship && activeView !== "conversations" && !showAtlas ? <section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
           {!mobileHome?<div>
             <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
             <h1>{isHome ? "Your shared space." : "Build the relationship you both choose."}</h1>

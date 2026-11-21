@@ -3,22 +3,21 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: #f6f2ea;
-  color: #15201e;
+  background: var(--cream);
+  color: var(--ink);
 }
 
 .card {
   width: min(100%, 480px);
   padding: clamp(28px, 6vw, 48px);
-  border: 1px solid rgba(21, 32, 30, 0.12);
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 24px 70px rgba(21, 32, 30, 0.08);
+  border: 1px solid var(--brand-rule);
+  border-radius: var(--r);
+  background: var(--paper);
 }
 
 .eyebrow {
   margin: 0 0 12px;
-  color: #148f83;
+  color: var(--accent);
   font-size: 0.78rem;
   font-weight: 750;
   letter-spacing: 0.12em;
@@ -27,15 +26,14 @@
 
 .card h1 {
   margin: 0;
-  font-size: clamp(2rem, 6vw, 3.25rem);
-  line-height: 1;
-  letter-spacing: -0.05em;
+  font: 550 clamp(2rem, 6vw, 3.25rem) / 1.1 var(--font-serif);
+  letter-spacing: -.04em;
 }
 
 .description,
 .message {
   margin: 18px 0 0;
-  color: #5e6765;
+  color: var(--stone-500);
   line-height: 1.6;
 }
 
@@ -53,8 +51,8 @@
 .form input {
   width: 100%;
   padding: 14px 16px;
-  border: 1px solid #b8c0be;
-  border-radius: 12px;
+  border: 1px solid var(--stone-300);
+  border-radius: var(--control-radius);
   font: inherit;
 }
 
@@ -62,9 +60,9 @@
   margin-top: 4px;
   padding: 14px 18px;
   border: 0;
-  border-radius: 999px;
-  background: #148f83;
-  color: #fff;
+  border-radius: var(--control-radius);
+  background: var(--action);
+  color: var(--on-action);
   font: inherit;
   font-weight: 750;
   cursor: pointer;
@@ -83,6 +81,6 @@
 .backLink {
   display: inline-block;
   margin-top: 24px;
-  color: #15201e;
+  color: var(--action);
   font-weight: 700;
 }

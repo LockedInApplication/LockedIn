@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import BrandLogo from "../brandLogo";
 import Login from "../forms/Login";
 import Signup from "../forms/Signup";
@@ -52,37 +53,19 @@ export default function AuthPage({ page, returnTo }: authPageType) {
     };
   }, []);
 
-  const testimonials = [
-    {
-      quote:
-        "Your answers begin privately. You choose what becomes part of the shared conversation.",
-      author: "Reflect privately",
-    },
-    {
-      quote:
-        "Different answers are useful context—not a compatibility score or a warning.",
-      author: "Reveal by choice",
-    },
-    {
-      quote:
-        "A next step becomes shared only when both people accept the same version.",
-      author: "Choose together",
-    },
-  ];
-
   return (
     <div className={styles.authContainer}>
-      <div className={styles.authFormContainer}>
+      <main className={styles.authFormContainer}>
         <div className={styles.formContent}>
-          <div className={styles.logoContainer}>
+          <Link href="/" className={styles.logoContainer} aria-label="LockedIn home">
             <div className={styles.logo}>
               <BrandLogo />
             </div>
             <div className={styles.logoName}>LockedIn</div>
-          </div>
+          </Link>
 
           <div className={styles.form}>
-            <h2>{page === "login" ? "Welcome back." : "Create your space."}</h2>
+            <h1>{page === "login" ? "Welcome back." : "Create your space."}</h1>
             <div>
               {page === "login" ? (
                 <Login onError={handleFormError} returnTo={returnTo} />
@@ -92,24 +75,10 @@ export default function AuthPage({ page, returnTo }: authPageType) {
             </div>
           </div>
         </div>
-      </div>
-      <div className={styles.authTestimonial}>
-        <div className={styles.testimonialContent}>
-          <p className={styles.testimonialEyebrow}>Built around mutual choice</p>
-          <h3 className={styles.testimonialTitle}>
-            Two voices. One shared roadmap.
-          </h3>
-
-          <div className={styles.quoteList}>
-            {testimonials.map((item) => (
-              <blockquote key={item.author} className={styles.quoteCard}>
-                <p className={styles.quoteText}>&ldquo;{item.quote}&rdquo;</p>
-                <footer className={styles.quoteAuthor}>{item.author}</footer>
-              </blockquote>
-            ))}
-          </div>
-        </div>
-      </div>
+      </main>
+      <aside className={styles.editorial}>
+        <p>You decide what to share and when.</p>
+      </aside>
 
       <ErrorToast
         message={message}

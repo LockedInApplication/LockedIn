@@ -27,6 +27,10 @@ function render(value: AtlasWord) {
 }
 
 describe("completed Atlas chapters", () => {
+  it("introduces Atlas with the same name as the homepage preview", () => {
+    expect(render(word)).toContain('<h1 id="atlas-title">The Atlas of Us</h1>');
+  });
+
   it.each(["own", "partner"] as const)("keeps the viewer reachable when a current legacy shared chapter is missing the %s response", (missing) => {
     const html = render({
       ...word, previousDefinitions: [],

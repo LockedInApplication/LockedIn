@@ -2,10 +2,10 @@ import { fileURLToPath } from "node:url";
 import { compile } from "sass";
 import { expect, it } from "vitest";
 
-function rootColor(css: string, name: string) {
-  const value = css.match(new RegExp(`--${name}:\\s*(#[a-f0-9]{6})\\b`, "i"))?.[1];
-  expect(value, `missing color token ${name}`).toBeDefined();
-  return value!.toLowerCase();
+function tokenColor(css: string, name: string): string {
+  const value = css.match(new RegExp(`--${name}:\\s*(#[a-f0-9]{6}|var\\(--[a-z-]+\\))\\s*;`, "i"))?.[1];
+  if (!value) throw new Error(`Missing color token ${name}`);
+  return value.startsWith("var(") ? tokenColor(css, value.slice(6, -1)) : value.toLowerCase();
 }
 
 function contrast(a: string, b: string) {
@@ -21,21 +21,25 @@ function contrast(a: string, b: string) {
 const css = compile(fileURLToPath(new URL("./_globals.scss", import.meta.url))).css;
 const home = compile(fileURLToPath(new URL("../app/page.module.scss", import.meta.url))).css;
 
-it("uses the selected Courtyard canvas and contrast-safe text and buttons", () => {
-  expect(rootColor(css, "cream")).toBe("#f1f2e8");
-  expect(rootColor(css, "action")).toBe("#365848");
-  expect(contrast(rootColor(css, "ink"), rootColor(css, "cream"))).toBeGreaterThanOrEqual(4.5);
-  expect(contrast(rootColor(css, "on-action"), rootColor(css, "action"))).toBeGreaterThanOrEqual(4.5);
-  expect(contrast(rootColor(css, "focus-ring"), rootColor(css, "paper"))).toBeGreaterThanOrEqual(3);
+it("uses the homepage neutrals throughout and preserves contrast for Courtyard accents", () => {
+  expect(tokenColor(css, "cream")).toBe(tokenColor(css, "brand-canvas"));
+  expect(tokenColor(css, "paper")).toBe(tokenColor(css, "brand-paper"));
+  expect(contrast(tokenColor(css, "ink"), tokenColor(css, "cream"))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(tokenColor(css, "on-action"), tokenColor(css, "action"))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(tokenColor(css, "focus-ring"), tokenColor(css, "paper"))).toBeGreaterThanOrEqual(3);
+  expect(contrast(tokenColor(css, "forest"), tokenColor(css, "stone-50"))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(tokenColor(css, "accent"), tokenColor(css, "cream"))).toBeGreaterThanOrEqual(4.5);
 });
 
-it("keeps Courtyard typography elsewhere and uses local fonts for the editorial homepage", () => {
-  expect(css).toMatch(/--font-sans:\s*"Figtree"/);
+it("shares local editorial fonts between the homepage and the app", () => {
+  expect(css).toMatch(/--font-sans:\s*"Roboto"/);
   expect(css).toMatch(/--font-display:\s*var\(--font-sans\)/);
-  expect(home).toMatch(/\.page\s*\{[^}]*font-family: "Roboto"/);
-  expect(home).toContain('/fonts/roboto-latin-400-700.woff2');
-  expect(home).toContain('/fonts/source-serif-4-latin-500-700.woff2');
-  expect(home).not.toContain("Barlow Condensed");
+  expect(css).toMatch(/--font-serif:\s*"Source Serif 4"/);
+  expect(home).toMatch(/\.page\s*\{[^}]*font-family: var\(--font-sans\)/);
+  expect(home).toContain("--home-heading: var(--font-serif)");
+  expect(css).toContain("/fonts/roboto-latin-400-700.woff2");
+  expect(css).toContain("/fonts/source-serif-4-latin-500-700.woff2");
+  expect(home).not.toContain("@font-face");
 });
 
 it("animates the editorial sections only when motion is allowed", () => {
@@ -48,15 +52,15 @@ it("animates the editorial sections only when motion is allowed", () => {
 
 it("keeps the homepage CTA and section copy contrast-safe", () => {
   for (const color of ["home-action", "home-action-hover"]) {
-    expect(contrast("#ffffff", rootColor(home, color))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#ffffff", tokenColor(home + css, color))).toBeGreaterThanOrEqual(4.5);
   }
-  expect(contrast(rootColor(home, "home-muted"), rootColor(home, "home-frost"))).toBeGreaterThanOrEqual(4.5);
-  expect(contrast(rootColor(home, "home-accent"), rootColor(home, "home-frost"))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(tokenColor(home + css, "home-muted"), tokenColor(home + css, "home-frost"))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(tokenColor(home + css, "home-accent"), tokenColor(home + css, "home-frost"))).toBeGreaterThanOrEqual(4.5);
 });
 
 it("keeps the idle field outline visible against both the card and the page", () => {
-  const outline = rootColor(css, "stone-300");
+  const outline = tokenColor(css, "stone-300");
   for (const surface of ["paper", "cream"]) {
-    expect(contrast(outline, rootColor(css, surface))).toBeGreaterThanOrEqual(3);
+    expect(contrast(outline, tokenColor(css, surface))).toBeGreaterThanOrEqual(3);
   }
 });

@@ -6,7 +6,9 @@ The private-space section uses `apps/web/public/home/editorial-coffee.webp`, an 
 
 The Discovery phone preview uses `apps/web/public/home/discovery-preview-maya.webp`, cropped from that same scene. Its profile and the Atlas chapter in the Together phone are fictional examples; the previews never load member data.
 
-The homepage serves Source Serif 4 and Roboto locally. Their SIL Open Font Licenses are in `apps/web/public/fonts/source-serif-4-OFL.txt` and `apps/web/public/fonts/roboto-OFL.txt`.
+The desktop sign-in and signup pages reuse the 1024px Blue Hour photograph as a decorative side panel. On phones the form takes the full width and the photo is omitted.
+
+The homepage and app share locally hosted Source Serif 4 for editorial headings and Roboto for controls and body text. Their SIL Open Font Licenses are in `apps/web/public/fonts/source-serif-4-OFL.txt` and `apps/web/public/fonts/roboto-OFL.txt`.
 
 ## Earlier coffee-date artwork
 

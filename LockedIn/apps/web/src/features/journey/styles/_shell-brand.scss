@@ -4,18 +4,14 @@
 
 .page {
   color: var(--ink);
-  background:
-    linear-gradient(90deg, rgba(32, 24, 47, 0.028) 1px, transparent 1px),
-    linear-gradient(rgba(32, 24, 47, 0.028) 1px, transparent 1px),
-    var(--cream);
-  background-size: 40px 40px;
+  background: var(--cream);
 }
 
 .header {
   min-height: 76px;
   padding-inline: max(4vw, 24px);
-  border-color: rgba(32, 24, 47, 0.14);
-  background: rgba(244, 239, 230, 0.92);
+  border-color: var(--brand-rule);
+  background: var(--paper);
 }
 
 .brand {
@@ -44,20 +40,17 @@
 .intro h1 {
   max-width: 900px;
   color: var(--ink);
-  font-family: var(--font-display);
-  font-size: clamp(3.2rem, 7vw, 7.2rem);
-  font-weight: 650;
-  line-height: 0.88;
-  letter-spacing: -0.075em;
+  font: 550 clamp(2.65rem, 6vw, 5.7rem) / 1.02 var(--font-serif);
+  letter-spacing: -.045em;
 }
 .intro > div:first-child > p { color: var(--stone-500); font-size: 1rem; }
 .eyebrow { color: var(--accent); font-family: var(--font-mono); font-size: 0.64rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
 
 .memberCard {
-  border-color: rgba(32, 24, 47, 0.18);
-  border-radius: 2px;
+  border-color: var(--brand-rule);
+  border-radius: var(--r);
   background: var(--paper);
-  box-shadow: 7px 7px 0 var(--sage);
+  box-shadow: none;
 }
 .avatar { border-radius: 50%; background: linear-gradient(135deg, var(--accent) 0 50%, var(--plum) 50%); }
 
@@ -110,13 +103,14 @@
 .sectionHero,
 .emptyWorkspace,
 .alignmentNextPrompt {
-  border-color: rgba(32, 24, 47, 0.16);
-  border-radius: 3px;
+  border-color: var(--brand-rule);
+  border-radius: var(--r);
   background: var(--paper);
   box-shadow: none;
 }
-.primaryCard { border-left: 6px solid var(--accent); }
-.primaryCard::after { right: -80px; bottom: -145px; background: var(--blush); opacity: 0.35; }
+.primaryCard { border-left: 3px solid var(--accent); }
+.primaryCard::after { content: none; }
+.primaryCard h1 { font: 550 clamp(1.7rem, 5vw, 3rem) / 1.08 var(--font-serif); letter-spacing: -.035em; }
 .cardNumber { color: rgba(75, 49, 95, 0.12); font-family: var(--font-display); font-size: 4rem; }
 
 .primaryCard h2,
@@ -227,7 +221,7 @@
 @media (max-width: 640px) {
   .page { background-size: 30px 30px; }
   .main { width: min(100% - 28px, 1280px); }
-  .intro h1 { font-size: clamp(3.2rem, 15vw, 5rem); }
+  .intro h1 { font-size: clamp(2.25rem, 9vw, 4rem); }
   .workspaceNav { top: 76px; }
   .workspaceNav button { font-size: 0.52rem; }
   .dashboardOverview { grid-template-columns: 1fr; }

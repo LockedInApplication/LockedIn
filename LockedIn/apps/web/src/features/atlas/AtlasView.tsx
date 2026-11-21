@@ -40,11 +40,11 @@ export default function AtlasView({
     <section className={styles.atlasShell} aria-labelledby="atlas-title">
       <header className={styles.atlasHero}>
         <div>
-          <span className={styles.atlasKicker}>THE ATLAS OF US</span>
-          <h2 id="atlas-title">Same word. Two worlds. One meaning you build together.</h2>
+          <span className={styles.atlasKicker}>UNDERSTAND EACH OTHER</span>
+          <h1 id="atlas-title">The Atlas of Us</h1>
           <p>
-            Explore the everyday words that quietly shape a relationship. Each landmark opens
-            privately and completes only when you both feel accurately understood.
+            Explore what words like support and space mean to each of you. Start with private
+            answers, then write a meaning you both agree on.
           </p>
         </div>
         <div className={styles.atlasCompass} aria-label={`${completedCount} of ${words.length} landmarks explored`}>

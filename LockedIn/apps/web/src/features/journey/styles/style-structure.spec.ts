@@ -8,10 +8,10 @@ const features = fileURLToPath(new URL("../../", import.meta.url));
 const entrypoint = fileURLToPath(new URL("../../../app/journey/journey.module.scss", import.meta.url));
 
 describe("Journey Sass extraction", () => {
-  it("compiles exactly the baseline cascade, including mobile and reduced-motion rules", () => {
+  it("compiles the editorial cascade, including mobile and reduced-motion rules", () => {
     const result = compile(entrypoint);
     expect(createHash("sha256").update(result.css).digest("hex")).toBe(
-      "7d1813255b7a546593d709d9c769f357ff45d72978674f1b79f99653a43bfe35",
+      "99c8dd9d4da09e8b75a63b987bb442290632cadb299de3895c641a214b5b18bd",
     );
     expect([...result.css.matchAll(/@media[^\{]+/g)].map((match) => match[0].trim())).toEqual([
       "@media (max-width: 900px)", "@media (max-width: 640px)",

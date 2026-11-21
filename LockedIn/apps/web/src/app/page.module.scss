@@ -1,38 +1,22 @@
-@font-face {
-  font-family: "Roboto";
-  src: url("/fonts/roboto-latin-400-700.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Source Serif 4";
-  src: url("/fonts/source-serif-4-latin-500-700.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 500 700;
-  font-display: swap;
-}
-
 /* A sticky header needs the viewport, not the site's default overflow container. */
 :global(html):has(.page), :global(body):has(.page) { overflow-x: clip; }
 
 .page {
-  --home-frost: #fcfbfa;
-  --home-ink: #1b1a1a;
-  --home-muted: #444141;
-  --home-accent: #4b274b;
-  --home-rule: #dedad6;
-  --home-action: #1b1a1a;
-  --home-action-hover: #3b313b;
-  --home-heading: "Source Serif 4", Georgia, serif;
+  --home-frost: var(--brand-paper);
+  --home-ink: var(--brand-ink);
+  --home-muted: var(--brand-muted);
+  --home-accent: var(--brand-accent);
+  --home-rule: var(--brand-rule);
+  --home-action: var(--action);
+  --home-action-hover: var(--brand-action-hover);
+  --home-heading: var(--font-serif);
   --home-gutter: clamp(1.25rem, 2.5vw, 2rem);
   --home-header: 4.5rem;
   position: relative;
   min-height: 100vh;
   background: var(--home-frost);
   color: var(--home-ink);
-  font-family: "Roboto", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 1rem;
   line-height: 1.5;
 }

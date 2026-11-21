@@ -1,7 +1,7 @@
 .chat { min-width: 0; }
 .page {min-height:100dvh;background:var(--cream);color:var(--ink);}
 .main {max-width:1040px;margin:auto;padding:28px 24px 64px;}
-.main h1 {font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.2;display:flex;align-items:center;gap:12px;}
+.main h1 {font:550 clamp(1.7rem,4vw,2.5rem)/1.15 var(--font-serif);letter-spacing:-.035em;display:flex;align-items:center;gap:12px;overflow-wrap:anywhere;}
 .main a {color:var(--action);min-height:44px;display:inline-flex;align-items:center;}
 .main > button {font:inherit;min-height:44px;padding:10px 16px;border:1px solid var(--stone-300);border-radius:10px;background:var(--paper);color:var(--action);cursor:pointer;}
 .main summary {cursor:pointer;min-height:44px;display:flex;align-items:center;}

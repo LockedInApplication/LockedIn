@@ -1,7 +1,7 @@
 .page {
   min-height: 100vh;
-  color: var(--ink, #211930);
-  background: var(--paper, #f5f0e7);
+  color: var(--ink);
+  background: var(--cream);
 }
 .main {
   max-width: 850px;
@@ -14,8 +14,8 @@
   align-items: center;
   margin: 30px 0;
   h1 {
-    font-size: clamp(28px, 5vw, 42px);
-    line-height: 1.15;
+    font: 550 clamp(1.75rem, 5vw, 2.625rem) / 1.15 var(--font-serif);
+    letter-spacing: -.035em;
     margin: 0 0 8px;
   }
   p {
@@ -25,10 +25,9 @@
 .card {
   padding: clamp(20px, 4vw, 32px);
   margin: 20px 0;
-  border: 2px solid #282036;
-  border-radius: 22px;
-  background: #fffdf8;
-  box-shadow: 5px 6px 0 #ddd0e8;
+  border: 1px solid var(--brand-rule);
+  border-radius: var(--r);
+  background: var(--paper);
   h2 {
     font-size: 24px;
     margin: 0 0 12px;
@@ -51,11 +50,11 @@
   input {
     width: 100%;
     box-sizing: border-box;
-    border: 1px solid #a89cae;
-    border-radius: 10px;
+    border: 1px solid var(--stone-300);
+    border-radius: var(--control-radius);
     padding: 13px;
     background: #fff;
-    color: #211930;
+    color: var(--ink);
     font: inherit;
   }
 }
@@ -63,14 +62,13 @@
 .textButton {
   font: inherit;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: var(--control-radius);
   padding: 12px 18px;
 }
 .primary {
-  background: #4d335f;
-  color: white;
-  border: 2px solid #211930;
-  box-shadow: 0 4px 0 #211930;
+  background: var(--action);
+  color: var(--on-action);
+  border: 1px solid var(--action);
   font-weight: 700;
   &:disabled {
     cursor: default;
@@ -80,8 +78,8 @@
 }
 .textButton {
   background: transparent;
-  border: 1px solid #aaa0ac;
-  color: #4d335f;
+  border: 1px solid var(--stone-300);
+  color: var(--action);
   margin: 8px 0;
 }
 .deletionActions {
@@ -94,10 +92,9 @@
   composes: primary;
   background: #912630;
   border-color: #641820;
-  box-shadow: 0 4px 0 #641820;
 }
 .hint {
-  color: #68616f;
+  color: var(--stone-500);
   font-size: 14px;
 }
 .error {
@@ -149,11 +146,11 @@
   padding: 8px;
   cursor: pointer;
   &:has(input:checked) {
-    border-color: #4d335f;
-    background: #f0e8f5;
+    border-color: var(--forest);
+    background: var(--stone-50);
   }
   input {
-    accent-color: #4d335f;
+    accent-color: var(--forest);
   }
 }
 .avatarField legend {
@@ -164,22 +161,22 @@
   align-items: flex-start;
   gap: 14px;
   padding: 18px 0;
-  border-bottom: 1px solid #e3dce5;
+  border-bottom: 1px solid var(--brand-rule);
   input {
     margin-top: 4px;
     width: 20px;
     height: 20px;
-    accent-color: #4d335f;
+    accent-color: var(--forest);
   }
   small {
     display: block;
     font-size: 14px;
     margin-top: 6px;
-    color: #68616f;
+    color: var(--stone-500);
     line-height: 1.5;
   }
 }
 .page :focus-visible {
-  outline: 3px solid #b088d3;
+  outline: 3px solid var(--focus-ring);
   outline-offset: 4px;
 }

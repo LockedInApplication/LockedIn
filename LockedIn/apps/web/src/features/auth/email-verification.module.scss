@@ -17,10 +17,10 @@
   background: var(--paper);
   overflow-wrap: anywhere;
 
-  h1 { font: 650 clamp(1.8rem, 6vw, 2.4rem)/1.12 var(--font-display); letter-spacing: -.035em; }
+  h1 { font: 550 clamp(1.8rem, 6vw, 2.4rem)/1.12 var(--font-serif); letter-spacing: -.035em; }
   p { line-height: 1.5; }
   input, button, a { font: inherit; }
-  input, button { min-height: 44px; width: 100%; padding: 10px 12px; border: 1px solid var(--stone-300); border-radius: 7px; }
+  input, button { min-height: 44px; width: 100%; padding: 10px 12px; border: 1px solid var(--stone-300); border-radius: var(--control-radius); }
   input { min-width: 0; color: inherit; background: white; }
   button { cursor: pointer; color: var(--action); background: var(--paper); font-weight: 650; }
   button:disabled { cursor: wait; opacity: .65; }
@@ -34,7 +34,7 @@
     text-align: center;
     justify-content: center;
     padding: 10px 12px;
-    border-radius: 7px;
+    border-radius: var(--control-radius);
     text-decoration: none;
     font-weight: 650;
   }

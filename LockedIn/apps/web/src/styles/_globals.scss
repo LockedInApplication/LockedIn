@@ -1,19 +1,42 @@
-@import url("https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400..900;1,400..700&family=IBM+Plex+Mono:wght@500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap");
 
-// Courtyard: warm mineral surfaces, forest controls, and terracotta accents.
+@font-face {
+  font-family: "Roboto";
+  src: url("/fonts/roboto-latin-400-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  src: url("/fonts/source-serif-4-latin-500-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+}
 
 :root {
-  --cream: #f1f2e8;
-  --warm-white: #fdfcf6;
+  // Shared editorial palette. Courtyard colors still mark states and landmarks.
+  --brand-paper: #fcfbfa;
+  --brand-canvas: #f3f0ed;
+  --brand-ink: #1b1a1a;
+  --brand-muted: #444141;
+  --brand-rule: #dedad6;
+  --brand-accent: #4b274b;
+  --brand-action-hover: #3b313b;
+  --cream: var(--brand-canvas);
+  --warm-white: var(--brand-paper);
   --stone-50: #e9ece1;
   --stone-100: #d7dcd0;
   --stone-300: #7f8b7c;
   --stone-500: #56645d;
   --stone-700: #38453d;
-  --ink: #242f2a;
-  --action: #365848;
-  --on-action: #fff9ee;
-  --focus-ring: #365848;
+  --ink: var(--brand-ink);
+  --action: var(--brand-ink);
+  --on-action: var(--brand-paper);
+  --focus-ring: var(--brand-accent);
+  --forest: #365848;
   --terracotta: #ae653f;
   --accent: #89472d;
   --accent-light: #c78059;
@@ -28,16 +51,17 @@
   // Compatibility aliases for components using the original token names.
   --plum: var(--action);
   --plum-deep: var(--ink);
-  --paper: #fdfcf6;
+  --paper: var(--brand-paper);
+  --control-radius: .65rem;
   --r: 14px;
   --r-lg: 22px;
   --r-sm: 8px;
   --shadow-sm: 0 1px 2px #242f2a0f, 0 0 0 1px #242f2a0f;
   --shadow-md: 0 14px 34px #242f2a17, 0 0 0 1px #242f2a0d;
   --shadow-lg: 0 26px 70px #242f2a24, 0 0 0 1px #242f2a0d;
-  --font-sans: "Figtree", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: "Roboto", system-ui, sans-serif;
   --font-display: var(--font-sans);
-  --font-serif: var(--font-display);
+  --font-serif: "Source Serif 4", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
  

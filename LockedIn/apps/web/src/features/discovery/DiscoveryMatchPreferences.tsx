@@ -95,9 +95,9 @@ export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved }
     <p>{canEdit ? "You’ll only see people who fit your preferences and whose preferences you fit. Your birthday and choices won’t appear on your profile." : "New matching settings are unavailable. You can still remove what you saved."}</p>
     {error?<p className={`${styles.notice} ${styles.error}`} role="alert">{error}</p>:null}
     {canReload&&onReload?<button type="button" disabled={busy} onClick={onReload}>Reload saved preferences</button>:null}
-    {canEdit?<form className={styles.form} onSubmit={submit}>
+    {canEdit?<form className={`${styles.form} ${styles.matchForm}`} onSubmit={submit}>
       <fieldset className={styles.editorFields} disabled={busy}>
-        <label>Date of birth<input type="date" autoComplete="bday" required value={birthDate} onChange={event=>{setBirthDate(event.target.value);setConfirmed(false);}}/></label>
+        <label className={styles.matchField}>Date of birth<input type="date" autoComplete="bday" required value={birthDate} onChange={event=>{setBirthDate(event.target.value);setConfirmed(false);}}/></label>
         {birthDateChanged?<label className={styles.check}><input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/>Confirm this birthday (one correction every 30 days)</label>:null}
         <div className={styles.matchField}>
           <label htmlFor={`${heading}-gender`}>How you identify for matching</label>
@@ -105,8 +105,8 @@ export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved }
         </div>
         <fieldset className={styles.rangeField}>
           <legend>Who you’re open to meeting</legend>
-          <label className={styles.check}><input type="checkbox" checked={meet === "all"} onChange={event=>setMeet(event.target.checked?"all":[])}/>Open to all genders</label>
-          <div className={styles.rangeOptions}>{options.map(([key,label])=><label key={key}><input type="checkbox" disabled={meet === "all"} checked={meet === "all" || meet.includes(key)} onChange={event=>setMeet(current=>current === "all" ? current : event.target.checked ? [...current,key] : current.filter(value=>value!==key))}/><span>{label}</span></label>)}</div>
+          <label className={`${styles.check} ${styles.matchAll}`}><input type="checkbox" checked={meet === "all"} onChange={event=>setMeet(event.target.checked?"all":[])}/>Open to all genders</label>
+          <div className={`${styles.rangeOptions} ${styles.matchGenderOptions}`}>{options.map(([key,label])=><label key={key}><input type="checkbox" disabled={meet === "all"} checked={meet === "all" || meet.includes(key)} onChange={event=>setMeet(current=>current === "all" ? current : event.target.checked ? [...current,key] : current.filter(value=>value!==key))}/><span>{label}</span></label>)}</div>
         </fieldset>
         <fieldset className={styles.rangeField}>
           <legend>Age preference</legend>
@@ -126,7 +126,7 @@ export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved }
           </div>:null}
         </fieldset>
       </fieldset>
-      <div className={styles.actions}><button className={styles.primary} type="submit" disabled={busy || !ready}>{settings ? "Save matching preferences" : "Save and continue"}</button>{onCancel?<button type="button" onClick={onCancel} disabled={busy}>Cancel</button>:null}</div>
+      <div className={`${styles.actions} ${styles.matchActions}`}><button className={styles.primary} type="submit" disabled={busy || !ready}>{settings ? "Save matching preferences" : "Save and continue"}</button>{onCancel?<button type="button" onClick={onCancel} disabled={busy}>Cancel</button>:null}</div>
     </form>:onCancel?<button onClick={onCancel} disabled={busy}>Back</button>:null}
     {settings?<div className={`${styles.actions} ${styles.matchRemove}`}><button className={styles.danger} type="button" disabled={busy} onClick={()=>setRemove(true)}>Remove matching setup</button></div>:null}
     <ConfirmDialog open={remove} title="Remove your matching setup?" description="Your birthday and matching choices will be deleted. When matching is required, you’ll stop appearing in Discover until you set it up again. Existing chats and direct invites still work." confirmLabel="Remove setup" cancelLabel="Keep preferences" onCancel={()=>setRemove(false)} onConfirm={()=>{setRemove(false);void update("DELETE");}}/>

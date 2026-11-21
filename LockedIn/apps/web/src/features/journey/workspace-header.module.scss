@@ -100,7 +100,10 @@ header.header {
     // header instead of the viewport. Win even if its CSS is loaded last.
     backdrop-filter: none;
   }
-  .frame { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .frame {
+    --member-bottom-nav-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--member-bottom-nav-clearance);
+  }
   .tabs {
     position: fixed;
     inset: auto 0 0;

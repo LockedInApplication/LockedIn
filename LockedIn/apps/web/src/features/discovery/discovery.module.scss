@@ -44,7 +44,25 @@
 .rangeOptions input:checked + span {background:var(--action);color:white;}
 .rangeOptions input:focus-visible + span {outline:3px solid var(--focus-ring);outline-offset:3px;}
 .rangeOptions input:disabled + span {opacity:.65;cursor:default;}
-.matchField {display:grid;gap:8px;}
+.matchForm {min-inline-size:0;margin-block-start:1.25rem;gap:1.5rem;}
+.matchForm .editorFields {grid-template-columns:minmax(0,1fr);gap:1.375rem;}
+.matchField {display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-inline-size:0;}
+.matchForm :is(input[type="date"],select) {
+  display:block;
+  inline-size:100%;
+  min-inline-size:0;
+  max-inline-size:100%;
+  min-block-size:48px;
+  padding:10px 12px;
+  font-weight:400;
+  line-height:1.5;
+}
+// Keep the native date picker without its intrinsic field width on narrow screens.
+.matchForm input[type="date"] { -webkit-appearance:none; appearance:none; }
+.matchForm input[type="date"]::-webkit-date-and-time-value { text-align:start; }
+.matchForm .matchAll {min-block-size:44px;align-items:center;margin-block-end:.625rem;}
+.matchForm .matchAll input {margin-block-start:0;}
+.matchForm .rangeOptions span {padding:.375rem .625rem;text-align:center;overflow-wrap:break-word;}
 .matchAges {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px;}
 .matchRemove {margin-top:18px;}
 .replyPhoto {display:block;width:min(100%,260px);height:auto;border-radius:12px;}
@@ -69,5 +87,11 @@
 @media(max-width:700px){.main{padding:18px 16px 44px;}.card{padding:18px;border-radius:12px;}.grid{grid-template-columns:1fr;gap:0;}.nav{gap:6px;margin-bottom:18px;padding-bottom:14px;}.nav button{font-size:.85rem;padding:8px 10px;}.radar{gap:8px;padding:12px;}.profile>span{flex:none;}}
 @media(max-width:700px){
   .locationActions {display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;}
+  .matchGenderOptions {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
+  .matchActions {display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;}
+  .matchActions > button {
+    min-block-size:48px;
+    scroll-margin-block-end:calc(var(--member-bottom-nav-clearance) + 12px);
+  }
 }
 @media(prefers-reduced-motion:reduce){.page *{scroll-behavior:auto!important;animation:none!important;transition:none!important;}}

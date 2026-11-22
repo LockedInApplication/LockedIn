@@ -33,6 +33,7 @@ import {useJourneyHistoryGuard} from './use-journey-history-guard';
 import RelationshipMessages from "./components/RelationshipMessages";
 import TogetherChatActions from "./components/TogetherChatActions";
 import { TogetherHomeHeading, TogetherPlan, TogetherWelcome } from "./components/TogetherHome";
+import togetherStyles from "./components/together-home.module.scss";
 import { getUpcomingTogetherPlan } from "./together-home";
 import DirectLockIn from "@/features/messaging/DirectLockIn";
 import { currentCheckInHref } from "./journey.navigation";
@@ -279,7 +280,7 @@ export default function JourneyWorkspace() {
 
   return (
     <MemberChrome key={overview.user.id} {...chrome}>
-      <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${isHome?guidanceStyles.home:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={()=>setDirty(true)}>
+      <main className={`${styles.main} ${!overview.relationship && !suggestionReference ? togetherStyles.welcomeMain : ""} ${activeView==='conversations'?conversationStyles.compactMain:''} ${isHome?guidanceStyles.home:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={()=>setDirty(true)}>
         {overview.relationship && isHome ? <TogetherHomeHeading
           key={`${overview.user.id}:${overview.relationship.id}`}
           user={{ ...overview.user, name: overview.user.name || overview.user.email }} userId={overview.user.id}

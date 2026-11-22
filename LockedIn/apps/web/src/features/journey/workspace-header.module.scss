@@ -6,6 +6,67 @@
   --cream: var(--member-surface);
   --paper: var(--member-surface);
 }
+.frame.editorial {
+  --member-surface: #f6f4ef;
+  --member-divider: #dcd7ce;
+  --member-hover: #ede9e2;
+  --member-muted: #685e55;
+  --editorial-ink: #1d1917;
+  --editorial-stone: #ece8e1;
+  --editorial-accent: #a54428;
+  --editorial-accent-hover: #87341d;
+  --editorial-gutter: clamp(1rem, 8.9vw, 8rem);
+}
+.editorial header.header {
+  padding-inline: max(var(--editorial-gutter), calc((100% - 86rem) / 2));
+  min-height: 65px;
+}
+.editorial .header > a {
+  gap: .6rem;
+  color: var(--editorial-ink);
+  font: 550 clamp(1.45rem, 2.2vw, 1.7rem)/1 var(--font-serif);
+  letter-spacing: -.045em;
+}
+.rings { position: relative; inline-size: 23px; block-size: 16px; flex: none; }
+.rings::before, .rings::after {
+  content: "";
+  position: absolute;
+  inset: 1px auto auto 0;
+  inline-size: 14px;
+  block-size: 14px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+.rings::after { inset-inline-start: 7px; border-color: #b75633; }
+.editorial .tabs a { border-radius: 999px; color: var(--member-muted); }
+.editorial .tabs a[aria-current] { background: var(--editorial-ink); color: #fffaf4; }
+.editorial .tabs a[aria-current]::after { content: none; }
+.editorial .tabs a[aria-current] .badge { background: #f6f4ef; color: var(--editorial-ink); }
+.editorial .tabs svg { flex: none; width: 19px; height: 19px; }
+.backToSite {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--member-muted);
+  font-size: .8125rem;
+  font-weight: 600;
+  text-underline-offset: .3em;
+  white-space: nowrap;
+}
+@media (max-width: 1050px) {
+  .frame.editorial { --editorial-gutter: clamp(1rem, 4vw, 3rem); }
+}
+@media (max-width: 850px) {
+  .backToSite { display: none; }
+}
+@media (min-width: 901px) {
+  .editorial header.header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .editorial .header > a { justify-self: start; }
+  .editorial .actions { justify-self: end; }
+}
 
 .header {
   gap: 12px;

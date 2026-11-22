@@ -9,6 +9,84 @@
   p { margin: 0; color: var(--member-muted); }
 }
 .section { margin-top: 24px; }
+.empty {
+  width: min(100%, 44rem);
+  margin: clamp(1.25rem, 4.2vw, 3.65rem) auto 0;
+  color: var(--editorial-ink, var(--ink));
+  h1[id] {
+    margin-block: .95rem .75rem;
+    font: 500 clamp(2.7rem, 4.9vw, 4.15rem)/1.02 var(--font-serif);
+    letter-spacing: -.05em;
+  }
+}
+.eyebrow {
+  color: var(--editorial-accent, var(--accent));
+  font: 650 .7rem/1.4 var(--font-sans);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+.emptyIntro {
+  max-inline-size: 48ch;
+  color: var(--member-muted);
+  font-size: clamp(1rem, 1.4vw, 1.125rem);
+}
+.emptyCard {
+  display: grid;
+  justify-items: center;
+  gap: .6rem;
+  margin-block: clamp(1.45rem, 3vw, 2.5rem) clamp(.9rem, 2vw, 1.65rem);
+  padding: clamp(1.4rem, 3.6vw, 2.8rem) 1.15rem;
+  border: 1px dashed #bab2a8;
+  border-radius: clamp(1rem, 2vw, 1.6rem);
+  background: #f0ede8;
+  text-align: center;
+  h2 { margin: 0; font: 550 clamp(1.35rem, 2.2vw, 1.6rem)/1.15 var(--font-serif); }
+  p { max-inline-size: 42ch; color: var(--member-muted); font-size: .9375rem; }
+}
+.mailIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 2.8rem;
+  aspect-ratio: 1;
+  margin-bottom: .35rem;
+  border: 1px solid var(--member-divider);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--member-muted);
+}
+.empty .emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  button {
+    min-height: 44px;
+    padding: .55rem 1.1rem;
+    border: 1px solid #b9b0a6;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--editorial-ink, var(--ink));
+    font-weight: 650;
+    &:hover { background: var(--member-hover); }
+  }
+  .emptyPrimary {
+    border-color: transparent;
+    background: var(--editorial-ink, var(--ink));
+    color: #fffaf4;
+    &:hover { background: #45342a; }
+  }
+}
+.empty button.sentLink {
+  min-height: 44px;
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+  color: var(--member-muted);
+  text-decoration: underline;
+  text-underline-offset: .22em;
+}
+@media (max-width: 420px) {
+  .empty .emptyActions { display: grid; grid-template-columns: minmax(0, 1fr); }
+}
 .rows {
   margin: 0 0 16px;
   padding: 0;

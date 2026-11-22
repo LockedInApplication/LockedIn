@@ -36,6 +36,8 @@ export default function InboxList({ compose }: { compose: boolean }) {
   const { chats, invitations, history, offPageUnread } = inboxEntries(connections.value?.items ?? [], linked.value, unread, !!me.chatEnabled && (me.canChat ?? me.canDiscover), direct.value?.directChats);
   const settled = !!connections.value && !!direct.value && (!directChatId || !!linked.value);
   const pending = !connections.error && !direct.error && !linked.error && !settled;
+  const empty = settled && !connections.error && !direct.error && !linked.error &&
+    !before && !chats.length && !offPageUnread && !invitations.length && !direct.value?.pending.length;
 
   if (compose) return <>
     <button onClick={() => void leave("/connections")}>← Inbox</button>
@@ -47,13 +49,13 @@ export default function InboxList({ compose }: { compose: boolean }) {
   </>;
 
   return <>
-    <div className={inboxStyles.heading}>
+    {empty ? <InboxEmpty canInvite={!!direct.value?.canInvite} onOpen={leave}/> : <div className={inboxStyles.heading}>
       <div><h1>Inbox</h1><p>Chat with people you’ve connected with or invited.</p></div>
       <div className={styles.actions}>
         {direct.value?.canInvite ? <button className={styles.primary} onClick={() => void leave("/connections?compose=invite")}>Invite someone</button> : null}
         <button onClick={() => void leave("/journey?invitations=manage")}>Sent invitations</button>
       </div>
-    </div>
+    </div>}
     {connections.error ? <p role="alert">Discovery conversations couldn’t load. <button onClick={connections.retry}>Try again</button></p> : null}
     {direct.error ? <p role="alert">Direct invitations couldn’t load. <button onClick={direct.retry}>Try again</button></p> : null}
     {linked.error ? <p role="alert">Your shared-space chat couldn’t load. <button onClick={linked.retry}>Try again</button></p> : null}
@@ -70,11 +72,6 @@ export default function InboxList({ compose }: { compose: boolean }) {
         status: "Invitation to review", detail: direct.value?.chatFirst ? "Invited you to chat" : "Invited you to a private shared space", unread: false,
       })), ...invitations]} onOpen={leave}/>
     </section> : null}
-    {settled && !before && !chats.length && !offPageUnread && !invitations.length && !direct.value?.pending.length ? <section className={styles.card}>
-      <h2>No conversations yet</h2>
-      <p>Meet someone new in Discover, or invite someone you already know.</p>
-      <button onClick={() => void leave("/discover")}>Go to Discover</button>
-    </section> : null}
     {history.length ? <details className={styles.card}>
       <summary>Past or unavailable connections</summary>
       <InboxRows rows={history} onOpen={leave}/>
@@ -84,6 +81,29 @@ export default function InboxList({ compose }: { compose: boolean }) {
       {connections.value?.nextCursor ? <button onClick={() => setCursors(value => [...value, connections.value!.nextCursor])}>Older connections</button> : null}
     </div>
   </>;
+}
+
+export function InboxEmpty({ canInvite, onOpen }: { canInvite: boolean; onOpen: (href: string) => Promise<boolean> }) {
+  return <section className={inboxStyles.empty} aria-labelledby="empty-inbox-title">
+    <p className={inboxStyles.eyebrow}>Inbox</p>
+    <h1 id="empty-inbox-title">No conversations yet.</h1>
+    <p className={inboxStyles.emptyIntro}>When you connect with someone, your chat appears here. You don’t have to lock in to start talking.</p>
+    <div className={inboxStyles.emptyCard}>
+      <span className={inboxStyles.mailIcon} aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="m4 7 8 6 8-6" />
+        </svg>
+      </span>
+      <h2>Nothing waiting for you.</h2>
+      <p>New chats and invitations to review will show up here.</p>
+    </div>
+    <div className={inboxStyles.emptyActions}>
+      <button type="button" className={inboxStyles.emptyPrimary} onClick={() => void onOpen("/journey")}>Back to Together</button>
+      {canInvite ? <button type="button" onClick={() => void onOpen("/connections?compose=invite")}>Invite someone</button> : null}
+      <button type="button" onClick={() => void onOpen("/discover")}>Go to Discover</button>
+    </div>
+    <button className={inboxStyles.sentLink} type="button" onClick={() => void onOpen("/journey?invitations=manage")}>Sent invitations</button>
+  </section>;
 }
 
 type InboxRow = Pick<ReturnType<typeof inboxEntries>["chats"][number], "href" | "partner" | "status" | "detail" | "unread">;

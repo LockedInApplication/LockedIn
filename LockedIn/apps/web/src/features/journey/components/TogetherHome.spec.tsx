@@ -21,12 +21,19 @@ it("prioritizes the right Inbox action and keeps Discover on the photo welcome",
   const fresh = renderToStaticMarkup(<TogetherWelcome canInvite hasInboxActivity={false} />);
   const returning = renderToStaticMarkup(<TogetherWelcome canInvite hasInboxActivity />);
   const paused = renderToStaticMarkup(<TogetherWelcome canInvite={false} hasInboxActivity />);
-  expect(fresh).toContain("Make time for someone.");
+  expect(fresh).toContain("Make time <span>for <em>someone.</em></span>");
   expect(fresh).toContain('alt="Two coffees on a café table, one with a heart in the foam"');
   expect(fresh.indexOf("Invite someone you know")).toBeLessThan(fresh.indexOf("Open Inbox"));
   expect(returning.indexOf("Open Inbox")).toBeLessThan(returning.indexOf("Invite someone you know"));
   expect(paused).not.toContain("Invite someone you know");
   for (const page of [fresh, returning, paused]) expect(page).toContain('href="/discover"');
+  expect(fresh).toContain('href="#lock-in-details"');
+  expect(fresh).toContain('id="lock-in-details"');
+  expect(fresh).toContain("Your existing chats stay open.");
+  expect(fresh).toContain("Example · 1 of 3 landmarks explored");
+  expect(fresh).toContain("Ask if I want advice or just someone to listen.");
+  expect(fresh.match(/<details\b/g)).toHaveLength(3);
+  expect(renderToStaticMarkup(<TogetherWelcome canInvite hasInboxActivity={false} requiresLockIn={false} />)).not.toContain("What unlocks");
 });
 
 it("celebrates a recent server-confirmed choice only once", () => {

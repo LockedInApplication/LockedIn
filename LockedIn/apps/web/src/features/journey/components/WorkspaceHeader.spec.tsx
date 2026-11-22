@@ -24,3 +24,13 @@ it("groups legacy routes and direct chat under the same navigation", () => {
     expect(activeMemberTab(path)).toBe("Profile");
   }
 });
+
+it("matches the editorial shell without removing the main destinations or notifications", () => {
+  const html = renderToStaticMarkup(<WorkspaceHeader editorial active="Together" onNavigate={() => {}} onSignOut={async () => {}}
+    notifications={<button aria-label="Notifications">Bell</button>} />);
+  expect(html).toContain("Locked<em>In</em>");
+  expect(html).toMatch(/href="\/"[^>]*>Back to site<\/a>/);
+  expect(html).toMatch(/<a(?=[^>]*href="\/journey")(?=[^>]*aria-current="page")[^>]*>/);
+  for (const { href } of memberTabs) expect(html).toContain(`href="${href}"`);
+  expect(html).toContain('aria-label="Notifications"');
+});

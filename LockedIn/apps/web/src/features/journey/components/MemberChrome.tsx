@@ -26,9 +26,10 @@ type Props = Pick<WorkspaceHeaderProps, "onNavigate" | "onSignOut" | "user"> & {
 
 export default function MemberChrome({ userId, user, className, invitationView, onNavigate, onSignOut, onOpenNotification, onActivity, onExpired, onStatusChange, onChatSync, children }: Props) {
   const pathname = usePathname();
+  const editorial = pathname === "/journey" || pathname === "/connections";
   const notifications = useNotifications(userId, onActivity, onExpired, onStatusChange, onChatSync);
-  return <div className={`${styles.frame} ${className ?? ""}`}>
-    <WorkspaceHeader user={user} active={activeMemberTab(pathname, invitationView)} onNavigate={onNavigate} onSignOut={onSignOut}
+  return <div className={`${styles.frame} ${className ?? ""} ${editorial ? styles.editorial : ""}`}>
+    <WorkspaceHeader user={user} active={activeMemberTab(pathname, invitationView)} editorial={editorial} onNavigate={onNavigate} onSignOut={onSignOut}
       unreadCount={notifications.unreadChatCount}
       notifications={<NotificationBell notifications={notifications} onOpen={onOpenNotification}/>}/>
     <InboxUnread.Provider value={notifications.unreadChats}>{children}</InboxUnread.Provider>

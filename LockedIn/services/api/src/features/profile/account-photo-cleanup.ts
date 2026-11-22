@@ -62,7 +62,7 @@ export async function prepareAccountDeletion(tx: Prisma.TransactionClient, userI
   return { kind: "queued" as const, receipt };
 }
 
-export async function runAccountPhotoCleanup(provider: PhotoProvider, now = new Date()) {
+export async function runAccountPhotoCleanup(provider: PhotoProvider, now = new Date(), photoBatchSize = 10) {
   const pending = await prisma.accountDeletionRequest.findMany({
     where: { state: "CLEANING_PHOTOS" }, select: { id: true, userId: true },
     // Provider backoff on old jobs must not starve newer requests.
@@ -91,6 +91,6 @@ export async function runAccountPhotoCleanup(provider: PhotoProvider, now = new 
   };
   // Scope this background loop to confirmed account deletions; the normal photo worker is unchanged.
   await settle(true);
-  await runPhotoJobs({ provider, now, batchSize: 10, deletionOwnerIds: pending.map(request => request.userId) });
+  await runPhotoJobs({ provider, now, batchSize: photoBatchSize, deletionOwnerIds: pending.map(request => request.userId) });
   await settle(false);
 }

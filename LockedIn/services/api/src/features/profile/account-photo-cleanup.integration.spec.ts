@@ -9,7 +9,9 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("automatic account
   let app: Awaited<ReturnType<typeof import("../../app.js").buildServer>>;
   let db: typeof import("../../lib/prisma.js").prisma;
   let run: typeof import("./account-photo-cleanup.js").runAccountPhotoCleanup;
+  let roundAt: Date;
   let hash: string;
+  const triggerSecret = "b".repeat(64);
   const destroy = vi.fn<PhotoProvider["destroy"]>();
   const fake: PhotoProvider = {
     destroy, inspect: async () => null, read: async () => { throw Error("Unexpected read"); },
@@ -21,10 +23,13 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("automatic account
     const { auth } = await import("../../lib/auth.js");
     hash = await (await auth.$context).password.hash(password);
     ({ runAccountPhotoCleanup: run } = await import("./account-photo-cleanup.js"));
-    app = await (await import("../../app.js")).buildServer();
+    app = await (await import("../../app.js")).buildServer({ runDeletionRound: () => run(fake, roundAt) });
   });
   beforeEach(() => {
-    Object.assign(process.env, configured, { ACCOUNT_PHOTO_DELETION_ENABLED: "true" });
+    Object.assign(process.env, configured, {
+      ACCOUNT_PHOTO_DELETION_ENABLED: "true",
+      ACCOUNT_PHOTO_CLEANUP_TRIGGER_SECRET: triggerSecret,
+    });
     destroy.mockReset().mockResolvedValue("destroyed");
   });
   afterAll(async () => { await app?.close(); await db?.$disconnect(); process.env = savedEnv; });
@@ -46,6 +51,11 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("automatic account
     headers: { origin, cookie: owner.cookie, "x-profile-owner": owner.id }, payload: { password: secret } });
   const ticket = (owner: Owner) => db.accountDeletionRequest.findUnique({ where: { userId: owner.id } });
   const readOwner = (owner: Owner) => db.user.findUnique({ where: { id: owner.id } });
+  const tick = (authorized = true) => app.inject({
+    method: "POST",
+    url: "/internal/account-photo-cleanup/tick",
+    headers: authorized ? { authorization: `Bearer ${triggerSecret}` } : {},
+  });
 
   it("hides Discovery, ends existing sessions, and finishes only after the correct provider asset is erased", async () => {
     const owner = await ownerWithPhoto(), other = await ownerWithPhoto();
@@ -67,16 +77,24 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("automatic account
     // A provider failure leaves the account and photo pointer intact for retry.
     destroy.mockRejectedValueOnce(Error("synthetic outage"));
     const now = new Date();
-    await run(fake, now);
+    roundAt = now;
+    expect((await tick(false)).statusCode).toBe(404);
+    expect(destroy).not.toHaveBeenCalled();
+    const first = await tick();
+    expect(first.statusCode).toBe(204);
+    expect(first.headers["x-lockedin-cleanup"]).toBe("completed");
     expect(await readOwner(owner)).not.toBeNull();
     expect(await db.discoveryPhoto.findUniqueOrThrow({ where: { id: owner.photo.id } })).toMatchObject({ publicId: owner.photo.publicId, destroyedAt: null });
-    await run(fake, new Date(+now + 120_000));
+    expect((await tick()).statusCode).toBe(204);
+    expect(destroy).toHaveBeenCalledTimes(1);
+    roundAt = new Date(+now + 120_000);
+    expect((await tick()).statusCode).toBe(204);
     expect(destroy.mock.calls).toEqual([[{ publicId: owner.photo.publicId }], [{ publicId: owner.photo.publicId }]]);
     expect(await readOwner(owner)).toBeNull();
     expect(await ticket(owner)).toBeNull();
     expect(await db.discoveryPhoto.findUnique({ where: { id: owner.photo.id } })).toBeNull();
     expect(await readOwner(other)).not.toBeNull();
-    await run(fake, new Date(+now + 120_000));
+    expect((await tick()).statusCode).toBe(204);
     expect(destroy).toHaveBeenCalledTimes(2);
   });
 

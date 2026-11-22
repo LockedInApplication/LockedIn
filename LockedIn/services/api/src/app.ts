@@ -6,6 +6,7 @@ import { healthRoutes } from "./routes/health.routes.js";
 import { usersRoutes } from "./routes/users.routes.js";
 import { journeyRoutes } from "./routes/journey.routes.js";
 import { registerProfileRoutes } from "./features/profile/profile.routes.js";
+import { cleanupTriggerPath, registerAccountPhotoTrigger } from "./features/profile/account-photo-trigger.routes.js";
 import { registerDiscoveryRoutes } from "./features/discovery/discovery.routes.js";
 import { registerMessagingRoutes } from "./features/messaging/messaging.routes.js";
 import type { PhotoProvider } from "./features/discovery/photos/photo.types.js";
@@ -25,7 +26,7 @@ function serializeRequestForLog(request: FastifyRequest) {
     // Verification tokens are in the query; password reset tokens are in the path.
     url: authPath
       ? path.replace(/^\/api\/auth\/reset-password\/.*/, "/api/auth/reset-password/:token")
-      : matchPreferencesPath ? path : request.url,
+      : matchPreferencesPath || path === cleanupTriggerPath ? path : request.url,
     ...(typeof version === "string" ? { version } : version?.[0] ? { version: version[0] } : {}),
     host: request.host,
     remoteAddress: request.ip,
@@ -37,6 +38,7 @@ export async function buildServer({
   logStream,
   dateSpotProvider,
   wakeDeletionWorker,
+  runDeletionRound,
   ...discoveryOptions
 }: {
   logStream?: Writable;
@@ -44,6 +46,7 @@ export async function buildServer({
   discoveryGeocoder?: DiscoveryGeocoder;
   dateSpotProvider?: PlaceProvider;
   wakeDeletionWorker?: () => void;
+  runDeletionRound?: () => Promise<void> | null;
 } = {}) {
   const server = Fastify({
     logger: {
@@ -64,6 +67,7 @@ export async function buildServer({
   server.register(usersRoutes);
   server.register(journeyRoutes);
   server.register(registerProfileRoutes, { wakeDeletionWorker });
+  server.register(registerAccountPhotoTrigger, { runDeletionRound });
   server.register(registerDiscoveryRoutes, discoveryOptions);
   server.register(registerMessagingRoutes);
   server.register(async scope => registerDateSpotRoutes(scope,dateSpotProvider));

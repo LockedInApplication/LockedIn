@@ -4,6 +4,7 @@ import SessionStage from "@/features/check-ins/SessionStage";
 import type { JourneySession } from "../journey.types";
 import SharedJourneyPath from "./SharedJourneyPath";
 import WorkspaceNav from "./WorkspaceNav";
+import TogetherChatActions from "./TogetherChatActions";
 
 const session: JourneySession = {
   id: "conversation", topic: "Feeling connected", packKey: "support", createdAt: "2026-11-20T12:00:00Z",
@@ -12,6 +13,14 @@ const session: JourneySession = {
   partnerState: { name: "Jordan", submitted: true, revealConsented: true },
   bothRevealed: true, alignment: [], proposals: [], proposalHistory: [], nextSteps: [], nextStep: null,
 };
+
+it("makes the main message link draft-free and offers the prompt as a separate action", () => {
+  const html = renderToStaticMarkup(<TogetherChatActions conversationId="chat" partnerName="Maya" confirmLeave={() => true} />);
+  expect(html).toContain('href="/messages/chat?from=together"');
+  expect(html).toContain('href="/messages/chat?from=together&amp;starter=good-memory"');
+  expect(html.indexOf("Message Maya")).toBeLessThan(html.indexOf("Try a prompt"));
+  expect(html).not.toContain("<form");
+});
 
 it("uses quiet links for Atlas, next steps, and history without duplicating the topic picker", () => {
   const html = renderToStaticMarkup(<WorkspaceNav active="home" onChange={() => {}} />);

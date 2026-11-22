@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { JourneyApiError } from "@/features/journey/journey.client";
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
@@ -17,7 +17,7 @@ import type { DatePlanEvent, DateSheetTarget } from "./date-plans.types";
 import type { ChatPartner } from "./messaging.types";
 import chatStyles from "./chat.module.scss";
 
-type ChatProps = { conversationId: string; userId: string; partner: ChatPartner; onAccessEnded: () => void; openingContext?: ReactNode; backAction?: ReactNode; onViewProfile?: () => void; busy?: boolean; ariaLabel?: string; request?: ChatRequest; messagesPath?: string; renderReport?: (message: Message, onBlocked: () => void) => ReactNode; dateSpotsConversationId?: string; datePlansConversationId?: string };
+type ChatProps = { conversationId: string; userId: string; partner: ChatPartner; onAccessEnded: () => void; openingContext?: ReactNode; backAction?: ReactNode; initialDraft?: string; onViewProfile?: () => void; busy?: boolean; ariaLabel?: string; request?: ChatRequest; messagesPath?: string; renderReport?: (message: Message, onBlocked: () => void) => ReactNode; dateSpotsConversationId?: string; datePlansConversationId?: string };
 export default function Chat(props: ChatProps) {
   return <ChatBody key={props.userId + ":" + props.conversationId} {...props}/>;
 }
@@ -93,10 +93,11 @@ function DateSheetLink({ onOpen }: { onOpen: (id: string) => void }) {
   return null;
 }
 
-function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, backAction, onViewProfile, busy = false, ariaLabel = "Messages", request = messagingRequest, messagesPath, renderReport, dateSpotsConversationId, datePlansConversationId }: ChatProps) {
+function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, backAction, initialDraft = "", onViewProfile, busy = false, ariaLabel = "Messages", request = messagingRequest, messagesPath, renderReport, dateSpotsConversationId, datePlansConversationId }: ChatProps) {
   const path = messagesPath ?? `/api/messaging/conversations/${conversationId}/messages`;
   const [page, setPage] = useState<Page | null>(null);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(initialDraft);
+  const draftHint = useId();
   const [sending, setSending] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [closed, setClosed] = useState(false);
@@ -399,7 +400,8 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       {page ? <ChatDateTools userId={userId} dateSpotsConversationId={sheet ? undefined : dateSpotsConversationId} activePlan={null}
         sharedPlace={sharedPlace} clearSharedPlace={clearSharedPlace} onVenueAvailability={updateVenueAvailability} onCurrentPlan={() => {}}>
         <form className={chatStyles.composer} onSubmit={event => { event.preventDefault(); void send(); }}>
-        <label><span className={chatStyles.srOnly}>Message</span><textarea rows={1} maxLength={2000} value={draft} disabled={sending || busy} placeholder="Write a message…" onChange={event => setDraft(event.target.value)}/></label>
+        {initialDraft && draft.trim() ? <p id={draftHint} className={chatStyles.muted}>Draft · Only you can see this until you send it.</p> : null}
+        <label><span className={chatStyles.srOnly}>Message</span><textarea aria-describedby={initialDraft && draft.trim() ? draftHint : undefined} rows={1} maxLength={2000} value={draft} disabled={sending || busy} placeholder="Write a message…" onChange={event => setDraft(event.target.value)}/></label>
         <button className={chatStyles.send} type="submit" aria-label={sending ? "Sending…" : "Send message"} disabled={!draft.trim() || sending || busy}>
           <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
         </button>

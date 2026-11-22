@@ -31,6 +31,8 @@ import ConversationSuggestionView from "../conversations/ConversationSuggestionV
 import conversationStyles from "../conversations/conversation-library.module.scss";
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
 import RelationshipMessages from "./components/RelationshipMessages";
+import TogetherChatActions from "./components/TogetherChatActions";
+import { currentCheckInHref } from "./journey.navigation";
 import TinyLantern from "./components/TinyLantern";
 
 type Notice = { tone: "success" | "error"; message: string } | null;
@@ -77,16 +79,17 @@ export default function JourneyWorkspace() {
   const invitationManagerOpen=targetQuery.get("invitations")==="manage";
 
   const hasOverview=overview!==null;
+  const hasSession=Boolean(overview?.session);
   useEffect(()=>{
     if(!hasOverview)return;
     const hash=new URL(workspaceLocation,"http://localhost").hash.slice(1);
-    if(!hash.startsWith("step-"))return;
+    if(hash !== "current-action" && !hash.startsWith("step-"))return;
     const element=document.getElementById(hash);
     const details=element?.closest("details");
     if(details)details.open=true;
     element?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
     element?.focus({preventScroll:true});
-  },[workspaceLocation,hasOverview]);
+  },[workspaceLocation,hasOverview,hasSession]);
 
   const onInvitationUpdate=requestQuietRefresh;
 
@@ -201,6 +204,10 @@ export default function JourneyWorkspace() {
     return true;
   }
   const isHome = Boolean(overview.relationship && activeView === "home");
+  const chatId = isHome && overview.messaging?.enabled ? overview.messaging.conversationId : null;
+  const openCurrentCheckIn = () => {
+    if (confirmDiscard()) navigateWorkspaceUrl(currentCheckInHref);
+  };
   const focusCurrentAction = () => {
     const element = document.getElementById("current-action");
     element?.scrollIntoView({
@@ -220,7 +227,7 @@ export default function JourneyWorkspace() {
             body: JSON.stringify({ packKey }),
           },
         );
-        if (result.started) setActiveView("home");
+        if (result.started) openCurrentCheckIn();
         return result;
       },
       "Your choice is saved. A check-in begins only when you both choose the same conversation.",
@@ -235,6 +242,11 @@ export default function JourneyWorkspace() {
     } },
     onOpenNotification: openNotification, onActivity: requestQuietRefresh, onExpired, onStatusChange: onInvitationUpdate };
   const showAtlas = Boolean(overview.relationship && activeView === "atlas" && overview.atlas.words.length);
+  const checkInStage = overview.session ? (
+    <div id="current-action" tabIndex={-1} className={guidanceStyles.currentAction}>
+      <SessionStage session={overview.session} busy={busy} runAction={runAction} onProposeNextStep={openCheckInProposal} />
+    </div>
+  ) : null;
 
   if(invitationManagerOpen)return <MemberChrome key={overview.user.id} {...chrome}><main className={styles.main}>
     <InvitationManager key={overview.user.id} revision={invitationRevision} onClose={()=>router.push("/connections")}/>
@@ -271,7 +283,7 @@ export default function JourneyWorkspace() {
               <ProfileAvatar name={overview.relationship.partner.name} preset={overview.relationship.partner.avatarPreset}/>
             </div>
             <strong>You &amp; {overview.relationship.partner.name}</strong>
-            <RelationshipMessages messaging={overview.messaging} confirmLeave={() => !busy && confirmDiscard()}/>
+            {overview.relationship.isMutuallyLockedIn ? <span className={guidanceStyles.lockedIn}>Locked in</span> : null}
           </div> : <div className={styles.memberCard}>
             <ProfileAvatar name={overview.user.name || overview.user.email} preset={overview.user.avatarPreset}/>
             <div>
@@ -282,7 +294,21 @@ export default function JourneyWorkspace() {
           </div>}
         </section>:null}
 
-        {isHome ? <NextActionCard overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction} /> : null}
+        {isHome && chatId && overview.relationship ? <>
+          <TogetherChatActions conversationId={chatId} partnerName={overview.relationship.partner.name} confirmLeave={() => !busy && confirmDiscard()} />
+          {checkInStage ? <details className={guidanceStyles.privateCheckIn}>
+            <summary className={guidanceStyles.checkInEntry}>
+              Private check-in <span className={guidanceStyles.entryDetail}>{overview.session?.bothRevealed ? "View shared answers" : "Answer privately"}</span><span aria-hidden="true" className={guidanceStyles.checkInChevron}>›</span>
+            </summary>
+            {overview.session?.bothRevealed ? <NextActionCard overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction} /> : null}
+            {checkInStage}
+          </details> : (
+            <Link className={guidanceStyles.checkInEntry} href="/journey?view=conversations"
+              onNavigate={event => { event.preventDefault(); if (!busy) setActiveView("conversations"); }}>
+              Private check-in <span className={guidanceStyles.entryDetail}>Answer privately</span><span aria-hidden="true">›</span>
+            </Link>
+          )}
+        </> : isHome ? <NextActionCard overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction} /> : null}
         {!suggestionReference && overview.relationship ? (
           activeView === "conversations"
             ? <Link className={conversationStyles.backToTogether} href="/journey"
@@ -313,7 +339,7 @@ export default function JourneyWorkspace() {
           <ConversationSuggestionView key={`${overview.user.id}:${suggestionReference}`} notificationId={suggestionReference} revision={`${quietRevision}:${invitationRevision}`} busy={busy}
             onHome={()=>{if(confirmDiscard())navigateWorkspaceUrl('/journey');}}
             onBrowse={()=>{if(confirmDiscard())navigateWorkspaceUrl('/journey?view=conversations');}}
-            onAccept={async()=>{await runAction(async()=>{const result=await journeyRequest<{started:boolean}>(`/api/journey/notifications/${encodeURIComponent(suggestionReference)}/conversation-suggestion`,{method:'POST'});if(result.started)navigateWorkspaceUrl('/journey');},'Your conversation choice was saved.');}}/>
+            onAccept={async()=>{await runAction(async()=>{const result=await journeyRequest<{started:boolean}>(`/api/journey/notifications/${encodeURIComponent(suggestionReference)}/conversation-suggestion`,{method:'POST'});if(result.started)navigateWorkspaceUrl(currentCheckInHref);},'Your conversation choice was saved.');}}/>
         ) : !overview.relationship ? (
           <section className={styles.primaryCard}>
             <span className={styles.eyebrow}>TOGETHER</span>
@@ -332,7 +358,7 @@ export default function JourneyWorkspace() {
             canStart={!overview.session || overview.session.bothRevealed}
             busy={busy}
             onStart={startConversation}
-            onContinue={()=>setActiveView('home')}
+            onContinue={openCurrentCheckIn}
             onWithdraw={() =>
               runAction(
                 () =>
@@ -372,11 +398,7 @@ export default function JourneyWorkspace() {
           )
         ) : (
           <>
-            {overview.session ? (
-              <div id="current-action" tabIndex={-1} className={guidanceStyles.currentAction}>
-                <SessionStage session={overview.session} busy={busy} runAction={runAction} onProposeNextStep={openCheckInProposal} />
-              </div>
-            ) : null}
+            {!chatId ? checkInStage : null}
             <SharedJourneyPath
               session={overview.session}
               historyCount={overview.checkInHistory.length}

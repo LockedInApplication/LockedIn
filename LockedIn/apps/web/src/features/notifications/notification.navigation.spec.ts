@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { notificationDestination } from "./notification.navigation";
+it("takes check-in activity into the existing check-in, while an accepted invite opens Together normally", () => {
+    for (const kind of ["CONVERSATION_READY", "SHARING_READY", "GROUND_READY"]) {
+        expect(notificationDestination({ view: "home", kind, entityId: "session", wordKey: null })).toBe("/journey#current-action");
+    }
+    expect(notificationDestination({ view: "home", kind: "INVITATION_ACCEPTED", entityId: "invite", wordKey: null })).toBe("/journey");
+});
 it("routes direct unread messages to their conversation, with encoded IDs", () => {
     expect(notificationDestination({view:"messages",entityId:"a/b",wordKey:null})).toBe("/messages/a%2Fb");
 });

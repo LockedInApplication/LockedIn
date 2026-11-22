@@ -1,5 +1,6 @@
 import type { NotificationItem } from "./notification.types";
-export function notificationDestination(item: Pick<NotificationItem, "view" | "entityId" | "wordKey" | "planId"> & {id?:string}) {
+import { currentCheckInHref } from "@/features/journey/journey.navigation";
+export function notificationDestination(item: Pick<NotificationItem, "view" | "entityId" | "wordKey" | "planId"> & {id?:string;kind?:string}) {
     const query = new URLSearchParams();
     if(item.view==="discovery" || item.view==="messages") {
         if (item.planId) query.set("date", item.planId);
@@ -18,7 +19,9 @@ export function notificationDestination(item: Pick<NotificationItem, "view" | "e
         query.set("view", "conversations");
         if(item.id)query.set("suggestion",item.id);
     }
-    else
+    else {
+        if (item.view === "home" && ["CONVERSATION_READY", "SHARING_READY", "GROUND_READY"].includes(item.kind ?? "")) return currentCheckInHref;
         return "/journey";
+    }
     return `/journey?${query}`;
 }

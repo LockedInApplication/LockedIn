@@ -1,4 +1,5 @@
 export type WorkspaceView = "home" | "conversations" | "atlas" | "roadmap" | "chapters";
+export const currentCheckInHref = "/journey#current-action";
 
 export function getWorkspaceView(search: string): WorkspaceView {
   const view = new URLSearchParams(search).get("view");
@@ -18,5 +19,6 @@ export function workspaceViewUrl(currentUrl: string, view: WorkspaceView): strin
   url.searchParams.delete("suggestion");
   if (view === "home") url.searchParams.delete("view");
   else url.searchParams.set("view", view);
+  if (view !== "home" && url.hash === "#current-action") url.hash = "";
   return `${url.pathname}${url.search}${url.hash}`;
 }

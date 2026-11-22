@@ -8,20 +8,21 @@ import { notificationDestination } from "@/features/notifications";
 import { ConnectedProfileView } from "@/features/discovery/ConnectedProfile";
 import Chat, { ChatIdentity } from "./Chat";
 import MessageSafetyActions from "./MessageSafetyActions";
+import { getTogetherStarter } from "./chat-starter";
 import { messagingRequest } from "./messaging.client";
 import type { ConversationMetadata } from "./messaging.types";
 import { useChatRefresh } from "./use-chat-refresh";
 import { JourneyApiError } from "@/lib/journey";
 import styles from "./chat.module.scss";
 
-export default function ChatPage({ conversationId, fromTogether = false }: { conversationId: string; fromTogether?: boolean }) {
+export default function ChatPage({ conversationId, fromTogether = false, initialDraft }: { conversationId: string; fromTogether?: boolean; initialDraft?: string }) {
   const session = authClient.useSession(), router = useRouter();
   const returnTo = `/messages/${encodeURIComponent(conversationId)}${fromTogether ? "?from=together" : ""}`;
   useEffect(() => { if (!session.isPending && !session.data?.user) router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`); },[session.isPending,session.data?.user,router,returnTo]);
   if (session.isPending || !session.data?.user) return <main><p role="status">Opening Messages…</p></main>;
-  return <AccountChat key={`${session.data.user.id}:${conversationId}`} userId={session.data.user.id} name={session.data.user.name || "Your account"} conversationId={conversationId} fromTogether={fromTogether} returnTo={returnTo}/>;
+  return <AccountChat key={`${session.data.user.id}:${conversationId}`} userId={session.data.user.id} name={session.data.user.name || "Your account"} conversationId={conversationId} fromTogether={fromTogether} returnTo={returnTo} initialDraft={initialDraft}/>;
 }
-function AccountChat({ userId,name,conversationId,fromTogether,returnTo }: { userId: string; name: string; conversationId: string; fromTogether: boolean; returnTo: string }) {
+function AccountChat({ userId,name,conversationId,fromTogether,returnTo,initialDraft }: { userId: string; name: string; conversationId: string; fromTogether: boolean; returnTo: string; initialDraft?: string }) {
   const router = useRouter(), [metadata,setMetadata] = useState<ConversationMetadata | null>(null), [error,setError] = useState("");
   const expired = useCallback(() => router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`),[router,returnTo]);
   const [revision,setRevision] = useState(0);
@@ -44,22 +45,30 @@ function AccountChat({ userId,name,conversationId,fromTogether,returnTo }: { use
   return <MemberChrome className={styles.page} user={{name}} userId={userId} onNavigate={path => router.push(path)} onSignOut={signOut}
     onOpenNotification={async item => { router.push(notificationDestination(item)); return true; }} onActivity={retry} onExpired={expired}>
     <main className={styles.main}>
-      <ChatPageBody userId={userId} metadata={metadata} error={error} retry={retry} onAccessEnded={ended} backAction={backAction}/>
+      <ChatPageBody userId={userId} metadata={metadata} error={error} retry={retry} onAccessEnded={ended} backAction={backAction} initialDraft={initialDraft}/>
     </main>
   </MemberChrome>;
 }
-export function ChatPageBody({userId,metadata,error,retry,onAccessEnded,backAction}:{userId:string;metadata:ConversationMetadata|null;error:string;retry:()=>void;onAccessEnded:()=>void;backAction?:ReactNode}) {
-  return <>{!metadata ? backAction : null}{error ? <section role="alert"><p>{error}</p><button onClick={retry}>Try again</button></section> : null}{metadata ? <ConversationContent userId={userId} metadata={metadata} onAccessEnded={onAccessEnded} backAction={backAction}/> : !error ? <p role="status">Loading conversation…</p> : null}</>;
+export function ChatPageBody({userId,metadata,error,retry,onAccessEnded,backAction,initialDraft}:{userId:string;metadata:ConversationMetadata|null;error:string;retry:()=>void;onAccessEnded:()=>void;backAction?:ReactNode;initialDraft?:string}) {
+  return <>{!metadata ? backAction : null}{error ? <section role="alert"><p>{error}</p><button onClick={retry}>Try again</button></section> : null}{metadata ? <ConversationContent userId={userId} metadata={metadata} onAccessEnded={onAccessEnded} backAction={backAction} initialDraft={initialDraft}/> : !error ? <p role="status">Loading conversation…</p> : null}</>;
 }
-export function ConversationContent({ userId,metadata,onAccessEnded,backAction }: { userId: string; metadata: ConversationMetadata; onAccessEnded: () => void; backAction?: ReactNode }) {
+export function ConversationContent({ userId,metadata,onAccessEnded,backAction,initialDraft }: { userId: string; metadata: ConversationMetadata; onAccessEnded: () => void; backAction?: ReactNode; initialDraft?: string }) {
   const [profileOpen,setProfileOpen] = useState(false);
+  useEffect(() => {
+    if (!initialDraft || !metadata.canChat) return;
+    const url = new URL(window.location.href);
+    if (!getTogetherStarter(url.searchParams.get("from") ?? undefined, url.searchParams.get("starter") ?? undefined)) return;
+    // The composer owns the draft now. Reloading the URL should not reinsert it.
+    url.searchParams.delete("starter");
+    window.history.replaceState(null, "", url);
+  }, [initialDraft, metadata.canChat]);
   if (!metadata.canChat) return <>
     <div className={styles.chatHeader}>{backAction}<ChatIdentity partner={metadata.partner}/></div>
     <section role="status">{metadata.unavailableReason === "VERIFY_EMAIL" ? <><h2>Verify your email</h2><p>Verify your account email before using Messages.</p><Link href="/profile">Profile &amp; verification</Link></> : <p>This chat is unavailable.</p>}</section>
   </>;
   return <>
       <Chat conversationId={metadata.id} userId={userId} partner={metadata.partner} onAccessEnded={onAccessEnded} dateSpotsConversationId={metadata.dateSpotsConversationId} datePlansConversationId={metadata.datePlansConversationId}
-        backAction={backAction} onViewProfile={metadata.profileConnectionId ? () => setProfileOpen(true) : undefined}
+        backAction={backAction} initialDraft={initialDraft} onViewProfile={metadata.profileConnectionId ? () => setProfileOpen(true) : undefined}
         openingContext={metadata.opening ? <details><summary>How you started talking</summary><p>{metadata.opening.questionText}</p><blockquote>{metadata.opening.hello}</blockquote></details> : undefined}/>
       <details><summary>Safety &amp; contact controls</summary><MessageSafetyActions userId={userId} conversationId={metadata.id} onBlocked={onAccessEnded}/></details>
       {profileOpen && metadata.profileConnectionId ? <ConnectedProfileView userId={userId} connectionId={metadata.profileConnectionId} onClose={() => setProfileOpen(false)}/> : null}

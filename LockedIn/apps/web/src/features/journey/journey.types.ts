@@ -38,6 +38,7 @@ export type JourneySession = {
 export type JourneyOverview = {
   messaging?: { enabled: boolean; conversationId: string | null };
   directChats?: DirectInboxChat[];
+  hasInboxActivity?: boolean;
   canInviteToChat?: boolean;
   lockIn?: DirectLockInState;
   user: { id: string; email: string; name: string; avatarPreset?:string };
@@ -50,6 +51,7 @@ export type JourneyOverview = {
   relationship: {
     id: string;
     isMutuallyLockedIn?: boolean;
+    mutuallyLockedInAt?: string;
     partner: { name: string; email: string; avatarPreset?:string };
   } | null;
   session: JourneySession | null;

@@ -45,7 +45,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("direct invitation
     const chat = `/api/messaging/conversations/${id}`;
     const lock = `${chat}/lock-in`;
     expect((await request(a,"GET","/api/journey/overview")).json()).toMatchObject({
-      relationship: null, directChats: expect.arrayContaining([expect.objectContaining({ conversationId: id })]),
+      relationship: null, hasInboxActivity: true, directChats: expect.arrayContaining([expect.objectContaining({ conversationId: id })]),
     });
     expect((await request(a,"GET","/api/discovery/me")).json().value.canDiscover).toBe(true);
     expect((await request(a,"GET","/api/journey/notifications")).json().items).toEqual(expect.arrayContaining([
@@ -74,8 +74,13 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("direct invitation
     const space = await prisma.relationship.findFirstOrThrow({ where:{ members:{ some:{ userId:a.id } } } });
     expect(space.directLockedInAt).toBeInstanceOf(Date);
     expect(await prisma.relationshipMember.count({where:{userId:a.id}})).toBe(1);
-    expect((await request(a,"GET","/api/journey/overview")).json()).toMatchObject({relationship:{id:space.id,isMutuallyLockedIn:true}, messaging:{conversationId:id}});
-    for(const person of [a,b]) expect((await request(person,"GET","/api/discovery/me")).json().value).toMatchObject({canDiscover:false,discoveryLockedIn:true});
+    for(const person of [a,b]) {
+      expect((await request(person,"GET","/api/journey/overview")).json()).toMatchObject({
+        relationship:{id:space.id,isMutuallyLockedIn:true,mutuallyLockedInAt:space.directLockedInAt!.toISOString()},
+        messaging:{conversationId:id},
+      });
+      expect((await request(person,"GET","/api/discovery/me")).json().value).toMatchObject({canDiscover:false,discoveryLockedIn:true});
+    }
     expect((await request(a,"POST",`/api/journey/invites/${later.token}/accept`)).statusCode).toBe(409);
     expect((await request(a,"GET",`${chat}/messages`)).json().value.items[0].text).toBe("Coffee first?");
     expect((await request(a,"POST",`/api/messaging/conversations/${otherId}/messages`,{text:"Existing chats still work",requestId:randomUUID()})).statusCode).toBe(200);

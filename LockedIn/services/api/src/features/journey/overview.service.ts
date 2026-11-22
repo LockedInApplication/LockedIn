@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { getDiscoveryConfig } from "../../config/env.js";
 import { getActiveRelationship } from "../relationships/relationship-access.service.js";
 import { conversationPacks } from "../conversations/conversation.catalog.js";
 import { buildCheckInSnapshot, buildSessionView } from "../check-ins/check-in.view.js";
@@ -9,9 +10,19 @@ import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
 import { conversationAllowsChat } from "../messaging/messaging-access.service.js";
 import { directLockInView } from "../messaging/messaging-lock-in.service.js";
 import { isDiscoveryLockedIn } from "../discovery/discovery-lock-in.js";
+import { isDiscoveryHistoryAllowed } from "../discovery/discovery.config.js";
 import { listSimplePlans } from "../roadmap/simple-plan.service.js";
 
 type OverviewUser = { id: string; email: string; name: string | null };
+
+async function hasDiscoveryInboxActivity(userId: string) {
+  if (process.env.DISCOVERY_CHAT_ENABLED !== "true" || !isDiscoveryHistoryAllowed(getDiscoveryConfig(), userId)) return false;
+  // This selects the Inbox destination, not chat access. Inbox rechecks access for each conversation.
+  return !!await prisma.discoveryConnection.findFirst({
+    where: { state: "ACCEPTED", closedAt: null, OR: [{ userLowId: userId }, { userHighId: userId }] },
+    select: { id: true },
+  });
+}
 
 export async function buildJourneyOverview(userId: string, authenticatedUser?: OverviewUser) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { id: true, email: true, name: true, displayName:true, avatarPreset:true } });
@@ -120,9 +131,14 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
       return { conversationId: row.id, discoveryConnectionId: row.discoveryConnectionId, partner: { publicName: peer.displayName ?? peer.name ?? "Your connection", avatarPreset: peer.avatarPreset } };
     }))).filter(item => item !== null);
     const lockIn = chat && await conversationAllowsChat(prisma, chat) ? await directLockInView(prisma, chat, userId) : null;
+    const mutuallyLockedInAt = relationship?.directLockedInAt ??
+      (relationship?.discoveryConnection?.state === "PROMOTED" ? relationship.discoveryConnection.lockedInAt : null);
+    const hasInboxActivity = !relationship &&
+      (pendingInvites.length > 0 || directChats.length > 0 || await hasDiscoveryInboxActivity(userId));
     return {
       messaging: { enabled: messagingEnabled, conversationId: chat?.id ?? null },
       ...(directChats.length ? { directChats } : {}),
+      hasInboxActivity,
       ...(messagingEnabled ? { canInviteToChat: !await isDiscoveryLockedIn(prisma, userId) } : {}),
       ...(lockIn ? { lockIn } : {}),
       user: { id: user.id, email: user.email, name: user.displayName??user.name, ...(user.avatarPreset?{avatarPreset:user.avatarPreset}:{}) },
@@ -141,8 +157,8 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
       relationship: relationship
         ? {
             id: relationship.id,
-            isMutuallyLockedIn: !!relationship.directLockedInAt || (relationship.discoveryConnection?.state === "PROMOTED"
-              && relationship.discoveryConnection.lockedInAt !== null),
+            isMutuallyLockedIn: !!mutuallyLockedInAt,
+            ...(mutuallyLockedInAt ? { mutuallyLockedInAt: mutuallyLockedInAt.toISOString() } : {}),
             partner: {
               name: partner?.displayName ?? partner?.name ?? partner?.email ?? "Your partner",
               email: partner?.email ?? "",

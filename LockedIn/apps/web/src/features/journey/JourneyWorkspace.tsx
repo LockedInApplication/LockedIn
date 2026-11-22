@@ -26,13 +26,14 @@ import {
   journeyRequest,
 } from "@/lib/journey";
 import styles from "@/app/journey/journey.module.scss";
-import actionStyles from "./shared-space-actions.module.scss";
 import guidanceStyles from "./next-action.module.scss";
 import ConversationSuggestionView from "../conversations/ConversationSuggestionView";
 import conversationStyles from "../conversations/conversation-library.module.scss";
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
 import RelationshipMessages from "./components/RelationshipMessages";
 import TogetherChatActions from "./components/TogetherChatActions";
+import { TogetherHomeHeading, TogetherPlan, TogetherWelcome } from "./components/TogetherHome";
+import { getUpcomingTogetherPlan } from "./together-home";
 import DirectLockIn from "@/features/messaging/DirectLockIn";
 import { currentCheckInHref } from "./journey.navigation";
 import TinyLantern from "./components/TinyLantern";
@@ -208,6 +209,7 @@ export default function JourneyWorkspace() {
   }
   const isHome = Boolean(overview.relationship && activeView === "home");
   const chatId = isHome && overview.messaging?.enabled ? overview.messaging.conversationId : null;
+  const comingUp = isHome ? getUpcomingTogetherPlan(overview.simplePlans ?? []) : undefined;
   const openCurrentCheckIn = () => {
     if (confirmDiscard()) navigateWorkspaceUrl(currentCheckInHref);
   };
@@ -278,27 +280,25 @@ export default function JourneyWorkspace() {
   return (
     <MemberChrome key={overview.user.id} {...chrome}>
       <main className={`${styles.main} ${activeView==='conversations'?conversationStyles.compactMain:''} ${isHome?guidanceStyles.home:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={()=>setDirty(true)}>
-        {overview.relationship && activeView !== "conversations" && !showAtlas ? <section className={`${styles.intro} ${isHome ? guidanceStyles.homeIntro : ""}`}>
-          {isHome ? <h1>Together</h1> : <div>
+        {overview.relationship && isHome ? <TogetherHomeHeading
+          key={`${overview.user.id}:${overview.relationship.id}`}
+          user={{ ...overview.user, name: overview.user.name || overview.user.email }} userId={overview.user.id}
+          partner={overview.relationship.partner} locked={overview.relationship.isMutuallyLockedIn === true}
+          lockedAt={overview.relationship.mutuallyLockedInAt}
+        /> : overview.relationship && activeView !== "conversations" && !showAtlas ? <section className={styles.intro}>
+          <div>
             <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
             <h1>Build the relationship you both choose.</h1>
             <p>Reflect privately, reveal only what feels right, and turn one important conversation into an evolving roadmap you both accept.</p>
-          </div>}
-          {isHome ? <div className={guidanceStyles.homePair}>
-            <div className={guidanceStyles.pairAvatars}>
-              <ProfileAvatar name={overview.user.name || overview.user.email} preset={overview.user.avatarPreset}/>
-              <ProfileAvatar name={overview.relationship.partner.name} preset={overview.relationship.partner.avatarPreset}/>
-            </div>
-            <strong>You &amp; {overview.relationship.partner.name}</strong>
-            {overview.relationship.isMutuallyLockedIn ? <span className={guidanceStyles.lockedIn}>Locked in</span> : null}
-          </div> : <div className={styles.memberCard}>
+          </div>
+          <div className={styles.memberCard}>
             <ProfileAvatar name={overview.user.name || overview.user.email} preset={overview.user.avatarPreset}/>
             <div>
               <strong>{overview.user.name || "Your space"}</strong>
-              <span>{overview.relationship ? `Connected with ${overview.relationship.partner.name}` : "Start privately"}</span>
+              <span>Connected with {overview.relationship.partner.name}</span>
             </div>
-            {overview.relationship?<ProfileAvatar name={overview.relationship.partner.name} preset={overview.relationship.partner.avatarPreset}/>:null}
-          </div>}
+            <ProfileAvatar name={overview.relationship.partner.name} preset={overview.relationship.partner.avatarPreset}/>
+          </div>
         </section>:null}
 
         {isHome && chatId && overview.relationship ? <>
@@ -316,6 +316,7 @@ export default function JourneyWorkspace() {
             </Link>
           )}
         </> : isHome ? <NextActionCard overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction} /> : null}
+        {comingUp ? <TogetherPlan plan={comingUp} onOpen={href => { if (!busy && confirmDiscard()) navigateWorkspaceUrl(href); }} /> : null}
         {!suggestionReference && overview.relationship ? (
           activeView === "conversations"
             ? <Link className={conversationStyles.backToTogether} href="/journey"
@@ -352,18 +353,8 @@ export default function JourneyWorkspace() {
             onBrowse={()=>{if(confirmDiscard())navigateWorkspaceUrl('/journey?view=conversations');}}
             onAccept={async()=>{await runAction(async()=>{const result=await journeyRequest<{started:boolean}>(`/api/journey/notifications/${encodeURIComponent(suggestionReference)}/conversation-suggestion`,{method:'POST'});if(result.started)navigateWorkspaceUrl(currentCheckInHref);},'Your conversation choice was saved.');}}/>
         ) : !overview.relationship ? (
-          <section className={styles.primaryCard}>
-            <span className={styles.eyebrow}>TOGETHER</span>
-            <h1>How would you like to connect?</h1>
-            <p>{overview.canInviteToChat !== undefined
-              ? "Start in Inbox. Together opens when you both choose to lock in."
-              : "Send a private invite to someone you know, or use Discover to meet someone new. Your chats and invitations are in Inbox."}</p>
-            <div className={actionStyles.actions}>
-              <Link className={actionStyles.primary} href="/connections?compose=invite">Invite someone you know <span aria-hidden="true">→</span></Link>
-              {overview.canInviteToChat !== undefined ? <Link href="/connections">Go to Inbox <span aria-hidden="true">→</span></Link> : null}
-              <Link href="/discover">Meet someone new <span aria-hidden="true">→</span></Link>
-            </div>
-          </section>
+          <TogetherWelcome canInvite={overview.canInviteToChat !== false} requiresLockIn={overview.canInviteToChat !== undefined}
+            hasInboxActivity={overview.hasInboxActivity ?? Boolean(overview.directChats?.length || overview.pendingInvites.length)} />
         ) : activeView === "conversations" ? (
           <ConversationLibrary
             packs={overview.conversationPacks}

@@ -53,6 +53,7 @@ describe("buildJourneyOverview", () => {
     expect(overview.conversationSelection).toBeNull();
     expect(overview.checkInHistory).toEqual([]);
     expect(overview.pendingInvites).toEqual([]);
+    expect(overview.hasInboxActivity).toBe(false);
     expect(overview.atlas.words.map(({ key, versionCount, chapter }) => ({ key, versionCount, chapter }))).toEqual([
       { key: "support", versionCount: 0, chapter: null },
       { key: "space", versionCount: 0, chapter: null },
@@ -69,6 +70,7 @@ describe("buildJourneyOverview", () => {
       inviter: { id: "partner", displayName: "Kwame", name: "Kwame Addo", email: "kwame@example.com" },
     }]);
     const overview = await buildJourneyOverview(user.id);
+    expect(overview.hasInboxActivity).toBe(true);
     expect(overview.pendingInvites).toEqual([{
       id: "invite-1", token: "private-invite", expiresAt,
       inviter: { name: "Kwame", email: "kwame@example.com" },
@@ -95,7 +97,15 @@ describe("buildJourneyOverview", () => {
     repository.relationship.findFirst.mockResolvedValue({ ...connectedSpace, discoveryConnection: { state, lockedInAt } });
     const { relationship } = await buildJourneyOverview(user.id);
     expect(relationship?.isMutuallyLockedIn).toBe(expected);
+    expect(relationship?.mutuallyLockedInAt).toBe(expected ? createdAt.toISOString() : undefined);
     expect(relationship).not.toHaveProperty("discoveryConnection");
     expect(relationship).not.toHaveProperty("lockedInAt");
+  });
+
+  it("uses the actual mutual direct Lock In time, not the Together creation date", async () => {
+    const directLockedInAt = new Date("2026-11-22T15:00:00Z");
+    repository.relationship.findFirst.mockResolvedValue({ ...connectedSpace, directLockedInAt, discoveryConnection: null });
+    const { relationship } = await buildJourneyOverview(user.id);
+    expect(relationship).toMatchObject({ isMutuallyLockedIn: true, mutuallyLockedInAt: directLockedInAt.toISOString() });
   });
 });

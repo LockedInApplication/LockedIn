@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { requireUser, sendError } from "../../lib/journey-http.js";
 import { env } from "../../config/env.js";
@@ -8,26 +8,47 @@ import {
   profileNotificationsSchema,
 } from "./profile.schemas.js";
 import { ensureInvitationNotifications } from "../invitations/invitation-notifications.service.js";
-import { deleteOwnAccount } from "./account-deletion.service.js";
+import { deleteOwnAccount, requestAccountDeletion } from "./account-deletion.service.js";
 
 const deletionSchema = z.strictObject({ password: z.string().min(1).max(128) });
+const deletionRequestSchema = z.strictObject({});
 
 export async function registerProfileRoutes(server: FastifyInstance) {
   const allowedOrigins = new Set([
     "http://localhost:3001", "http://localhost:3000", new URL(env.APP_URL).origin,
   ]);
 
-  server.post("/api/profile/account/delete", { bodyLimit: 4096 }, async (request, reply) => {
+  async function requireAccountOwner(request: FastifyRequest, reply: FastifyReply) {
     reply.header("Cache-Control", "private, no-store");
     const origin = request.headers.origin;
     if (!origin || !allowedOrigins.has(origin)) {
-      return sendError(reply, 403, "This request must come from LockedIn.");
+      sendError(reply, 403, "This request must come from LockedIn.");
+      return null;
     }
     const user = await requireUser(request, reply);
-    if (!user) return;
+    if (!user) return null;
     if (request.headers["x-profile-owner"] !== user.id) {
-      return sendError(reply, 409, "Your account changed. Reload before trying again.");
+      sendError(reply, 409, "Your account changed. Reload before trying again.");
+      return null;
     }
+    return user;
+  }
+
+  server.post("/api/profile/account/deletion-request", { bodyLimit: 1024 }, async (request, reply) => {
+    const user = await requireAccountOwner(request, reply);
+    if (!user) return;
+    if (!deletionRequestSchema.safeParse(request.body).success) return sendError(reply, 400, "Invalid deletion request.");
+    try {
+      return await requestAccountDeletion(user.id);
+    } catch {
+      request.log.error("Account deletion request could not be saved");
+      return sendError(reply, 500, "We couldn’t save your request. Please try again.");
+    }
+  });
+
+  server.post("/api/profile/account/delete", { bodyLimit: 4096 }, async (request, reply) => {
+    const user = await requireAccountOwner(request, reply);
+    if (!user) return;
     const parsed = deletionSchema.safeParse(request.body);
     if (!parsed.success) return sendError(reply, 400, "Enter your current password.");
     try {

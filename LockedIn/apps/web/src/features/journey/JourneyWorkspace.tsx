@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BrandLogo from "@/components/brandLogo";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { AtlasView } from "@/features/atlas";
 import { CheckInTimeline, SessionStage } from "@/features/check-ins";
 import { ConversationLibrary } from "@/features/conversations";
@@ -36,7 +37,7 @@ import DirectLockIn from "@/features/messaging/DirectLockIn";
 import { currentCheckInHref } from "./journey.navigation";
 import TinyLantern from "./components/TinyLantern";
 
-type Notice = { tone: "success" | "error"; message: string } | null;
+type Notice = { tone: "success" | "error"; message: string; reviewDiscovery?: boolean } | null;
 
 
 export default function JourneyWorkspace() {
@@ -45,6 +46,7 @@ export default function JourneyWorkspace() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusyState] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  const [leaveSpaceId, setLeaveSpaceId] = useState<string | null>(null);
   const [activeView, navigateView, workspaceLocation] = useWorkspaceNavigation();
   const [invitationRevision,setInvitationRevision]=useState(0);
   const dirty=useRef(false);
@@ -131,7 +133,7 @@ export default function JourneyWorkspace() {
   }, [loadOverview]);
 
   const runAction = useCallback(
-    async (action: () => Promise<unknown>, successMessage?: string) => {
+    async (action: () => Promise<unknown>, success?: string | { message: string; reviewDiscovery: true }) => {
       const submitted=editRevision.current;
       setBusy(true);
       setNotice(null);
@@ -139,7 +141,7 @@ export default function JourneyWorkspace() {
         await action();
         refreshAfterAction.current=true;
         if(editRevision.current===submitted)setDirty(false);
-        if (successMessage) setNotice({ tone: "success", message: successMessage });
+        if (success) setNotice({ tone: "success", ...(typeof success === "string" ? { message: success } : success) });
         requestQuietRefresh();
       } catch (error) {
         setNotice({
@@ -338,8 +340,9 @@ export default function JourneyWorkspace() {
         ) : null}
         {savedRefreshFailed ? <p className={styles.notice} role="status">Your change was saved, but this view could not update. <button type="button" onClick={requestQuietRefresh}>Try updating the view</button></p> : null}
         {notice ? (
-          <div className={`${styles.notice} ${notice.tone === "error" ? styles.noticeError : ""}`}>
-            {notice.message}
+          <div className={`${styles.notice} ${notice.tone === "error" ? styles.noticeError : ""}`} role={notice.tone === "error" ? "alert" : "status"}>
+            <p>{notice.message}</p>
+            {notice.reviewDiscovery ? <Link href="/discover/profile">Review Discovery visibility</Link> : null}
           </div>
         ) : null}
 
@@ -425,23 +428,31 @@ export default function JourneyWorkspace() {
               <span>You can leave this shared space without completing the roadmap.</span>
             </div>
             <button
+              type="button"
               disabled={busy}
-              onClick={() => {
-                if (!window.confirm("Leave this shared relationship space? This ends the space for both people.")) return;
-                runAction(
-                  () =>
-                    journeyRequest(`/api/journey/relationships/${overview.relationship?.id}/leave`, {
-                      method: "POST",
-                    }),
-                  "You have left the shared space.",
-                );
-              }}
+              onClick={() => setLeaveSpaceId(overview.relationship?.id ?? null)}
             >
-              Leave shared space
+              Leave Together
             </button>
           </section>
         ) : null}
       </main>
+      <ConfirmDialog
+        open={!!leaveSpaceId && leaveSpaceId === overview.relationship?.id}
+        title="Leave Together?"
+        description={"This ends Together for both of you and closes any chat linked to this space. Your other chats stay open. Neither Discovery profile is made visible again automatically." + (dirty.current ? " Any unsaved changes here will be lost." : "")}
+        cancelLabel="Stay in Together"
+        confirmLabel="Leave Together"
+        onCancel={() => setLeaveSpaceId(null)}
+        onConfirm={() => {
+          if (busyRef.current || !leaveSpaceId || leaveSpaceId !== overview.relationship?.id) return;
+          setLeaveSpaceId(null);
+          void runAction(
+            () => journeyRequest(`/api/journey/relationships/${encodeURIComponent(leaveSpaceId)}/leave`, { method: "POST" }),
+            { message: "You left Together. Your Discovery visibility hasn’t changed.", reviewDiscovery: true },
+          );
+        }}
+      />
     </MemberChrome>
   );
 }

@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import { createHmac, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
 import { mkdtempSync, openSync, closeSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { verifyTogetherExit } from "./verify-together-exit-browser.mjs";
 
 const database = new URL(process.env.DATABASE_URL ?? "invalid:");
 if (!["localhost","127.0.0.1"].includes(database.hostname) || database.search || database.hash || !/^\/lockedin_discovery_test_[a-f0-9]{24}$/.test(database.pathname)) throw Error("Owned disposable localhost database required");
@@ -22,12 +24,31 @@ const services=path.resolve(path.dirname(fileURLToPath(import.meta.url)),".."), 
 const artifacts=mkdtempSync(path.join(tmpdir(),"lockedin-shared-chat-browser-")), log=openSync(path.join(artifacts,"preview.log"),"a");
 console.log(`Shared chat browser artifacts: ${artifacts}`);
 let prisma, api, build, preview, browser;
+let mailServer;
+const outbox = [];
+const exitScenario = process.env.LOCKEDIN_BROWSER_SCENARIO === "together-exit";
 let venueProviderOffline = false;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 try {
+  if (exitScenario) {
+    // Resend is pointed at a localhost sink BEFORE the API imports it. No mail leaves this process.
+    mailServer = createHttpServer(async (request, response) => {
+      if (request.method !== "POST" || request.url !== "/emails") { response.writeHead(404).end(); return; }
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      outbox.push(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+      response.writeHead(200,{"content-type":"application/json"}).end(JSON.stringify({ id: randomUUID() }));
+    });
+    await new Promise((resolve, reject) => { mailServer.once("error", reject); mailServer.listen(0,"127.0.0.1",resolve); });
+    Object.assign(process.env, {
+      REQUIRE_EMAIL_VERIFICATION: "true", DISCOVERY_ACCESS_MODE: "open", DISCOVERY_MATCH_PREFERENCES_REQUIRED: "false",
+      DISCOVERY_LOCATION_MODE: "worldwide", DISCOVERY_LOCATION_GENERATION: "together-exit-test",
+      RESEND_BASE_URL: `http://127.0.0.1:${mailServer.address().port}`, RESEND_API_KEY: "synthetic-local-key", RESEND_FROM_EMAIL: "lockedin@example.test",
+    });
+  }
   ({prisma}=await import("../api/src/lib/prisma.ts"));
   const users=[];
-  for (const label of ["Alex","Sam","Casey","Drew","Ellis","Finley"]) {
+  for (const label of exitScenario ? ["Alex"] : ["Alex","Sam","Casey","Drew","Ellis","Finley"]) {
     const id=`shared-browser-${label.toLowerCase()}`,token=randomUUID();
     await prisma.user.create({data:{id,email:`${id}@example.test`,name:"Synthetic account",displayName:label,emailVerified:true}});
     await prisma.session.create({data:{id:randomUUID(),userId:id,token,expiresAt:new Date(Date.now()+3600000)}});
@@ -59,6 +80,10 @@ try {
   browser=await chromium.launch({channel:process.env.LOCKEDIN_BROWSER_CHANNEL || "chrome",headless:true});
   const errors=[], contexts=new Map();
   async function pageFor(u) { const context=await browser.newContext({viewport:{width:393,height:852},reducedMotion:"reduce"});await context.addCookies([u.cookie]);const page=await context.newPage();page.setDefaultTimeout(20000);page.on("pageerror",error=>errors.push(error.message));contexts.set(u.id,context);return page; }
+  if (exitScenario) {
+    await verifyTogetherExit({ browser, prisma, base, outbox, alex: a, alexPage: await pageFor(a), sampleArea, sampleVenue });
+    assert.deepEqual(errors, [], "No browser runtime errors");
+  } else {
   const pa=await pageFor(a),pb=await pageFor(b),pc=await pageFor(c),pd=await pageFor(d);
   async function request(u,method,route,data) {const response=await contexts.get(u.id).request.fetch(base+route,{method,headers:{origin:base,"x-messaging-owner":u.id,"x-discovery-owner":u.id},...(data===undefined?{}:{data})});return {status:response.status(),body:await response.json()};}
   async function verifyDatePlanning({ first, second, proposer, recipient, id, discovery = false }) {
@@ -615,6 +640,7 @@ try {
   await pc.screenshot({path:path.join(artifacts,"promoted-chat.png"),fullPage:true});
   assert.deepEqual(errors,[],"No browser runtime errors");console.log("PASS existing-space backfill, Discovery transcript/promotion and authorized public-profile dialog");
   }
+  }
 } finally {
-  await browser?.close();preview?.kill("SIGTERM");build?.kill("SIGTERM");await api?.close();await prisma?.$disconnect();closeSync(log);
+  await browser?.close();preview?.kill("SIGTERM");build?.kill("SIGTERM");await api?.close();await prisma?.$disconnect();mailServer?.close();closeSync(log);
 }

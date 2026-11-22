@@ -43,11 +43,11 @@ describe.skipIf(process.env.NOTIFICATIONS_INTEGRATION !== "true")("account delet
 
   function attempt(
     id: string,
-    { body = { password }, requestOrigin = origin, owner = id, authenticated = true }:
-    { body?: object; requestOrigin?: string; owner?: string; authenticated?: boolean } = {},
+    { body = { password }, requestOrigin = origin, owner = id, authenticated = true, path = "delete" }:
+    { body?: object; requestOrigin?: string; owner?: string; authenticated?: boolean; path?: "delete" | "deletion-request" } = {},
   ) {
     return app.inject({
-      method: "POST", url: "/api/profile/account/delete", payload: body,
+      method: "POST", url: `/api/profile/account/${path}`, payload: body,
       headers: {
         ...(authenticated ? { cookie: cookie(`${id}-token-1`) } : {}),
         "x-profile-owner": owner, origin: requestOrigin,
@@ -67,6 +67,7 @@ describe.skipIf(process.env.NOTIFICATIONS_INTEGRATION !== "true")("account delet
     await db.discoveryMessage.create({ data: { conversationId: conversation.id, senderId: partner, requestId: "deletion-chat-fixture", text: "Shared chat content" } });
     await db.privateReflection.create({ data: { ownerId: id, text: "Private test content" } });
     await db.privateReflection.create({ data: { ownerId: partner, text: "Keep me" } });
+    await db.accountDeletionRequest.create({ data: { userId: id } });
     await db.verification.create({
       data: { id: "delete-test-reset", identifier: "reset-password:fake", value: id, expiresAt: new Date(Date.now() + 3600000) },
     });
@@ -76,6 +77,7 @@ describe.skipIf(process.env.NOTIFICATIONS_INTEGRATION !== "true")("account delet
     expect(await db.user.findUnique({ where: { id } })).toBeNull();
     expect(await db.account.count({ where: { userId: id } })).toBe(0);
     expect(await db.session.count({ where: { userId: id } })).toBe(0);
+    expect(await db.accountDeletionRequest.findUnique({ where: { userId: id } })).toBeNull();
     expect(await db.privateReflection.findUnique({ where: { ownerId: id } })).toBeNull();
     expect(await db.verification.count({ where: { value: id } })).toBe(0);
     expect(await db.relationshipInvite.count({ where: { inviterId: partner } })).toBe(0);
@@ -123,9 +125,37 @@ describe.skipIf(process.env.NOTIFICATIONS_INTEGRATION !== "true")("account delet
     const report = await db.discoveryReport.create({
       data: { reportedUserId: id, reporterId: reporter, reason: "Test safety report" },
     });
-    expect((await attempt(id)).statusCode).toBe(409);
+    const rejected = await attempt(id);
+    expect(rejected.statusCode).toBe(409);
+    expect(rejected.json().error).toContain("Request account deletion");
+    const receipt = await attempt(id, { path: "deletion-request", body: {} });
+    expect(receipt.statusCode).toBe(200);
+    expect(await db.accountDeletionRequest.findUnique({ where: { userId: id } })).toMatchObject({ id: receipt.json().id });
     expect(await db.discoveryReport.findUnique({ where: { id: report.id } })).not.toBeNull();
     expect(await db.session.count({ where: { userId: id } })).toBe(2);
+  });
+
+  it("records one request for the signed-in owner and keeps the account usable", async () => {
+    const id = "assisted-request-owner", other = "assisted-request-other";
+    await seed(id);
+    await seed(other);
+    const opts = { path: "deletion-request", body: {} } as const;
+    expect((await attempt(id, { ...opts, authenticated: false })).statusCode).toBe(401);
+    expect((await attempt(id, { ...opts, requestOrigin: "https://example.test" })).statusCode).toBe(403);
+    expect((await attempt(id, { ...opts, owner: other })).statusCode).toBe(409);
+    expect((await attempt(id, { ...opts, body: { userId: other } })).statusCode).toBe(400);
+    await db.account.deleteMany({ where: { userId: id } });
+    const [first, repeat] = await Promise.all([attempt(id, opts), attempt(id, opts)]);
+    expect(first.statusCode).toBe(200);
+    expect(repeat.statusCode).toBe(200);
+    expect(first.headers["cache-control"]).toBe("private, no-store");
+    expect(first.json()).toEqual(repeat.json());
+    expect(await db.accountDeletionRequest.count({ where: { userId: id } })).toBe(1);
+    const loadProfile = (owner: string) => app.inject({ url: "/api/profile", headers: { cookie: cookie(`${owner}-token-2`) } });
+    expect((await loadProfile(id)).json().accountDeletionRequest).toEqual(first.json());
+    expect((await loadProfile(other)).json().accountDeletionRequest).toBeNull();
+    expect(await db.session.count({ where: { userId: id } })).toBe(2);
+    expect(await db.user.findUnique({ where: { id } })).not.toBeNull();
   });
 
   it("keeps photo storage references intact pending manual review", async () => {

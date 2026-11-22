@@ -1,5 +1,6 @@
 import { journeyRequest } from "@/features/journey/journey.client";
 import type {
+  AccountDeletionRequest,
   Profile,
   ProfileDetailsInput,
   ProfileNotificationsInput,
@@ -11,6 +12,13 @@ export const deleteProfileAccount = (password: string, userId: string) =>
     method: "POST",
     headers: { "X-Profile-Owner": userId },
     body: JSON.stringify({ password }),
+    cache: "no-store",
+  });
+export const requestProfileAccountDeletion = (userId: string) =>
+  journeyRequest<AccountDeletionRequest>("/api/profile/account/deletion-request", {
+    method: "POST",
+    headers: { "X-Profile-Owner": userId },
+    body: "{}",
     cache: "no-store",
   });
 export const saveProfileDetails = (

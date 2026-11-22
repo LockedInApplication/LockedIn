@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { accountDeletionRequestSelect } from "./account-deletion.service.js";
 import type { z } from "zod";
 import type {
   profileDetailsSchema,
@@ -13,6 +14,7 @@ const select = {
   avatarPreset: true,
   activityEmails: true,
   inAppActivity: true,
+  accountDeletionRequest: { select: accountDeletionRequestSelect },
 } as const;
 function view(row: {
   id: string;
@@ -23,6 +25,7 @@ function view(row: {
   avatarPreset: string;
   activityEmails: boolean;
   inAppActivity: boolean;
+  accountDeletionRequest: { id: string; requestedAt: Date } | null;
 }) {
   const { name, ...profile } = row;
   return {
@@ -33,6 +36,7 @@ function view(row: {
     avatarPreset: profile.avatarPreset,
     activityEmails: profile.activityEmails,
     inAppActivity: profile.inAppActivity,
+    accountDeletionRequest: profile.accountDeletionRequest,
   };
 }
 export async function getProfile(userId: string) {

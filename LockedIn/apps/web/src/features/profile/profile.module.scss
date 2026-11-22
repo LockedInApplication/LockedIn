@@ -124,6 +124,16 @@
   align-items: center;
   gap: 12px;
 }
+.deletionRequest {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--stone-300);
+  overflow-wrap: anywhere;
+
+  p {
+    margin: 0 0 8px;
+  }
+}
 .danger {
   composes: primary;
   background: #912630;

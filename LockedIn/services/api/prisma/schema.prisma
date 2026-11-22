@@ -119,6 +119,7 @@ model User {
   meaningFinalApprovals      MeaningFinalApproval[]
   sessions                   Session[]
   accounts                   Account[]
+  accountDeletionRequest      AccountDeletionRequest?
   notifications              Notification[]
   invitationBlocksCreated    InvitationBlock[] @relation("InvitationBlockOwner")
   invitationBlocksReceived   InvitationBlock[] @relation("InvitationBlockTarget")
@@ -149,6 +150,15 @@ model User {
   proposedDates              ChatDatePlan[]
 
   @@map("user")
+}
+
+model AccountDeletionRequest {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique
+  requestedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([requestedAt])
 }
 
 enum MatchGender {

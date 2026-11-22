@@ -80,8 +80,13 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("direct invitation
     expect((await request(a,"GET",`${chat}/messages`)).json().value.items[0].text).toBe("Coffee first?");
     expect((await request(a,"POST",`/api/messaging/conversations/${otherId}/messages`,{text:"Existing chats still work",requestId:randomUUID()})).statusCode).toBe(200);
     expect((await request(a,"POST",`/api/journey/relationships/${space.id}/leave`,{})).statusCode).toBe(200);
-    expect((await request(a,"GET","/api/discovery/me")).json().value.discoveryLockedIn).toBe(false);
-    expect((await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:a.id}})).pausedAt).toBeInstanceOf(Date);
+    for (const person of [a, b]) {
+      expect((await request(person,"GET","/api/discovery/me")).json().value).toMatchObject({ canDiscover: true, discoveryLockedIn: false });
+      expect((await request(person,"GET",`${chat}/messages`)).statusCode).toBe(404);
+      expect((await prisma.discoveryProfile.findUniqueOrThrow({ where: { ownerId: person.id } })).pausedAt).toBeInstanceOf(Date);
+    }
+    expect(await prisma.chatConversation.findUniqueOrThrow({ where: { id } })).toMatchObject({ closureReason: "RELATIONSHIP_ENDED" });
+    expect((await request(a,"POST",`/api/messaging/conversations/${otherId}/messages`,{text:"Other chats stay open",requestId:randomUUID()})).statusCode).toBe(200);
   });
 
   it("upgrades an existing direct-invite Together space in place", async () => {

@@ -10,8 +10,17 @@ const wrongPassword = {
 };
 const assistedDeletion = {
   ok: false as const, status: 409,
-  error: "This account needs a manual deletion review. Contact LockedIn support for help.",
+  error: "This account needs a manual review. Use Request account deletion below.",
 };
+
+export const accountDeletionRequestSelect = { id: true, requestedAt: true } as const;
+
+export async function requestAccountDeletion(userId: string) {
+  return prisma.$transaction(async (tx) => {
+    await tx.accountDeletionRequest.createMany({ data: { userId }, skipDuplicates: true });
+    return tx.accountDeletionRequest.findUniqueOrThrow({ where: { userId }, select: accountDeletionRequestSelect });
+  });
+}
 
 export async function deleteOwnAccount(userId: string, password: string) {
   // Commit failed attempts too, without holding a database lock during password hashing.

@@ -61,7 +61,10 @@ try {
   const preservedTables=["user","Relationship","RelationshipMember","RelationshipInvite","IntentionSession","IntentionResponse","SharedNextStep","Reflection","MeaningChapter","MeaningResponse","MeaningDefinitionProposal","MeaningSelection","MeaningFinalApproval","ConversationChoice","Notification","InvitationBlock"];
   const snapshot = async () => {
     const result={};
-    for(const table of preservedTables) result[table]=(await database.query(`SELECT jsonb_agg(to_jsonb(t)-'discoveryConnectionId'-'safePublicLabel' ORDER BY id) AS rows FROM "${table}" t`)).rows[0].rows;
+    for(const table of preservedTables) {
+      const additiveFields = table === "Relationship" ? "-'directLockedInAt'" : table === "Notification" ? "-'conversationId'" : "";
+      result[table]=(await database.query(`SELECT jsonb_agg(to_jsonb(t)-'discoveryConnectionId'-'safePublicLabel'${additiveFields} ORDER BY id) AS rows FROM "${table}" t`)).rows[0].rows;
+    }
     return result;
   };
   const before = await snapshot();
@@ -139,6 +142,9 @@ try {
   run(["migrate", "deploy", "--config", config]);
   const inferred = await database.query('SELECT EXISTS (SELECT 1 FROM "DiscoveryMatchPreferences") OR EXISTS (SELECT 1 FROM "DiscoveryMatchPreferenceGuard") AS inferred');
   if (inferred.rows[0].inferred || JSON.stringify(beforeMatching) !== JSON.stringify(await matchingBaseline())) throw new Error("Matching migration populated owner settings or changed historical records");
+  const newFields = await database.query(`SELECT EXISTS (SELECT 1 FROM "Relationship" WHERE "directLockedInAt" IS NOT NULL)
+    OR EXISTS (SELECT 1 FROM "Notification" WHERE "conversationId" IS NOT NULL) OR EXISTS (SELECT 1 FROM "AccountDeletionRequest") AS inferred`);
+  if (newFields.rows[0].inferred) throw new Error("Lock In or deletion request migrations inferred choices for historical accounts");
   console.log("Matching migration preserved historical records and did not infer settings.");
   const files = process.env.DISCOVERY_TEST_FILES?.split(",").filter(Boolean) ?? ["api/src"];
   const migrationTest = "api/src/features/messaging/test/messaging-migration.integration.spec.ts";

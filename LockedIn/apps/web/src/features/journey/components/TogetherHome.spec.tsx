@@ -5,6 +5,9 @@ import type { JourneySession } from "../journey.types";
 import SharedJourneyPath from "./SharedJourneyPath";
 import WorkspaceNav from "./WorkspaceNav";
 import TogetherChatActions from "./TogetherChatActions";
+import { TogetherHomeHeading, TogetherPlan, TogetherWelcome } from "./TogetherHome";
+import { getUpcomingTogetherPlan, shouldCelebrateLockIn } from "../together-home";
+import type { SimplePlan } from "@/features/roadmap/roadmap.types";
 
 const session: JourneySession = {
   id: "conversation", topic: "Feeling connected", packKey: "support", createdAt: "2026-11-20T12:00:00Z",
@@ -13,6 +16,48 @@ const session: JourneySession = {
   partnerState: { name: "Jordan", submitted: true, revealConsented: true },
   bothRevealed: true, alignment: [], proposals: [], proposalHistory: [], nextSteps: [], nextStep: null,
 };
+
+it("prioritizes the right Inbox action and keeps Discover on the photo welcome", () => {
+  const fresh = renderToStaticMarkup(<TogetherWelcome canInvite hasInboxActivity={false} />);
+  const returning = renderToStaticMarkup(<TogetherWelcome canInvite hasInboxActivity />);
+  const paused = renderToStaticMarkup(<TogetherWelcome canInvite={false} hasInboxActivity />);
+  expect(fresh).toContain("Make time for someone.");
+  expect(fresh).toContain('alt="Two coffees on a café table, one with a heart in the foam"');
+  expect(fresh.indexOf("Invite someone you know")).toBeLessThan(fresh.indexOf("Open Inbox"));
+  expect(returning.indexOf("Open Inbox")).toBeLessThan(returning.indexOf("Invite someone you know"));
+  expect(paused).not.toContain("Invite someone you know");
+  for (const page of [fresh, returning, paused]) expect(page).toContain('href="/discover"');
+});
+
+it("celebrates a recent server-confirmed choice only once", () => {
+  const now = Date.parse("2026-11-22T15:00:00.000Z");
+  const recent = "2026-11-22T14:59:59.000Z";
+  expect(shouldCelebrateLockIn(recent, null, now)).toBe(true);
+  expect(shouldCelebrateLockIn(recent, recent, now)).toBe(false);
+  expect(shouldCelebrateLockIn("2026-11-21T14:59:59.000Z", null, now)).toBe(false);
+  expect(shouldCelebrateLockIn("2026-11-23T14:59:59.000Z", null, now)).toBe(false);
+  expect(shouldCelebrateLockIn("invalid", null, now)).toBe(false);
+  const props = { userId: "me", user: { name: "Devon", avatarPreset: "sun" }, partner: { name: "Maya", avatarPreset: "moon" } };
+  const shared = renderToStaticMarkup(<TogetherHomeHeading {...props} locked />);
+  expect(shared).toContain("You &amp; Maya");
+  expect(shared).toContain("You both chose to lock in.");
+  expect(shared).toContain('data-preset="moon"');
+  expect(renderToStaticMarkup(<TogetherHomeHeading {...props} locked={false} />)).not.toContain("You both chose");
+});
+
+it("shows only the next actual shared plan and links directly to it", () => {
+  const base: SimplePlan = { id: "a/b", title: "Try the café", status: "ACCEPTED", note: null, day: "2026-11-24", version: 1, yours: true, proposerName: "Devon", resolvedBy: null };
+  const otherPlans = [
+    { ...base, id: "past", day: "2026-11-20" },
+    { ...base, id: "pending", status: "PENDING", day: "2026-11-22" } as const,
+    { ...base, id: "undated", day: null },
+  ];
+  expect(getUpcomingTogetherPlan([...otherPlans, base], "2026-11-22")).toEqual(base);
+  expect(getUpcomingTogetherPlan(otherPlans.slice(0, 2), "2026-11-22")).toBeUndefined();
+  const html = renderToStaticMarkup(<TogetherPlan plan={base} onOpen={() => {}} />);
+  expect(html).toContain('href="/journey?view=roadmap#step-a%2Fb"');
+  expect(html).toContain("Try the café");
+});
 
 it("makes the main message link draft-free and offers the prompt as a separate action", () => {
   const html = renderToStaticMarkup(<TogetherChatActions conversationId="chat" partnerName="Maya" confirmLeave={() => true} />);

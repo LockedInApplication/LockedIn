@@ -33,17 +33,6 @@
 .card button:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
 .card button:disabled { opacity: 0.65; cursor: wait; }
 
-.home .homeIntro { align-items: center; gap: 12px; margin-block-end: 20px; }
-.home .homeIntro h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.1; }
-.home .homeIntro > div { min-inline-size: 0; max-inline-size: 100%; padding: 4px 0; border: 0; background: transparent; }
-.homeIntro > div > div { min-inline-size: 0; overflow-wrap: anywhere; }
-.homePair, .pairAvatars, .messagesLink { display: inline-flex; align-items: center; }
-.homePair { flex-wrap: wrap; gap: .375rem .5rem; }
-.homePair strong { min-inline-size: 0; overflow-wrap: anywhere; font-size: .9375rem; }
-.pairAvatars { flex: none; }
-.pairAvatars > span { width: 36px; height: 36px; flex-basis: 36px; }
-.pairAvatars > span + span { margin-inline-start: -5px; }
-.lockedIn { color: var(--forest); font-size: .8125rem; font-weight: 700; }
 .chatActions {
   display: grid;
   gap: .375rem;
@@ -101,6 +90,8 @@
 .privateCheckIn[open] .checkInChevron { rotate: 90deg; }
 .entryDetail { margin-inline-start: auto; color: var(--member-muted, var(--stone-500)); font-size: .8125rem; font-weight: 400; }
 .messagesLink {
+  display: inline-flex;
+  align-items: center;
   min-height: 44px;
   padding: 4px 8px;
   border-radius: 999px;

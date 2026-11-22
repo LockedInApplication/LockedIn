@@ -26,6 +26,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== 'true')('explicit mutual l
   });
   it('pauses both accounts exactly once, denies new invitations and keeps both existing chats usable', async () => {
     const {prisma} = await import('../../../lib/prisma.js'); const {a,b,id,url} = await pair(), c=await f.person(), d=await f.person();
+    expect((await f.request(a,'GET','/api/journey/overview')).json()).toMatchObject({relationship:null,hasInboxActivity:true});
     const other=await f.send(a,c), otherUrl=`/api/discovery/connections/${other.json().value.id}`;
     await f.request(c,'POST',`${otherUrl}/accept`,{});
     const pending=await f.send(d,a), pendingUrl=`/api/discovery/connections/${pending.json().value.id}`;
@@ -35,7 +36,11 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== 'true')('explicit mutual l
     expect(results.map(r=>r.statusCode)).toEqual([200,200]);
     expect(results[0]!.json().value.promotedRelationshipId).toBe(results[1]!.json().value.promotedRelationshipId);
     expect(results[0]!.json().value.lockedIn).toBe(true);
+    const lockedAt = (await prisma.discoveryConnection.findUniqueOrThrow({where:{id}})).lockedInAt!;
     for(const person of [a,b]) {
+      expect((await f.request(person,'GET','/api/journey/overview')).json()).toMatchObject({
+        relationship:{isMutuallyLockedIn:true,mutuallyLockedInAt:lockedAt.toISOString()},
+      });
       expect((await f.request(person,'GET','/api/discovery/me')).json().value).toMatchObject({canManageProfile:true,areas:[{id:'pilot-city',label:'Pilot city'}]});
       expect((await f.request(person,'GET','/api/discovery/me')).json().value).toMatchObject({canDiscover:false,canChat:true,discoveryLockedIn:true});
       expect((await prisma.discoveryProfile.findUniqueOrThrow({where:{ownerId:person.id}})).pausedAt).toBeInstanceOf(Date);

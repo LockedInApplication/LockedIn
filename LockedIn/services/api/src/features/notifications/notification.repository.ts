@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma.js";
 import { notificationCopy } from "./notification.catalog.js";
 import { createHash } from "node:crypto";
 import { pairClosure } from "../messaging/messaging-conversation.service.js";
+import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
 export type NotificationTx = Prisma.TransactionClient;
 // Intentionally select only metadata. Private content is not needed for event derivation.
 export function notificationSnapshot(tx: NotificationTx, id: string) {
@@ -16,6 +17,7 @@ export const eligibleNotifications = (userId: string):Prisma.NotificationWhereIn
     {relationship:{status:"ACTIVE",members:{some:{userId}}}},
     {kind:"INVITATION_RECEIVED",invitation:{inviteeId:userId}},
     {discoveryConnection:{OR:[{userLowId:userId},{userHighId:userId}]}},
+    ...(sharedMessagingEnabled() ? [{conversation:{closedAt:null,OR:[{userLowId:userId},{userHighId:userId}]}}] : []),
 ]});
 function unreadNotifications(userId:string):Prisma.NotificationWhereInput {
     return {...eligibleNotifications(userId),readAt:null,resolvedAt:null,AND:[{OR:[

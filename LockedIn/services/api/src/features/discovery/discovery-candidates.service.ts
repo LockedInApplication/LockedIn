@@ -15,7 +15,7 @@ import { compareDiscoveryRank, compatibleIntentions, dayMs, rankCandidate, recom
 import { currentDiscoveryLocation, discoveryLocationPolicy, discoveryLocationRequired, discoverySearchPairEligible, locationRequired, locationStorageId, nearbyCells } from "./discovery-location.js";
 import { worldwidePublicArea } from "./discovery.config.js";
 import { distanceCandidateIds, distanceSearchBatchSize } from "./discovery-distance-search.js";
-import { activeLockIn, isDiscoveryLockedIn } from './discovery-lock-in.js';
+import { activeDirectLockIn, activeLockIn, isDiscoveryLockedIn } from './discovery-lock-in.js';
 import { mutualMatchWhere, readDiscoveryMatchSettings } from "./discovery-match-eligibility.js";
 import { discoveryMatchPreferencesRequired } from "./discovery-match-preferences.service.js";
 import { utcDate } from "./discovery-match-preferences.dates.js";
@@ -73,6 +73,7 @@ export function visibleWhere(actorId: string, intention: string, matching?: Pris
     owner: { emailVerified: true,
       ...(matching ? { discoveryMatchPreferences: { is: matching } } : {}),
       AND: [{ discoveryConnectionsLow: { none: activeLockIn } }, { discoveryConnectionsHigh: { none: activeLockIn } }],
+      relationshipMemberships: { none: { relationship: activeDirectLockIn } },
       invitationBlocksCreated: { none: { blockedId: actorId } }, invitationBlocksReceived: { none: { blockerId: actorId } },
       discoveryConnectionsLow: { none: { userHighId: actorId, ...live } },
       discoveryConnectionsHigh: { none: { userLowId: actorId, ...live } },

@@ -10,6 +10,8 @@ export const notificationCatalog: Record<string, {
     DISCOVERY_PROMOTED: { title: "Your shared space is ready", message: "You both chose to build. Your starter history stays separate.", view: "discovery" },
     INVITATION_RECEIVED: {title:"You’ve been invited to a shared space",message:"Review the invitation. Connecting does not reveal any answers.",view:"invitations"},
     INVITATION_ACCEPTED: { title: "Your shared space is ready", message: "Your invitation was accepted. Begin when you are ready.", view: "home" },
+    DIRECT_INVITATION_ACCEPTED: { title: "Your invite was accepted", message: "You can start chatting.", view: "messages" },
+    DIRECT_LOCK_IN_REQUEST: { title: "An invitation to lock in", message: "Review the choice when you’re ready. Nothing changes unless you both agree.", view: "messages" },
     CONVERSATION_CHOICE: { title: "A conversation suggestion is waiting", message: "Review your choices and decide together.", view: "conversations" },
     CONVERSATION_READY: { title: "Your conversation is ready", message: "Your private questions are ready to answer.", view: "home" },
     SHARING_READY: { title: "Review what you would like to share", message: "Both reflections are submitted. Your sharing choices remain yours.", view: "home" },

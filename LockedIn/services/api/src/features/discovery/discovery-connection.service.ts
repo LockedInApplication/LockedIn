@@ -68,8 +68,9 @@ export async function connectionValue(tx: Prisma.TransactionClient, row: Discove
   const dateSpots = dateSpotsAvailable();
   const datePlans = datePlansEnabled();
   const chat = sharedMessagingEnabled() || dateSpots || datePlans ? await tx.chatConversation.findUnique({ where: { discoveryConnectionId: row.id } }) : null;
-  const canChat = chat?.accessMode === "RELATIONSHIP" ? await conversationAllowsChat(tx, chat) : eligible && await connectionAllowsChat(tx, row);
-  return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligibleForAction, linkedMembership, !occupied), canChat,
+  const canChat = chat && chat.accessMode !== "DISCOVERY" && sharedMessagingEnabled() ? await conversationAllowsChat(tx, chat) : eligible && await connectionAllowsChat(tx, row);
+  return { ok: true as const, value: { ...discoveryConnectionView(connection, actorId, partner, eligibleForAction, linkedMembership, !occupied && chat?.accessMode !== "DIRECT_INVITATION"), canChat,
+    ...(sharedMessagingEnabled() && canChat && chat?.directInvitationId && chat.accessMode !== "DISCOVERY" ? { directConversationId: chat.id } : {}),
     ...(dateSpots && chat && canChat ? { dateSpotsConversationId: chat.id } : {}),
     ...(datePlans && chat && canChat ? { datePlansConversationId: chat.id } : {}) } };
 }

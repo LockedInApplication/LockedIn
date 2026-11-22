@@ -6,6 +6,9 @@ import { addAlignmentTrends } from "../check-ins/alignment.js";
 import { atlasWords } from "../atlas/atlas.catalog.js";
 import { buildAtlasView } from "../atlas/atlas.view.js";
 import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
+import { conversationAllowsChat } from "../messaging/messaging-access.service.js";
+import { directLockInView } from "../messaging/messaging-lock-in.service.js";
+import { isDiscoveryLockedIn } from "../discovery/discovery-lock-in.js";
 import { listSimplePlans } from "../roadmap/simple-plan.service.js";
 
 type OverviewUser = { id: string; email: string; name: string | null };
@@ -105,9 +108,23 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
     }
 
     const messagingEnabled = sharedMessagingEnabled();
-    const chat = messagingEnabled && relationship?.members.length === 2 ? await prisma.chatConversation.findFirst({ where: { relationshipId: relationship.id, OR: [{ userLowId: userId },{ userHighId: userId }] }, select: { id: true } }) : null;
+    const chat = messagingEnabled && relationship?.members.length === 2 ? await prisma.chatConversation.findFirst({ where: { relationshipId: relationship.id, OR: [{ userLowId: userId },{ userHighId: userId }] } }) : null;
+    const direct = messagingEnabled ? await prisma.chatConversation.findMany({
+      where: { accessMode: "DIRECT_INVITATION", closedAt: null, OR: [{ userLowId: userId }, { userHighId: userId }] },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }], take: 100,
+      include: { userLow: { select: { displayName: true, name: true, avatarPreset: true } }, userHigh: { select: { displayName: true, name: true, avatarPreset: true } } },
+    }) : [];
+    const directChats = (await Promise.all(direct.map(async row => {
+      if (!await conversationAllowsChat(prisma, row)) return null;
+      const peer = row.userLowId === userId ? row.userHigh : row.userLow;
+      return { conversationId: row.id, discoveryConnectionId: row.discoveryConnectionId, partner: { publicName: peer.displayName ?? peer.name ?? "Your connection", avatarPreset: peer.avatarPreset } };
+    }))).filter(item => item !== null);
+    const lockIn = chat && await conversationAllowsChat(prisma, chat) ? await directLockInView(prisma, chat, userId) : null;
     return {
       messaging: { enabled: messagingEnabled, conversationId: chat?.id ?? null },
+      ...(directChats.length ? { directChats } : {}),
+      ...(messagingEnabled ? { canInviteToChat: !await isDiscoveryLockedIn(prisma, userId) } : {}),
+      ...(lockIn ? { lockIn } : {}),
       user: { id: user.id, email: user.email, name: user.displayName??user.name, ...(user.avatarPreset?{avatarPreset:user.avatarPreset}:{}) },
       pendingInvites: pendingInvites.map((invite) => ({
         id: invite.id,
@@ -124,8 +141,8 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
       relationship: relationship
         ? {
             id: relationship.id,
-            isMutuallyLockedIn: relationship.discoveryConnection?.state === "PROMOTED"
-              && relationship.discoveryConnection.lockedInAt !== null,
+            isMutuallyLockedIn: !!relationship.directLockedInAt || (relationship.discoveryConnection?.state === "PROMOTED"
+              && relationship.discoveryConnection.lockedInAt !== null),
             partner: {
               name: partner?.displayName ?? partner?.name ?? partner?.email ?? "Your partner",
               email: partner?.email ?? "",

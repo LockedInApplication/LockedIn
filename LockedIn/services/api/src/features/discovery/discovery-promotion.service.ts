@@ -4,6 +4,7 @@ import { buildReadinessSchema } from "./discovery.schemas.js";
 import { consumeDiscoveryQuota } from "./discovery-throttle.service.js";
 import { persistDiscoveryTask, resolveDiscoveryTasks } from "./discovery-notifications.service.js";
 import { attachPromotedRelationship } from "../messaging/messaging-conversation.service.js";
+import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
 const unavailable = { ok: false as const, status: 409, error: "Building a shared space is not available right now." };
 export async function setBuildReadiness(actorId: string, id: string, input: z.infer<typeof buildReadinessSchema>) {
   const parsed = buildReadinessSchema.safeParse(input);
@@ -15,6 +16,7 @@ export async function setBuildReadiness(actorId: string, id: string, input: z.in
     const current = low ? row.lowLockInVersion : row.highLockInVersion;
     if (parsed.data.ready) {
       if (!await discoveryPairEligible(tx, row)) return unavailable;
+      if (sharedMessagingEnabled() && (await tx.chatConversation.findUnique({ where: { discoveryConnectionId: row.id }, select: { accessMode: true } }))?.accessMode === "DIRECT_INVITATION") return unavailable;
       if (await tx.relationship.findFirst({ where: { status: "ACTIVE", members: { some: { userId: { in: [row.userLowId, row.userHighId] } } } }, select: { id: true } })) return unavailable;
     }
     const desired = parsed.data.ready ? row.consentVersion : null;

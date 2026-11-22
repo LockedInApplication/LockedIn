@@ -2,12 +2,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { JourneyApiError } from "@/features/journey/journey.client";
 import { fetchInvitationReview, respondToInvitation } from "./invitation-review.client";
-import type { InvitationReviewData,InvitationDecision } from "./invitation-review.types";
+import type { InvitationAcceptance, InvitationReviewData,InvitationDecision } from "./invitation-review.types";
 import InvitationReviewContent from "./InvitationReviewContent";
 export default function InvitationReview({ reference, by, onHandled, onClose }: {
     reference: string;
     by: "id" | "token";
-    onHandled: (decision: InvitationDecision) => Promise<void>;
+    onHandled: (decision: InvitationDecision, acceptance: InvitationAcceptance) => Promise<void>;
     onClose: () => void;
 }) {
     const [data, setData] = useState<InvitationReviewData | null>(null);
@@ -57,9 +57,9 @@ export default function InvitationReview({ reference, by, onHandled, onClose }: 
         setBusy(true);
         setError(null);
         try {
-            await respondToInvitation(data.token, decision, signal);
+            const result = await respondToInvitation(data.token, decision, signal);
             if (!signal.aborted)
-                await onHandled(decision);
+                await onHandled(decision, result);
         }
         catch (e) {
             if (signal.aborted)

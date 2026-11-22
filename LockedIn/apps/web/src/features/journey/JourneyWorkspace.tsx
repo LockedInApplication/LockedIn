@@ -32,6 +32,7 @@ import conversationStyles from "../conversations/conversation-library.module.scs
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
 import RelationshipMessages from "./components/RelationshipMessages";
 import TogetherChatActions from "./components/TogetherChatActions";
+import DirectLockIn from "@/features/messaging/DirectLockIn";
 import { currentCheckInHref } from "./journey.navigation";
 import TinyLantern from "./components/TinyLantern";
 
@@ -257,7 +258,11 @@ export default function JourneyWorkspace() {
     <main className={styles.main}>
       <InvitationReview key={`${invitationBy}:${invitationReference}`} reference={invitationReference} by={invitationBy}
         onClose={()=>router.push("/connections")}
-        onHandled={async decision=>{
+        onHandled={async (decision, acceptance)=>{
+          if (decision === "accept" && acceptance?.conversationId) {
+            router.push(`/messages/${encodeURIComponent(acceptance.conversationId)}`);
+            return;
+          }
           const fresh=await loadOverview();
           if(!fresh)throw new Error("Your choice was saved, but your space could not reload. Please refresh.");
           if (decision === "accept") {
@@ -318,6 +323,9 @@ export default function JourneyWorkspace() {
         {overview.relationship && !isHome && activeView !== "conversations"
           ? <RelationshipMessages messaging={overview.messaging} confirmLeave={() => !busy && confirmDiscard()}/>
           : null}
+        {chatId && overview.lockIn && overview.lockIn.state !== "locked"
+          ? <DirectLockIn userId={overview.user.id} conversationId={chatId} state={overview.lockIn} inTogether onRefresh={requestQuietRefresh}/>
+          : null}
 
         {overview.relationship && !suggestionReference && (activeView === "home" || activeView === "roadmap" || activeView === "conversations") ? (
           <TinyLantern
@@ -344,9 +352,12 @@ export default function JourneyWorkspace() {
           <section className={styles.primaryCard}>
             <span className={styles.eyebrow}>TOGETHER</span>
             <h1>How would you like to connect?</h1>
-            <p>Send a private invite to someone you know, or use Discover to meet someone new. Your chats and invitations are in Inbox.</p>
+            <p>{overview.canInviteToChat !== undefined
+              ? "Start in Inbox. Together opens when you both choose to lock in."
+              : "Send a private invite to someone you know, or use Discover to meet someone new. Your chats and invitations are in Inbox."}</p>
             <div className={actionStyles.actions}>
               <Link className={actionStyles.primary} href="/connections?compose=invite">Invite someone you know <span aria-hidden="true">→</span></Link>
+              {overview.canInviteToChat !== undefined ? <Link href="/connections">Go to Inbox <span aria-hidden="true">→</span></Link> : null}
               <Link href="/discover">Meet someone new <span aria-hidden="true">→</span></Link>
             </div>
           </section>

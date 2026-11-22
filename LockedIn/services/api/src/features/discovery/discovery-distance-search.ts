@@ -24,6 +24,8 @@ export function distanceCandidateQuery(actorId: string, viewer: DiscoveryDistanc
       ${matching ? Prisma.sql`AND ${distanceMutualMatchPredicate(matching)}` : Prisma.empty}
       AND p."ownerId" <> ${actorId} AND u."emailVerified" = TRUE
       AND p."pausedAt" IS NULL AND p."suspendedAt" IS NULL
+      AND NOT EXISTS (SELECT 1 FROM "RelationshipMember" rm JOIN "Relationship" r ON r.id = rm."relationshipId"
+        WHERE rm."userId" = p."ownerId" AND r."status" = 'ACTIVE' AND r."directLockedInAt" IS NOT NULL)
       AND p."adultAttestedAt" IS NOT NULL AND p."publicationConsentedAt" IS NOT NULL
       AND p."publicationConsentVersion" = 1 AND p."publicationVersion" > 0 AND p."publishedAt" IS NOT NULL
       AND ${config.areas.length ? Prisma.sql`p."publishedAreaId" IN (${Prisma.join(config.areas.map(area => area.id))})` : Prisma.sql`FALSE`}

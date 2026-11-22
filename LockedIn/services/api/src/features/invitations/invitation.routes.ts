@@ -2,10 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../../lib/prisma.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
 import { env } from "../../config/env.js";
-import { getActiveRelationship } from "../relationships/relationship-access.service.js";
 import { sendJourneyEmailSafely } from "../journey-notifications/journey-email.service.js";
 import { inviteSchema } from "./invitation.schemas.js";
-import { acceptInvitation, createInvitation, reviewInvitation, declineInvitation } from "./invitation.service.js";
+import { acceptDirectInvitation, createInvitation, reviewInvitation, declineInvitation } from "./invitation.service.js";
+import { sharedMessagingEnabled } from "../messaging/messaging.config.js";
 import {registerInvitationManagementRoutes} from "./invitation-management.routes.js";
 export async function registerInvitationRoutes(server: FastifyInstance) {
     await registerInvitationManagementRoutes(server);
@@ -19,9 +19,6 @@ export async function registerInvitationRoutes(server: FastifyInstance) {
         if (parsed.data.email === user.email.toLowerCase()) {
             return sendError(reply, 400, "Invite a partner using a different email address.");
         }
-        if (await getActiveRelationship(user.id)) {
-            return sendError(reply, 409, "You already have an active relationship space.");
-        }
         const result = await createInvitation(user.id, parsed.data.email);
         if (!result.ok)
             return sendError(reply, result.status, result.error);
@@ -29,8 +26,9 @@ export async function registerInvitationRoutes(server: FastifyInstance) {
         await sendJourneyEmailSafely(request, {
             to: parsed.data.email,
             subject: `${user.name ?? "Someone"} invited you to LockedIn`,
-            heading: "A private relationship space is waiting for you.",
-            message: `${user.name ?? "Your partner"} invited you to reflect privately and build a shared roadmap together.`,
+            heading: sharedMessagingEnabled() ? "An invitation to chat" : "A private relationship space is waiting for you.",
+            message: sharedMessagingEnabled() ? `${user.name ?? "Someone"} invited you to chat. You can decide whether to lock in later.`
+                : `${user.name ?? "Your partner"} invited you to reflect privately and build a shared roadmap together.`,
             actionLabel: "Open private invitation",
             url: `${env.APP_URL}/journey?invite=${invite.token}`,
         });
@@ -54,23 +52,24 @@ export async function registerInvitationRoutes(server: FastifyInstance) {
             invite.inviteeId !== user.id) {
             return sendError(reply, 404, "Invitation not found.");
         }
-        const result = await acceptInvitation(invite.id, invite.inviterId, user.id);
+        const result = await acceptDirectInvitation(invite.id, invite.inviterId, user.id);
         if (!result.ok)
             return sendError(reply, result.status, result.error);
-        const { relationship } = result;
+        const { relationship, conversationId } = result;
         const inviter = await prisma.user.findUnique({ where: { id: invite.inviterId } });
         if (inviter?.email) {
             await sendJourneyEmailSafely(request, {
                 to: inviter.email,
                 name: inviter.name,
                 subject: `${user.name ?? "Your partner"} accepted your LockedIn invitation`,
-                heading: "Your shared space is ready.",
-                message: `${user.name ?? "Your partner"} accepted your invitation. You can now choose a conversation and answer independently.`,
-                actionLabel: "Open your shared space",
-                url: `${env.APP_URL}/journey`,
+                heading: conversationId ? "You can start chatting." : "Your shared space is ready.",
+                message: conversationId ? `${user.name ?? "Your connection"} accepted your invitation. You can now message each other.`
+                    : `${user.name ?? "Your partner"} accepted your invitation. You can now choose a conversation and answer independently.`,
+                actionLabel: conversationId ? "Open chat" : "Open your shared space",
+                url: conversationId ? `${env.APP_URL}/messages/${encodeURIComponent(conversationId)}` : `${env.APP_URL}/journey`,
             });
         }
-        return reply.code(201).send({ relationshipId: relationship.id });
+        return reply.code(201).send(conversationId ? { conversationId } : { relationshipId: relationship?.id });
     });
     server.get<{
         Params: {

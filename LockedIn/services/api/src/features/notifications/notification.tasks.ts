@@ -52,6 +52,7 @@ export type NotificationTask = {
     recipientId: string;
     relationshipId: string | null;
     discoveryConnectionId?: string;
+    conversationId?: string;
     kind: string;
     entityId: string;
     wordKey: string | null;

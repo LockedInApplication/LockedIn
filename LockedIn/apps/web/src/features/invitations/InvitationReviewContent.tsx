@@ -14,18 +14,20 @@ export default function InvitationReviewContent({ data, loading, busy, error, on
     return <section className={reviewStyles.card} aria-labelledby="invitation-review-title" tabIndex={-1} id="invitation-review">
     <div className={reviewStyles.seal} aria-hidden>✉</div>
     <span className={reviewStyles.kicker}>AN INVITATION · YOUR CHOICE</span>
-    <h2 id="invitation-review-title">A shared space starts with your yes.</h2>
+    <h2 id="invitation-review-title">{data?.chatFirst ? "An invitation to chat" : "A shared space starts with your yes."}</h2>
     {loading ? <p role="status">Checking your invitation…</p> : null}
     {error ? <div role="alert" className={reviewStyles.message}><p>{error}</p><button type="button" onClick={onRetry} disabled={busy}>Try again</button></div> : null}
     {data && !loading ? <>
-      <p><strong>{data.inviterName}</strong> invited you to build a private shared space.</p>
+      <p><strong>{data.inviterName}</strong> {data.chatFirst ? "invited you to chat." : "invited you to build a private shared space."}</p>
       {data.status === "PENDING" ? <>
-        <p className={reviewStyles.privacy}>Opening this invitation has not connected you. Accepting does not reveal any answers or approve future suggestions.</p>
+        <p className={reviewStyles.privacy}>{data.chatFirst
+          ? "Accepting opens a chat. It doesn’t lock you in or pause Discovery."
+          : "Opening this invitation has not connected you. Accepting does not reveal any answers or approve future suggestions."}</p>
         {data.expiresAt ? <p className={reviewStyles.expiry}>Available until {new Date(data.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p> : null}
         {data.blockedReason ? <p className={reviewStyles.message}>{data.blockedReason}</p> : null}
         <p className={reviewStyles.expiry}>The sender can see “Invitation not accepted” if you decline. New invitations from them pause for 7 days.</p>
         <div className={reviewStyles.actions}>
-          <button type="button" className={reviewStyles.accept} disabled={busy || !data.canRespond} onClick={() => onDecision("accept")}>{busy ? "Saving…" : "Accept invitation"}</button>
+          <button type="button" className={reviewStyles.accept} disabled={busy || !data.canRespond} onClick={() => onDecision("accept")}>{busy ? "Saving…" : data.chatFirst ? "Accept and chat" : "Accept invitation"}</button>
           <button type="button" className={reviewStyles.decline} disabled={busy} onClick={() => onDecision("decline")}>Decline</button>
         </div>
       </> : <p role="status" className={reviewStyles.message}>{statusMessage}</p>}

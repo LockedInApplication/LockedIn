@@ -15,8 +15,13 @@ import { dateSpotsAvailable } from "../date-spots/date-spots-config.js";
 import { datePlansEnabled } from "../date-plans/date-plan-config.js";
 import { acknowledgeChat, listUnreadChats } from "./messaging-unread.service.js";
 import { listUnreadDates } from "../date-plans/date-plan-read.service.js";
+import { chooseDirectLockIn, directLockInView } from "./messaging-lock-in.service.js";
 
 const reportInput = z.strictObject({ messageId: z.string().uuid(), reason: z.enum(["HARASSMENT","IMPERSONATION","SPAM","OTHER"]), detail: z.string().max(1000).optional(), requestId: z.string().uuid(), blockAlso: z.boolean().optional() });
+const lockInInput = z.discriminatedUnion("action", [
+  z.strictObject({ action: z.literal("request") }),
+  z.strictObject({ action: z.enum(["confirm", "withdraw", "pass"]), requestId: z.uuid() }),
+]);
 
 export function respondMessaging<T>(reply: FastifyReply, ownerId: string, result: ChatResult<T>) {
   if (!result.ok) { if (result.retryAfter) reply.header("Retry-After", result.retryAfter); return sendError(reply, result.status, result.error); }
@@ -24,6 +29,13 @@ export function respondMessaging<T>(reply: FastifyReply, ownerId: string, result
 }
 export async function registerMessagingRoutes(server: FastifyInstance) {
   const base = "/api/messaging/conversations/:id";
+  server.post(`${base}/lock-in`, { bodyLimit: 1024 }, async (request, reply) => {
+    const actor = await requireAccountMutationIdentity(request, reply, "x-messaging-owner"); if (!actor) return;
+    if (!sharedMessagingEnabled()) return sendError(reply, 404, chatMissing.error);
+    const params = chatParams.safeParse(request.params), input = lockInInput.safeParse(request.body);
+    if (!params.success || !input.success || !emptyChatInput.safeParse(request.query).success) return sendError(reply, 400, "Review your Lock In choice and try again.");
+    return respondMessaging(reply, actor.userId, await chooseDirectLockIn(actor.userId, params.data.id, input.data));
+  });
   server.get("/api/messaging/unread", async (request, reply) => {
     reply.header("Cache-Control", "private, no-store");
     const user = await requireUser(request, reply); if (!user) return;
@@ -75,6 +87,7 @@ export async function registerMessagingRoutes(server: FastifyInstance) {
         id: c.id, canChat, unavailableReason: canChat ? null : own.emailVerified ? "UNAVAILABLE" : "VERIFY_EMAIL",
         ...(canChat && dateSpotsAvailable() ? { dateSpotsConversationId: c.id } : {}),
         ...(canChat && datePlansEnabled() ? { datePlansConversationId: c.id } : {}),
+        ...(canChat ? { lockIn: await directLockInView(tx, c, user.id) } : {}),
         partner: { publicName: canChat ? publicPartner?.publicName ?? partner.displayName ?? "Your partner" : "Your partner", avatarPreset: canChat ? publicPartner?.avatarPreset ?? partner.avatarPreset : "initials" },
         ...(source ? { opening: { questionText: source.questionText, hello: source.hello, author: source.inviterId === user.id ? "self" : "partner", publicName: source.senderPublicName, avatarPreset: source.senderAvatarPreset, connectionId: source.id } } : {}),
         ...(profile ? { profileConnectionId: source!.id } : {}),

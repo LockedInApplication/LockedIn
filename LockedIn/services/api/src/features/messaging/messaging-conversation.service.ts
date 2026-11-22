@@ -57,6 +57,32 @@ export async function attachDirectRelationshipConversation(tx: Prisma.Transactio
   return tx.chatConversation.update({ where: { id: c.id }, data: { directInvitationId: input.invitationId } });
 }
 
+export async function openDirectInvitationChat(tx: Prisma.TransactionClient, input: { invitationId: string; inviterId: string; inviteeId: string }) {
+  const [a, b] = await tx.user.findMany({
+    where: { id: { in: [input.inviterId, input.inviteeId] } }, orderBy: { id: "asc" }, select: { id: true },
+  });
+  if (!a || !b) throw Error("Direct chat requires two existing users");
+  const pair = { userLowId: a.id, userHighId: b.id };
+  const prior = await tx.chatConversation.findFirst({
+    where: { ...pair, closedAt: null, OR: [
+      { accessMode: "DIRECT_INVITATION", directInvitation: { status: "ACCEPTED" } },
+      { accessMode: "RELATIONSHIP", relationship: { status: "ACTIVE" } },
+    ] },
+    orderBy: [{ accessMode: "asc" }, { createdAt: "desc" }],
+  });
+  if (prior) return prior;
+  const sources = await tx.discoveryConnection.findMany({ where: { ...pair, state: "ACCEPTED", closedAt: null, relationshipId: null }, take: 2 });
+  if (process.env.DISCOVERY_CHAT_ENABLED === "true" && sources.length === 1 && await discoveryPairEligible(tx, sources[0]!)) {
+    const existing = await ensureDiscoveryConversation(tx, sources[0]!.id);
+    if (!existing.closedAt && !existing.relationshipId && existing.accessMode === "DISCOVERY") {
+      return tx.chatConversation.update({ where: { id: existing.id }, data: { directInvitationId: input.invitationId, accessMode: "DIRECT_INVITATION" } });
+    }
+  }
+  const reason = await pairClosure(tx, a.id, b.id);
+  return tx.chatConversation.create({ data: { ...pair, id: input.invitationId, origin: "DIRECT_INVITATION", accessMode: "DIRECT_INVITATION",
+    directInvitationId: input.invitationId, ...(reason ? { closedAt: new Date(), closureReason: reason } : {}) } });
+}
+
 export async function attachPromotedRelationship(tx: Prisma.TransactionClient, input: { connectionId: string; relationshipId: string }) {
   const c = await ensureDiscoveryConversation(tx, input.connectionId);
   if (c.relationshipId !== input.relationshipId || c.accessMode !== "DISCOVERY") throw Error("Promoted conversation source mismatch");
@@ -66,7 +92,15 @@ export async function attachPromotedRelationship(tx: Prisma.TransactionClient, i
 export async function samePairRelationshipConflict(tx: Prisma.TransactionClient, a: string, b: string) {
   if (!sharedMessagingEnabled()) return null;
   const rel = await tx.relationship.findFirst({ where: { status: "ACTIVE", AND: [{ members: { some: { userId: a } } }, { members: { some: { userId: b } } }], members: { every: { userId: { in: [a,b] } } } }, include: { members: true, chatConversation: true } });
-  if (!rel || rel.members.length !== 2) return null;
+  if (!rel || rel.members.length !== 2) {
+    const direct = await tx.chatConversation.findFirst({ where: {
+      accessMode: "DIRECT_INVITATION", closedAt: null,
+      OR: [{ userLowId: a, userHighId: b }, { userLowId: b, userHighId: a }],
+    } });
+    return direct && await conversationAllowsChat(tx, direct)
+      ? { ok: false as const, status: 409, error: "You already have a chat together. Continue in Messages.", conversationId: direct.id }
+      : null;
+  }
   const c = rel.chatConversation;
   return { ok: false as const, status: 409, error: "You already have a shared space together. Continue in Messages.", ...(c && await conversationAllowsChat(tx,c) ? { conversationId: c.id } : {}) };
 }

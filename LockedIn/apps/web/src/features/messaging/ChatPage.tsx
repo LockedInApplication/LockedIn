@@ -8,6 +8,7 @@ import { notificationDestination } from "@/features/notifications";
 import { ConnectedProfileView } from "@/features/discovery/ConnectedProfile";
 import Chat, { ChatIdentity } from "./Chat";
 import MessageSafetyActions from "./MessageSafetyActions";
+import DirectLockIn from "./DirectLockIn";
 import { getTogetherStarter } from "./chat-starter";
 import { messagingRequest } from "./messaging.client";
 import type { ConversationMetadata } from "./messaging.types";
@@ -50,9 +51,9 @@ function AccountChat({ userId,name,conversationId,fromTogether,returnTo,initialD
   </MemberChrome>;
 }
 export function ChatPageBody({userId,metadata,error,retry,onAccessEnded,backAction,initialDraft}:{userId:string;metadata:ConversationMetadata|null;error:string;retry:()=>void;onAccessEnded:()=>void;backAction?:ReactNode;initialDraft?:string}) {
-  return <>{!metadata ? backAction : null}{error ? <section role="alert"><p>{error}</p><button onClick={retry}>Try again</button></section> : null}{metadata ? <ConversationContent userId={userId} metadata={metadata} onAccessEnded={onAccessEnded} backAction={backAction} initialDraft={initialDraft}/> : !error ? <p role="status">Loading conversation…</p> : null}</>;
+  return <>{!metadata ? backAction : null}{error ? <section role="alert"><p>{error}</p><button onClick={retry}>Try again</button></section> : null}{metadata ? <ConversationContent userId={userId} metadata={metadata} onAccessEnded={onAccessEnded} backAction={backAction} initialDraft={initialDraft} onRefresh={retry}/> : !error ? <p role="status">Loading conversation…</p> : null}</>;
 }
-export function ConversationContent({ userId,metadata,onAccessEnded,backAction,initialDraft }: { userId: string; metadata: ConversationMetadata; onAccessEnded: () => void; backAction?: ReactNode; initialDraft?: string }) {
+export function ConversationContent({ userId,metadata,onAccessEnded,backAction,initialDraft,onRefresh }: { userId: string; metadata: ConversationMetadata; onAccessEnded: () => void; backAction?: ReactNode; initialDraft?: string; onRefresh?: () => void }) {
   const [profileOpen,setProfileOpen] = useState(false);
   useEffect(() => {
     if (!initialDraft || !metadata.canChat) return;
@@ -70,6 +71,7 @@ export function ConversationContent({ userId,metadata,onAccessEnded,backAction,i
       <Chat conversationId={metadata.id} userId={userId} partner={metadata.partner} onAccessEnded={onAccessEnded} dateSpotsConversationId={metadata.dateSpotsConversationId} datePlansConversationId={metadata.datePlansConversationId}
         backAction={backAction} initialDraft={initialDraft} onViewProfile={metadata.profileConnectionId ? () => setProfileOpen(true) : undefined}
         openingContext={metadata.opening ? <details><summary>How you started talking</summary><p>{metadata.opening.questionText}</p><blockquote>{metadata.opening.hello}</blockquote></details> : undefined}/>
+      {metadata.lockIn ? <DirectLockIn userId={userId} conversationId={metadata.id} state={metadata.lockIn} onRefresh={onRefresh ?? (() => {})}/> : null}
       <details><summary>Safety &amp; contact controls</summary><MessageSafetyActions userId={userId} conversationId={metadata.id} onBlocked={onAccessEnded}/></details>
       {profileOpen && metadata.profileConnectionId ? <ConnectedProfileView userId={userId} connectionId={metadata.profileConnectionId} onClose={() => setProfileOpen(false)}/> : null}
   </>;

@@ -25,14 +25,15 @@ export default function InboxList({ compose }: { compose: boolean }) {
   const readInvites = useCallback(async (signal: AbortSignal) => {
     const data = await journeyRequest<JourneyOverview>("/api/journey/overview", { signal, cache: "no-store" });
     if (data.user.id !== userId) throw new Error("Your account changed. Reopen Inbox to continue.");
-    return { pending: data.pendingInvites, hasSharedSpace: !!data.relationship, chatId: data.messaging?.enabled ? data.messaging.conversationId : null };
+    return { pending: data.pendingInvites, canInvite: data.canInviteToChat ?? !data.relationship, chatFirst: data.canInviteToChat !== undefined,
+      directChats: data.directChats, chatId: data.messaging?.enabled ? data.messaging.conversationId : null };
   }, [userId]);
   const direct = useDiscoveryResource(userId, "inbox-invites", readInvites, chatRevision);
   const directChatId = direct.value?.chatId;
   const readChat = useCallback((signal: AbortSignal) => messagingRequest<ConversationMetadata>(userId,
     `/api/messaging/conversations/${encodeURIComponent(directChatId ?? "")}`, { signal }), [userId, directChatId]);
   const linked = useDiscoveryResource(userId, !compose && directChatId ? `inbox-shared-chat:${directChatId}` : "", readChat, chatRevision);
-  const { chats, invitations, history, offPageUnread } = inboxEntries(connections.value?.items ?? [], linked.value, unread, !!me.chatEnabled && (me.canChat ?? me.canDiscover));
+  const { chats, invitations, history, offPageUnread } = inboxEntries(connections.value?.items ?? [], linked.value, unread, !!me.chatEnabled && (me.canChat ?? me.canDiscover), direct.value?.directChats);
   const settled = !!connections.value && !!direct.value && (!directChatId || !!linked.value);
   const pending = !connections.error && !direct.error && !linked.error && !settled;
 
@@ -41,15 +42,15 @@ export default function InboxList({ compose }: { compose: boolean }) {
     <h1>Invite someone you know</h1>
     {direct.error ? <p role="alert">{direct.error} <button onClick={direct.retry}>Try again</button></p> :
       !direct.value ? <p role="status">Checking invitation availability…</p> :
-      direct.value.hasSharedSpace ? <section className={styles.card}><p>You already have a shared space. You can keep chatting in Inbox.</p></section> :
-      <DirectInvite/>}
+      !direct.value.canInvite ? <section className={styles.card}><p>New invitations are unavailable right now. You can keep chatting in Inbox.</p></section> :
+      <DirectInvite chatFirst={direct.value.chatFirst}/>}
   </>;
 
   return <>
     <div className={inboxStyles.heading}>
       <div><h1>Inbox</h1><p>Chat with people you’ve connected with or invited.</p></div>
       <div className={styles.actions}>
-        {direct.value && !direct.value.hasSharedSpace ? <button className={styles.primary} onClick={() => void leave("/connections?compose=invite")}>Invite someone</button> : null}
+        {direct.value?.canInvite ? <button className={styles.primary} onClick={() => void leave("/connections?compose=invite")}>Invite someone</button> : null}
         <button onClick={() => void leave("/journey?invitations=manage")}>Sent invitations</button>
       </div>
     </div>
@@ -66,7 +67,7 @@ export default function InboxList({ compose }: { compose: boolean }) {
       <h2 id="inbox-invitations">Invitations</h2>
       <InboxRows rows={[...(direct.value?.pending ?? []).map(invite => ({
         href: `/journey?invitation=${encodeURIComponent(invite.id)}`, partner: { publicName: invite.inviter.name, avatarPreset: "initials" },
-        status: "Invitation to review", detail: "Invited you to a private shared space", unread: false,
+        status: "Invitation to review", detail: direct.value?.chatFirst ? "Invited you to chat" : "Invited you to a private shared space", unread: false,
       })), ...invitations]} onOpen={leave}/>
     </section> : null}
     {settled && !before && !chats.length && !offPageUnread && !invitations.length && !direct.value?.pending.length ? <section className={styles.card}>

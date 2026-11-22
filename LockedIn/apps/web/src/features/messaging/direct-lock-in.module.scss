@@ -1,0 +1,30 @@
+.entry {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  min-width: 0;
+  padding-block: 8px;
+  border-block-start: 1px solid var(--member-divider, var(--brand-rule));
+  color: var(--ink);
+  font-size: .9rem;
+  overflow-wrap: anywhere;
+  > p { margin: 4px 0 0; }
+  > :is(button, a), .actions > button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 6px 10px;
+    color: var(--action);
+    background: transparent;
+    border: 1px solid var(--member-divider, var(--brand-rule));
+    border-radius: 999px;
+    font: inherit;
+    font-weight: 650;
+    text-decoration: none;
+    cursor: pointer;
+    &:hover:not(:disabled) { background: var(--member-hover, var(--stone-50)); }
+    &:disabled { opacity: .55; cursor: not-allowed; }
+    &:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+  }
+}
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -224,6 +224,7 @@ model Relationship {
   status    RelationshipStatus @default(ACTIVE)
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
+  directLockedInAt DateTime?
 
   members             RelationshipMember[]
   intentionSessions   IntentionSession[]
@@ -242,6 +243,7 @@ model Notification {
   relationshipId String?
   invitationId   String?
   discoveryConnectionId String?
+  conversationId String?
   kind           String
   entityId       String
   wordKey        String?
@@ -254,12 +256,14 @@ model Notification {
   relationship   Relationship? @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
   invitation     RelationshipInvite? @relation(fields: [invitationId], references: [id], onDelete: Cascade)
   discoveryConnection   DiscoveryConnection? @relation(fields: [discoveryConnectionId], references: [id], onDelete: Cascade)
+  conversation   ChatConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@unique([recipientId, eventKey])
   @@index([recipientId, id])
   @@index([relationshipId])
   @@index([invitationId])
   @@index([discoveryConnectionId])
+  @@index([conversationId])
 }
 
 enum DiscoveryConnectionState {
@@ -456,6 +460,7 @@ enum ChatOrigin {
 enum ChatAccessMode {
   DISCOVERY
   RELATIONSHIP
+  DIRECT_INVITATION
 }
 
 model ChatConversation {
@@ -467,6 +472,8 @@ model ChatConversation {
   discoveryConnectionId String? @unique
   relationshipId        String? @unique
   directInvitationId    String? @unique
+  lockInRequestedBy     String?
+  lockInRequestId       String?
   closedAt              DateTime?
   closureReason         String?
   createdAt             DateTime @default(now())
@@ -482,6 +489,7 @@ model ChatConversation {
   datePlans             ChatDatePlan[]
   readStates            ChatReadState[]
   textReadStates        ChatTextReadState[]
+  notifications         Notification[]
 
   @@index([userLowId])
   @@index([userHighId])

@@ -21,6 +21,17 @@ export async function lockConversation(tx: Prisma.TransactionClient, id: string,
 
 export async function conversationAllowsChat(tx: Prisma.TransactionClient, c: ChatConversation, legacyDiscovery = false) {
   if (c.closedAt || await pairClosure(tx, c.userLowId, c.userHighId)) return false;
+  if (c.accessMode === "DIRECT_INVITATION") {
+    if (!sharedMessagingEnabled() || !c.directInvitationId || c.relationshipId) return false;
+    const invite = await tx.relationshipInvite.findUnique({
+      where: { id: c.directInvitationId },
+      select: { status: true, inviterId: true, inviteeId: true,
+        inviter: { select: { emailVerified: true } }, invitee: { select: { emailVerified: true } } },
+    });
+    return !!invite && invite.status === "ACCEPTED" && invite.inviterId !== invite.inviteeId &&
+      chatMember(c, invite.inviterId) && !!invite.inviteeId && chatMember(c, invite.inviteeId) &&
+      invite.inviter.emailVerified && !!invite.invitee?.emailVerified;
+  }
   if (c.accessMode === "DISCOVERY" || legacyDiscovery && !sharedMessagingEnabled()) {
     if (!c.discoveryConnectionId || process.env.DISCOVERY_CHAT_ENABLED !== "true") return false;
     const source = await tx.discoveryConnection.findUnique({ where: { id: c.discoveryConnectionId } });

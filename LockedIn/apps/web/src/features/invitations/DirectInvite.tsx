@@ -4,7 +4,7 @@ import { useDiscovery } from "@/features/discovery/DiscoveryShell";
 import { journeyRequest } from "@/lib/journey";
 import styles from "@/features/discovery/discovery.module.scss";
 
-export default function DirectInvite() {
+export default function DirectInvite({ chatFirst = false }: { chatFirst?: boolean }) {
   const { setDirty, busy, setBusy } = useDiscovery();
   const [email, setEmail] = useState("");
   const [link, setLink] = useState("");
@@ -44,7 +44,7 @@ export default function DirectInvite() {
     <div className={styles.actions}><button type="button" onClick={() => void copy()}>Copy link</button></div>
     {copyNotice ? <p role="status">{copyNotice}</p> : null}
   </section> : <form className={`${styles.card} ${styles.form}`} onSubmit={event => void submit(event)}>
-    <p>Send a private invitation. If they accept, you can chat in Inbox and use your shared space in Together.</p>
+    <p>{chatFirst ? "Send a private invite to chat. Accepting won’t lock either of you in." : "Send a private invitation. If they accept, you can chat in Inbox and use your shared space in Together."}</p>
     <label>Their email<input className={styles.field} type="email" autoComplete="off" value={email} required disabled={busy}
       onChange={event => { setEmail(event.target.value); setDirty(event.target.value.length > 0); }}/></label>
     <button className={styles.primary} disabled={busy || !email.trim()} type="submit">{busy ? "Sending…" : "Send private invite"}</button>

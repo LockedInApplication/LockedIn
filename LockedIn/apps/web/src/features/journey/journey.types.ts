@@ -1,4 +1,5 @@
 import type { AtlasWord } from "@/features/atlas/atlas.types";
+import type { DirectInboxChat, DirectLockInState } from "@/features/messaging/messaging.types";
 import type { CheckInSnapshot } from "@/features/check-ins/check-in.types";
 import type {
   AlignmentItem,
@@ -36,6 +37,9 @@ export type JourneySession = {
 
 export type JourneyOverview = {
   messaging?: { enabled: boolean; conversationId: string | null };
+  directChats?: DirectInboxChat[];
+  canInviteToChat?: boolean;
+  lockIn?: DirectLockInState;
   user: { id: string; email: string; name: string; avatarPreset?:string };
   pendingInvites: Array<{
     id: string;

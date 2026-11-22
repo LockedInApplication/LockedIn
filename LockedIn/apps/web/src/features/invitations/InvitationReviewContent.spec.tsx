@@ -4,6 +4,12 @@ import InvitationReviewContent from "./InvitationReviewContent";
 const pending = { id: "invite", token: "private-token", inviterName: "Abena", status: "PENDING", expiresAt: "2026-11-22T12:00:00Z", canRespond: true, blockedReason: null };
 const callbacks = { onClose: () => { }, onRetry: () => { }, onDecision: () => { } };
 describe("explicit invitation review", () => {
+    it("says exactly what a new direct invitation opens", () => {
+        const html = renderToStaticMarkup(<InvitationReviewContent {...callbacks} data={{ ...pending, chatFirst: true }} loading={false} busy={false} error={null}/>);
+        expect(html).toContain("Accept and chat");
+        expect(html).toContain("doesn’t lock you in or pause Discovery");
+        expect(html).not.toContain("invited you to build a private shared space");
+    });
     it("explains decline visibility and offers a separate private invitation block",()=>{
         const html=renderToStaticMarkup(<InvitationReviewContent {...callbacks} data={{...pending,canBlock:true}} loading={false} busy={false} error={null}/>);
         expect(html).toContain("sender can see");expect(html).toContain("7 days");expect(html).toContain("Block invitation sender");expect(html).toContain("won’t be told");

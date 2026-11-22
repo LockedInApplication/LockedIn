@@ -28,6 +28,7 @@ function Starter({connection,setConnection,onRefresh}:{connection:DiscoveryConne
   const {userId,me,refreshAccess,leave,setDirty,busy,setBusy,confirmLeave}=useDiscovery(),[notice,setNotice]=useState(""),[close,setClose]=useState(false),[profileOpen,setProfileOpen]=useState(false);
   const connected=connection.state==="ACCEPTED"||(connection.state==="PROMOTED"&&connection.lockedIn===true&&connection.canChat===true);
   const canChat=me.chatEnabled&&(me.canChat??me.canDiscover)&&(connection.canChat??connection.state==="ACCEPTED");
+  const directConversationId=connection.directConversationId;
   const sharedSpaceEnded=connection.state==="PROMOTED"&&!!connection.promotedRelationshipId&&me.currentRelationshipId===null&&connection.canChat===false;
   const partnerName=connected?<button className={styles.profileName} type="button" disabled={busy} aria-label={`View ${connection.partner.publicName}’s profile`} onClick={()=>setProfileOpen(true)}>{connection.partner.publicName}</button>:connection.partner.publicName;
   const url=`/api/discovery/connections/${connection.id}`;
@@ -57,7 +58,9 @@ function Starter({connection,setConnection,onRefresh}:{connection:DiscoveryConne
       onViewProfile={connected?()=>setProfileOpen(true):undefined} dateSpotsConversationId={connection.dateSpotsConversationId} datePlansConversationId={connection.datePlansConversationId}/> : connected ? <p role="status">Messaging is currently unavailable for this connection.</p> : null}
     {profileOpen?<ConnectedProfile connectionId={connection.id} onClose={()=>setProfileOpen(false)} onBlocked={()=>void onBlocked()}/>:null}
     <ConnectionStatus connection={connection} sharedSpaceEnded={sharedSpaceEnded}/>
-    {!sharedSpaceEnded?<BuildTogetherPanel connection={connection} busy={busy} currentRelationshipId={me.currentRelationshipId} onChoose={ready=>void chooseBuild(ready)} onOpen={()=>void leave("/journey")}/>:null}
+    {canChat && directConversationId
+      ? <button type="button" disabled={busy} onClick={()=>void leave(`/messages/${encodeURIComponent(directConversationId)}`)}>Open in Messages</button>
+      : !sharedSpaceEnded ? <BuildTogetherPanel connection={connection} busy={busy} currentRelationshipId={me.currentRelationshipId} onChoose={ready=>void chooseBuild(ready)} onOpen={()=>void leave("/journey")}/> : null}
     {connection.canClose?<button className={styles.danger} disabled={busy} onClick={async()=>{if(await confirmLeave())setClose(true);}}>Close this connection</button>:null}
     <DiscoverySafetyActions connectionId={connection.id} reportSource={reportSources.at(-1)??null} reportSources={reportSources} onBlocked={onBlocked}/>
     <ConfirmDialog open={close} onCancel={()=>setClose(false)} onConfirm={async()=>{setClose(false);const result=await run(`${url}/close`,{});if(result)setDirty(false);}} title="Close this connection?" description="Messaging and new build choices stop. This does not delete either person’s account or end an existing shared space." confirmLabel="Close connection" cancelLabel="Keep connection"/>

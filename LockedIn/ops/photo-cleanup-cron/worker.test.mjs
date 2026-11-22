@@ -13,12 +13,22 @@ test("retries a cold/loading origin, a transient failure, and an unreachable req
     assert.equal(url, "https://lockedin-9yon.onrender.com/internal/account-photo-cleanup/tick");
     assert.equal(request.method, "POST");
     assert.equal(request.headers.Authorization, `Bearer ${secret}`);
-    assert.equal(request.redirect, "error");
+    assert.equal(request.redirect, "manual");
     assert.equal(request.body, undefined);
     return responses.shift()();
   }, async ms => waits.push(ms));
   assert.deepEqual(waits, [8_000, 20_000, 35_000]);
   assert.equal(responses.length, 0);
+});
+
+test("refuses redirects without using or logging their destination", async () => {
+  let calls = 0;
+  await assert.rejects(tick(secret, async (_url, request) => {
+    calls++;
+    assert.equal(request.redirect, "manual");
+    return new Response("untrusted", { status: 302, headers: { Location: "https://redirect.invalid" } });
+  }, immediate), { message: "Account photo cleanup trigger refused a redirect (HTTP 302)" });
+  assert.equal(calls, 1);
 });
 
 test("does not retry authorization rejections or treat unknown success responses as completion", async () => {

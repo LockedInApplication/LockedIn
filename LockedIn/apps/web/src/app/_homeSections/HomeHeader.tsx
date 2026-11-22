@@ -22,11 +22,13 @@ export default function HomeHeader() {
     let observer: IntersectionObserver | undefined;
     const track = () => {
       observer?.disconnect();
-      const height = Math.ceil(nav.getBoundingClientRect().height);
-      setOnPaper(hero.getBoundingClientRect().bottom <= height);
+      // Section links leave a small gap below the sticky nav. Switch to the
+      // light treatment there too, even if the last few pixels of the hero remain.
+      const boundary = Math.ceil(nav.getBoundingClientRect().height) + 20;
+      setOnPaper(hero.getBoundingClientRect().bottom <= boundary);
       observer = new IntersectionObserver(([entry]) => {
-        setOnPaper(!entry.isIntersecting && entry.boundingClientRect.bottom <= height);
-      }, { rootMargin: `-${height}px 0px 0px 0px` });
+        setOnPaper(!entry.isIntersecting && entry.boundingClientRect.bottom <= boundary);
+      }, { rootMargin: `-${boundary}px 0px 0px 0px` });
       observer.observe(hero);
     };
 
@@ -41,29 +43,31 @@ export default function HomeHeader() {
 
   return (
     <header ref={header} className={`${styles.header} ${onPaper ? styles.onPaper : ""}`}>
-      <nav className={styles.desktopNav} aria-label="Learn about LockedIn">
-        <a href="#how-it-works">How it works</a>
-        <a href="#trust">Private space</a>
-        <Link href={invitePath} prefetch={false}>Invite someone</Link>
-      </nav>
-      <details ref={menu} className={styles.mobileMenu} onKeyDown={event => {
-        if (event.key !== "Escape" || !event.currentTarget.open) return;
-        closeMenu();
-        event.currentTarget.querySelector("summary")?.focus();
-      }}>
-        <summary aria-label="Navigation"><span aria-hidden="true" /></summary>
-        <nav aria-label="Mobile navigation">
-          <a href="#how-it-works" onClick={closeMenu}>How it works</a>
-          <a href="#trust" onClick={closeMenu}>Private space</a>
-          <Link href={invitePath} prefetch={false} onClick={closeMenu}>Invite someone</Link>
-          <Link href="/login" onClick={closeMenu}>Sign in</Link>
+      <div className={styles.headerInner}>
+        <a href="#top" className={styles.brand} aria-label="LockedIn home">
+          <span className={styles.brandMark} aria-hidden="true" /><span>Locked<em>In</em></span>
+        </a>
+        <nav className={styles.desktopNav} aria-label="Learn about LockedIn">
+          <a href="#how-it-works">How it works</a>
+          <a href="#trust">Private space</a>
+          <a href="#app-preview">Inside the app</a>
         </nav>
-      </details>
-      <a href="#top" className={styles.brand} aria-label="LockedIn home">LockedIn</a>
-      <nav className={styles.accountNav} aria-label="Your account">
-        <Link href="/login" className={styles.desktopSignIn}>Sign in</Link>
         <Link href="/signup" className={styles.headerJoin} aria-label="Join LockedIn">Join<span> LockedIn</span></Link>
-      </nav>
+        <details ref={menu} className={styles.mobileMenu} onKeyDown={event => {
+          if (event.key !== "Escape" || !event.currentTarget.open) return;
+          closeMenu();
+          event.currentTarget.querySelector("summary")?.focus();
+        }}>
+          <summary aria-label="Navigation"><span aria-hidden="true" /></summary>
+          <nav aria-label="Mobile navigation">
+            <a href="#how-it-works" onClick={closeMenu}>How it works</a>
+            <a href="#trust" onClick={closeMenu}>Private space</a>
+            <a href="#app-preview" onClick={closeMenu}>Inside the app</a>
+            <Link href={invitePath} prefetch={false} onClick={closeMenu}>Invite someone</Link>
+            <Link href="/login" onClick={closeMenu}>Sign in</Link>
+          </nav>
+        </details>
+      </div>
     </header>
   );
 }

@@ -1,6 +1,5 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
-import BrandLogo from "@/components/brandLogo";
 import { writtenPrompts } from "@/features/discovery/discovery-prompt";
 import { memberTabs } from "@/features/journey/member-navigation";
 import home from "../page.module.scss";
@@ -14,22 +13,24 @@ const atlasLandmarks = [
 
 function Phone({ active, children }: { active: "Discover" | "Together"; children: ReactNode }) {
   return (
-    <div className={styles.phone}>
-      <div className={styles.screen}>
-        <div className={styles.statusBar} aria-hidden="true">
-          <span>9:41</span><span className={styles.camera} /><span className={styles.battery} />
-        </div>
-        <div className={styles.appHeader} aria-hidden="true"><BrandLogo className={styles.mark} />LockedIn</div>
-        <div className={styles.screenContent}>{children}</div>
-        <div className={styles.tabBar} aria-hidden="true">
-          {memberTabs.map(tab => (
-            <span key={tab.label} className={tab.label === active ? styles.activeTab : undefined}>
-              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d={tab.icon} />
-              </svg>
-              {tab.label}
-            </span>
-          ))}
+    <div className={styles.stage}>
+      <div className={styles.phone}>
+        <div className={styles.screen}>
+          <div className={styles.statusBar} aria-hidden="true">
+            <span>9:41</span><span className={styles.indicators} />
+          </div>
+          <div className={styles.appHeader} aria-hidden="true"><span>Locked<em>In</em></span><span className={styles.dots}>•••</span></div>
+          <div className={styles.screenContent}>{children}</div>
+          <div className={styles.tabBar} aria-hidden="true">
+            {memberTabs.map(tab => (
+              <span key={tab.label} className={tab.label === active ? styles.activeTab : undefined}>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={tab.icon} />
+                </svg>
+                {tab.label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -66,27 +67,22 @@ export default function HomeProductPreviews() {
           </figcaption>
         </figure>
 
-        <figure className={`${styles.figure} ${styles.atlasFigure} ${home.fromRight}`} aria-labelledby="atlas-preview-caption" data-home-reveal="">
+        <figure className={`${styles.figure} ${home.fromRight}`} aria-labelledby="atlas-preview-caption" data-home-reveal="">
           <Phone active="Together">
             <p className={styles.eyebrow}>Together · Understand each other</p>
             <div className={styles.atlasHeader}>
               <h3 className={styles.screenTitle}>The Atlas of Us</h3>
               <p>What do everyday words like support and space mean to each of you?</p>
             </div>
-            <div className={styles.atlasMap}>
-              <svg viewBox="0 0 300 130" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M50 93 C92 93 109 68 150 68 S214 43 250 43" />
-              </svg>
-              <ul className={styles.landmarks} aria-label="Atlas landmarks">
-                {atlasLandmarks.map(({ title, symbol, status }) => (
-                  <li key={title}>
-                    <span className={styles.landmarkIcon} aria-hidden="true">{symbol}</span>
-                    <strong>{title}</strong>
-                    <span className={styles.landmarkStatus}>{status}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ul className={styles.landmarks} aria-label="Atlas landmarks">
+              {atlasLandmarks.map(({ title, symbol, status }) => (
+                <li key={title}>
+                  <span className={styles.landmarkIcon} aria-hidden="true">{symbol}</span>
+                  <strong>{title}</strong>
+                  <span className={styles.landmarkStatus}>{status}</span>
+                </li>
+              ))}
+            </ul>
             <div className={styles.atlasChapter}>
               <p className={styles.eyebrow}>A shared landmark</p>
               <h4>For us, “Support” means…</h4>

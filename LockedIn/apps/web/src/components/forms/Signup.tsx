@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "../styles/authForms.module.scss";
 import { authClient } from "@/utils/authCLient";
 import { ERROR_MESSAGES } from "./errorCode";
 import { SIGNUP_PASSWORD_HINT, validateSignupFields } from "./signup-fields";
 import { authEntryLink, safeMemberReturnTo, verificationPath } from "@/features/auth/member-entry";
+import { takeSignupEmail } from "@/features/auth/signup-email";
 
 type SignupProps = {
   onError: (message: string) => void;
@@ -19,6 +20,11 @@ type FieldError = Extract<ReturnType<typeof validateSignupFields>, { ok: false }
 export default function Signup({ onError, returnTo = "/journey" }: SignupProps) {
   const router = useRouter();
   const [fieldError, setFieldError] = useState<FieldError | null>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const email = takeSignupEmail();
+    if (email && emailInput.current && !emailInput.current.value) emailInput.current.value = email;
+  }, []);
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
@@ -134,6 +140,7 @@ export default function Signup({ onError, returnTo = "/journey" }: SignupProps) 
         <div className={styles.formGroup}>
           <label htmlFor="email">Email</label>
           <input
+            ref={emailInput}
             type="email"
             id="email"
             name="email"

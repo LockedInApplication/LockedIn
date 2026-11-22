@@ -4,7 +4,7 @@ import Home from "./page";
 
 it("keeps signup, direct invitations, sign-in and app entry points in the editorial layout", () => {
   const html = renderToStaticMarkup(<Home />);
-  expect(html.match(/href="\/signup"/g)).toHaveLength(2);
+  expect(html.match(/href="\/signup"/g)).toHaveLength(3);
   expect(html).toMatch(/<a[^>]*href="\/signup"[^>]*>Join LockedIn<\/a>/);
   expect(html).toMatch(/<a[^>]*href="\/connections\?compose=invite"[^>]*>Invite someone<\/a>/);
   expect(html).toMatch(/<a[^>]*href="\/login"[^>]*>Sign in<\/a>/);
@@ -12,7 +12,7 @@ it("keeps signup, direct invitations, sign-in and app entry points in the editor
   expect(html).toMatch(/<summary[^>]*aria-label="Navigation"/);
   expect(html).toContain('href="#main-content"');
   expect(html).toMatch(/<main id="main-content" tabindex="-1"/);
-  for (const section of ["how-it-works", "trust"]) {
+  for (const section of ["how-it-works", "trust", "app-preview"]) {
     expect(html).toContain(`href="#${section}"`);
     expect(html).toContain(`id="${section}"`);
   }
@@ -20,13 +20,19 @@ it("keeps signup, direct invitations, sign-in and app entry points in the editor
   expect(html).not.toContain('href="#preview"');
 });
 
-it("renders all editorial content before JavaScript with no demo controls", () => {
+it("renders all editorial content before JavaScript with a real signup action", () => {
   const html = renderToStaticMarkup(<Home />);
   expect(html.match(/data-home-reveal=""/g)).toHaveLength(7);
   expect(html).toContain("A good chat can");
   expect(html).toContain("A space for just you two.");
   expect(html).toMatch(/<img(?=[^>]*src="\/home\/editorial-coffee\.webp")(?=[^>]*loading="lazy")[^>]*>/);
-  expect(html).not.toMatch(/<(?:form|button|input)\b/);
+  expect(html).toContain("Go from hello <em>to a real date.</em>");
+  expect(html).toContain("Start with one good conversation.");
+  expect(html).toMatch(/<form\b[^>]*action="\/signup"/);
+  const email = html.match(/<input\b[^>]*id="home-signup-email"[^>]*>/)?.[0];
+  expect(email).toContain('type="email"');
+  expect(email).not.toMatch(/\sname=/);
+  expect(html).not.toContain("Request invite");
 });
 
 it("shows clearly labeled Discovery and Atlas examples with no interactive controls", () => {

@@ -152,13 +152,22 @@ model User {
   @@map("user")
 }
 
+enum AccountDeletionState {
+  MANUAL_REQUEST
+  CLEANING_PHOTOS
+  CLEANUP_NEEDS_REVIEW
+}
+
 model AccountDeletionRequest {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @unique
-  requestedAt DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String               @id @default(uuid()) @db.Uuid
+  userId      String               @unique
+  requestedAt DateTime             @default(now())
+  state       AccountDeletionState @default(MANUAL_REQUEST)
+  lastCleanupCheckAt DateTime?
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([requestedAt])
+  @@index([state, lastCleanupCheckAt, requestedAt], map: "AccountDeletionRequest_cleanup_queue_idx")
 }
 
 enum MatchGender {

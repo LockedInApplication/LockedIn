@@ -36,12 +36,14 @@ function serializeRequestForLog(request: FastifyRequest) {
 export async function buildServer({
   logStream,
   dateSpotProvider,
+  wakeDeletionWorker,
   ...discoveryOptions
 }: {
   logStream?: Writable;
   photoProvider?: PhotoProvider;
   discoveryGeocoder?: DiscoveryGeocoder;
   dateSpotProvider?: PlaceProvider;
+  wakeDeletionWorker?: () => void;
 } = {}) {
   const server = Fastify({
     logger: {
@@ -61,7 +63,7 @@ export async function buildServer({
   server.register(authRoutes);
   server.register(usersRoutes);
   server.register(journeyRoutes);
-  server.register(registerProfileRoutes);
+  server.register(registerProfileRoutes, { wakeDeletionWorker });
   server.register(registerDiscoveryRoutes, discoveryOptions);
   server.register(registerMessagingRoutes);
   server.register(async scope => registerDateSpotRoutes(scope,dateSpotProvider));

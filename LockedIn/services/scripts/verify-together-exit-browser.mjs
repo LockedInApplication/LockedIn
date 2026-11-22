@@ -1,8 +1,39 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 
 const button = (scope, name) => scope.getByRole("button", { name, exact: true });
 const link = (scope, name) => scope.getByRole("link", { name, exact: true });
 const composer = (page) => page.getByRole("textbox", { name: "Message", exact: true });
+
+export async function verifyPhotoCleanupReceipt({ prisma, base, alex, alexPage: a }) {
+  const password = "disposable-photo-cleanup-password";
+  const { auth } = await import("../api/src/lib/auth.ts");
+  const hash = await (await auth.$context).password.hash(password);
+  await prisma.account.create({ data: { id: randomUUID(), accountId: alex.id, userId: alex.id, providerId: "credential", password: hash } });
+  const profile = await prisma.discoveryProfile.create({ data: { ownerId: alex.id, draft: { revision: 0 } } });
+  const id = randomUUID(), publicId = `lockedin-discovery/${id}`;
+  await prisma.discoveryPhoto.create({ data: { id, publicId, ownerId: alex.id, profileId: profile.id, requestId: randomUUID(), payloadHash: "0".repeat(64), assetId: "synthetic", assetVersion: 1, state: "APPROVED", scanCompleted: true } });
+
+  await a.goto(base + "/profile");
+  const deletion = a.getByRole("region", { name: "Delete account", exact: true });
+  await button(deletion,"Delete account").click();
+  await deletion.getByLabel("Current password", { exact: true }).fill(password);
+  await button(deletion,"Permanently delete account").click();
+  await a.waitForURL(base + "/account-deletion");
+  const request = await prisma.accountDeletionRequest.findUniqueOrThrow({ where: { userId: alex.id } });
+  await a.getByText(request.id, { exact: true }).waitFor();
+  assert.equal(request.state, "CLEANING_PHOTOS");
+  assert.equal((await a.request.get(base + "/api/profile")).status(), 401);
+  assert(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+  await a.reload();
+  await a.getByText(request.id, { exact: true }).waitFor();
+  const { runAccountPhotoCleanup } = await import("../api/src/features/profile/account-photo-cleanup.ts");
+  const erased = [];
+  await runAccountPhotoCleanup({ destroy: async ({ publicId }) => { erased.push(publicId); return "destroyed"; } });
+  assert.deepEqual(erased, [publicId]);
+  assert.equal(await prisma.user.findUnique({ where: { id: alex.id } }), null);
+  console.log("PASS confirmed photo deletion shows a private receipt after sign-out and finishes after fake storage confirms erasure");
+}
 
 export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, alexPage: a, sampleArea, sampleVenue }) {
   const email = "sam-together-exit@example.test", password = "disposable-two-account-password";

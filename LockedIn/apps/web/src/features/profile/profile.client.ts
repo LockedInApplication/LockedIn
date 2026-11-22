@@ -8,7 +8,7 @@ import type {
 export const loadProfile = (signal?: AbortSignal) =>
   journeyRequest<Profile>("/api/profile", { cache: "no-store", signal });
 export const deleteProfileAccount = (password: string, userId: string) =>
-  journeyRequest<null>("/api/profile/account/delete", {
+  journeyRequest<(AccountDeletionRequest & { status: "processing" }) | null>("/api/profile/account/delete", {
     method: "POST",
     headers: { "X-Profile-Owner": userId },
     body: JSON.stringify({ password }),

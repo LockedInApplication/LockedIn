@@ -19,6 +19,7 @@ const url = new URL(adminUrl); url.pathname = `/${name}`;
 const childEnv = { ...process.env, DATABASE_URL: url.toString(), DISCOVERY_INTEGRATION: "true", NOTIFICATIONS_INTEGRATION: "true", BETTER_AUTH_SECRET: "discovery-integration-only-secret-at-least-32-characters", BETTER_AUTH_URL: "http://localhost:8000", APP_URL: "http://localhost:3001", REQUIRE_EMAIL_VERIFICATION: "false", RESEND_API_KEY: "", RESEND_FROM_EMAIL: "", DISCOVERY_ENABLED: "false", DISCOVERY_PILOT_USER_IDS: "", DISCOVERY_MODERATOR_USER_IDS: "", DISCOVERY_AREAS_JSON: "[]", NODE_ENV: "test" };
 delete childEnv.DISCOVERY_TEST_ADMIN_URL;
 Object.assign(childEnv, { DISCOVERY_PHOTOS_ENABLED: "false", CLOUDINARY_CLOUD_NAME: "", CLOUDINARY_API_KEY: "", CLOUDINARY_API_SECRET: "" });
+childEnv.ACCOUNT_PHOTO_DELETION_ENABLED = "false";
 // Tests must not inherit an operator's open/invalid rollout mode.
 childEnv.DISCOVERY_ACCESS_MODE = "pilot";
 childEnv.DISCOVERY_MATCH_PREFERENCES_REQUIRED = "false";
@@ -138,7 +139,8 @@ try {
     plans: (await database.query('SELECT to_jsonb(d) AS plan FROM "ChatDatePlan" d ORDER BY id')).rows,
   });
   const beforeMatching = await matchingBaseline();
-  for (const entry of later.filter(entry => entry >= matchingExpansion)) cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
+  const photoDeletionExpansion = "20261121012000_account_photo_cleanup";
+  for (const entry of later.filter(entry => entry >= matchingExpansion && entry < photoDeletionExpansion)) cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
   run(["migrate", "deploy", "--config", config]);
   const inferred = await database.query('SELECT EXISTS (SELECT 1 FROM "DiscoveryMatchPreferences") OR EXISTS (SELECT 1 FROM "DiscoveryMatchPreferenceGuard") AS inferred');
   if (inferred.rows[0].inferred || JSON.stringify(beforeMatching) !== JSON.stringify(await matchingBaseline())) throw new Error("Matching migration populated owner settings or changed historical records");
@@ -146,6 +148,14 @@ try {
     OR EXISTS (SELECT 1 FROM "Notification" WHERE "conversationId" IS NOT NULL) OR EXISTS (SELECT 1 FROM "AccountDeletionRequest") AS inferred`);
   if (newFields.rows[0].inferred) throw new Error("Lock In or deletion request migrations inferred choices for historical accounts");
   console.log("Matching migration preserved historical records and did not infer settings.");
+  const manualRequestId = randomUUID();
+  await database.query(`INSERT INTO "AccountDeletionRequest" (id,"userId") VALUES ($1,'discovery-preserved-a')`, [manualRequestId]);
+  for (const entry of later.filter(entry => entry >= photoDeletionExpansion)) cpSync(path.join(migrations, entry), path.join(temp, "migrations", entry), { recursive: true });
+  run(["migrate", "deploy", "--config", config]);
+  const manual = await database.query(`SELECT state,"lastCleanupCheckAt" FROM "AccountDeletionRequest" WHERE id=$1`, [manualRequestId]);
+  if (manual.rows[0]?.state !== "MANUAL_REQUEST" || manual.rows[0]?.lastCleanupCheckAt !== null) throw new Error("Photo cleanup migration changed the meaning of an existing manual request");
+  await database.query(`DELETE FROM "AccountDeletionRequest" WHERE id=$1`, [manualRequestId]);
+  console.log("Photo cleanup migration preserved existing manual requests and did not authorize deletion.");
   const files = process.env.DISCOVERY_TEST_FILES?.split(",").filter(Boolean) ?? ["api/src"];
   const migrationTest = "api/src/features/messaging/test/messaging-migration.integration.spec.ts";
   const rolloutTest = "api/src/features/messaging/test/messaging-rollout.integration.spec.ts";

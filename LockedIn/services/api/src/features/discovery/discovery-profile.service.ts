@@ -10,10 +10,12 @@ import { draftPhotoIds, publishedPhotoIds, revokeRemovedPhotos, validPhotoSelect
 import { getPhotoConfig } from "./photos/photo.config.js";
 import { isDiscoveryAccountAllowed, isDiscoveryHistoryAllowed, readDiscoveryLocationPolicy, worldwidePublicArea } from "./discovery.config.js";
 import { isDiscoveryLockedIn } from './discovery-lock-in.js';
+import { accountDeletionInProgress } from "../profile/account-deletion.state.js";
 
 async function discoveryAccountVerified(tx: Prisma.TransactionClient, actorId: string, profile: DiscoveryProfile | null) {
   if (profile?.suspendedAt) return false;
-  return !!(await tx.user.findUnique({ where: { id: actorId }, select: { emailVerified: true } }))?.emailVerified;
+  return !!(await tx.user.findUnique({ where: { id: actorId }, select: { emailVerified: true } }))?.emailVerified &&
+    !await accountDeletionInProgress(actorId, tx);
 }
 export async function isDiscoveryAdmitted(tx: Prisma.TransactionClient, actorId: string, profile: DiscoveryProfile | null) {
   return isDiscoveryAccountAllowed(getDiscoveryConfig(), actorId) && await discoveryAccountVerified(tx, actorId, profile);

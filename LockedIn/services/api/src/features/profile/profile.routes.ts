@@ -13,7 +13,7 @@ import { deleteOwnAccount, requestAccountDeletion } from "./account-deletion.ser
 const deletionSchema = z.strictObject({ password: z.string().min(1).max(128) });
 const deletionRequestSchema = z.strictObject({});
 
-export async function registerProfileRoutes(server: FastifyInstance) {
+export async function registerProfileRoutes(server: FastifyInstance, { wakeDeletionWorker }: { wakeDeletionWorker?: () => void } = {}) {
   const allowedOrigins = new Set([
     "http://localhost:3001", "http://localhost:3000", new URL(env.APP_URL).origin,
   ]);
@@ -56,6 +56,10 @@ export async function registerProfileRoutes(server: FastifyInstance) {
       if (!result.ok) {
         if ("retryAfter" in result) reply.header("Retry-After", result.retryAfter);
         return sendError(reply, result.status, result.error);
+      }
+      if (result.receipt) {
+        wakeDeletionWorker?.();
+        return reply.code(202).send({ status: "processing", ...result.receipt });
       }
       return reply.code(204).send();
     } catch {

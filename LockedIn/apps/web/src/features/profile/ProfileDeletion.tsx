@@ -11,7 +11,7 @@ export default function ProfileDeletion({
   pendingRequest,
 }: {
   userId: string;
-  onDeleted: () => void;
+  onDeleted: (processing?: AccountDeletionRequest) => void;
   pendingRequest?: AccountDeletionRequest | null;
 }) {
   const [open, setOpen] = useState(false);
@@ -62,15 +62,15 @@ export default function ProfileDeletion({
             setBusy(true);
             setError("");
             try {
-              await deleteProfileAccount(password, userId);
+              const result = await deleteProfileAccount(password, userId);
+              setPassword("");
+              onDeleted(result?.status === "processing" ? result : undefined);
             } catch (cause) {
               setError(cause instanceof Error ? cause.message : "Unable to delete your account.");
               setPassword("");
               setBusy(false);
               return;
             }
-            setPassword("");
-            onDeleted();
           }}
         >
           <fieldset disabled={busy || requestBusy}>

@@ -1,6 +1,9 @@
 import { auth } from "../../lib/auth.js";
 import { prisma } from "../../lib/prisma.js";
 import { consumeDiscoveryQuota } from "../discovery/discovery-throttle.service.js";
+import { eraseAccountRows, lockDeletionOwner } from "./account-deletion.data.js";
+import { accountDeletionInProgress, automaticPhotoDeletionEnabled } from "./account-deletion.state.js";
+import { deletionReceiptSelect, prepareAccountDeletion } from "./account-photo-cleanup.js";
 
 const notSignedIn = {
   ok: false as const, status: 401, error: "Please sign in to continue.",
@@ -13,7 +16,7 @@ const assistedDeletion = {
   error: "This account needs a manual review. Use Request account deletion below.",
 };
 
-export const accountDeletionRequestSelect = { id: true, requestedAt: true } as const;
+export const accountDeletionRequestSelect = deletionReceiptSelect;
 
 export async function requestAccountDeletion(userId: string) {
   return prisma.$transaction(async (tx) => {
@@ -44,15 +47,19 @@ export async function deleteOwnAccount(userId: string, password: string) {
   }
 
   return prisma.$transaction(async (tx) => {
-    // Also prevents new foreign-key references while we check for retained records.
-    const [user] = await tx.$queryRaw<Array<{ email: string }>>`
-      SELECT "email" FROM "user" WHERE "id" = ${userId} FOR UPDATE
-    `;
-    if (!user) return notSignedIn;
+    const user = await lockDeletionOwner(tx, userId);
+    if (!user || await accountDeletionInProgress(userId, tx)) return notSignedIn;
     const [currentCredential] = await tx.$queryRaw<Array<{ password: string | null }>>`
       SELECT "password" FROM "account" WHERE "id" = ${credential.id} FOR UPDATE
     `;
     if (currentCredential?.password !== credential.password) return wrongPassword;
+
+    if (automaticPhotoDeletionEnabled()) {
+      const result = await prepareAccountDeletion(tx, userId, user.email);
+      if (result.kind === "manual") return assistedDeletion;
+      if (result.kind === "queued") return { ok: true as const, receipt: result.receipt };
+      return { ok: true as const };
+    }
 
     // Don't cascade away safety evidence or orphan photos at the storage provider.
     const report = await tx.discoveryReport.findFirst({
@@ -69,21 +76,7 @@ export async function deleteOwnAccount(userId: string, password: string) {
     });
     if (report || moderation || photo || photoAudit) return assistedDeletion;
 
-    // Close active spaces without deleting the other person's account or independently owned rows.
-    await tx.relationship.updateMany({
-      where: { status: "ACTIVE", members: { some: { userId } } },
-      data: { status: "ENDED" },
-    });
-    await tx.relationshipInvite.deleteMany({
-      where: { inviteeId: null, inviteeEmail: { equals: user.email, mode: "insensitive" } },
-    });
-    await tx.verification.deleteMany({
-      where: { identifier: { startsWith: "reset-password:" }, value: userId },
-    });
-    // Shared chat uses the same deletion policy as legacy Discovery contact:
-    // reports above require assisted review; otherwise participant FK cascades
-    // remove personal conversations/messages along with credentials and sessions.
-    await tx.user.delete({ where: { id: userId } });
+    await eraseAccountRows(tx, userId, user.email);
     return { ok: true as const };
   });
 }

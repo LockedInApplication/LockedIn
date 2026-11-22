@@ -24,13 +24,18 @@ async function expireOldPhotos(now: Date, batchSize: number) {
   });
 }
 
-export async function runPhotoJobs({ provider, now = new Date(), batchSize = 15 }: { provider: PhotoProvider; now?: Date; batchSize?: number }) {
+export async function runPhotoJobs({ provider, now = new Date(), batchSize = 15, deletionOwnerIds }: {
+  provider: PhotoProvider; now?: Date; batchSize?: number; deletionOwnerIds?: string[];
+}) {
   const startedAt = Date.now();
   const clock = () => later(now, Math.max(0, Date.now() - startedAt));
   const take = Math.min(50, Math.max(1, Math.floor(batchSize) || 15));
-  await expireOldPhotos(now, take);
+  if (deletionOwnerIds === undefined) await expireOldPhotos(now, take);
+  else if (!deletionOwnerIds.length) return { processed: 0, failed: 0 };
   const due = { completedAt: null, failedAt: null, dueAt: { lte: now }, OR: [{ leaseUntil: null }, { leaseUntil: { lte: now } }] };
-  const candidates = await prisma.discoveryPhotoJob.findMany({ where: due, orderBy: { dueAt: "asc" }, take });
+  const candidates = await prisma.discoveryPhotoJob.findMany({ where: { ...due, ...(deletionOwnerIds === undefined ? {} : {
+    kind: "DESTROY", photo: { ownerId: { in: deletionOwnerIds }, owner: { accountDeletionRequest: { state: "CLEANING_PHOTOS" } } },
+  }) }, orderBy: { dueAt: "asc" }, take });
   let processed = 0, failed = 0;
   for (const job of candidates) {
     const leaseToken = randomUUID();
@@ -59,16 +64,19 @@ export async function runPhotoJobs({ provider, now = new Date(), batchSize = 15 
         const disposition = await prisma.$transaction(async tx => {
           await lockInvitationUsers(tx, [row.ownerId]);
           const current = await tx.discoveryPhoto.findUniqueOrThrow({ where: { id: row.id } });
+          const deletion = await tx.accountDeletionRequest.findUnique({ where: { userId: row.ownerId }, select: { state: true } });
+          if (deletion?.state === "CLEANUP_NEEDS_REVIEW" || (deletionOwnerIds !== undefined && deletion?.state !== "CLEANING_PHOTOS")) return { wait: later(now, day) };
           if (!current.revokedAt && !current.deletedAt) return { skip: true as const };
           const latest = await tx.discoveryReport.findFirst({ where: { photoId: row.id }, orderBy: { resolvedAt: { sort: "desc", nulls: "first" } }, select: { resolvedAt: true } });
           if (latest && !latest.resolvedAt) return { wait: later(now, day) };
           const until = Math.max(current.retentionUntil?.getTime() ?? 0, latest?.resolvedAt ? latest.resolvedAt.getTime() + 30 * day : 0);
           if (until > now.getTime()) return { wait: new Date(until) };
-          return { publicId: current.publicId, previouslyObserved: !!current.assetId, createdAt: current.createdAt };
+          return { publicId: current.publicId, previouslyObserved: !!current.assetId, createdAt: current.createdAt, accountDeletion: deletion?.state === "CLEANING_PHOTOS" };
         });
         if (disposition.skip) { await settle({ completedAt: now }); continue; }
         if (disposition.wait) { await settle({ dueAt: disposition.wait, attempts: 0 }); continue; }
         const erased = disposition.publicId ? await provider.destroy({ publicId: disposition.publicId }) : undefined;
+        if (disposition.accountDeletion && erased !== "destroyed" && erased !== "missing") throw new Error("Photo erasure was not confirmed");
         if (erased === "missing" && !disposition.previouslyObserved) {
           // A timed-out upload may commit after a successful "not found" response.
           // Keep its deterministic key until destruction is confirmed or an operator takes over.

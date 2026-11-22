@@ -130,11 +130,14 @@ function AccountProfile({ userId, name }: { userId: string; name: string }) {
               <InvitationBlocks />
               {access?.canModerate?<button type="button" className={styles.textButton} onClick={()=>void leave("/discovery/moderation")}>Moderation</button>:null}
             </section>
-            <ProfileDeletion key={userId} userId={userId} pendingRequest={profile.accountDeletionRequest} onDeleted={() => {
+            <ProfileDeletion key={userId} userId={userId} pendingRequest={profile.accountDeletionRequest} onDeleted={processing => {
               // The deletion already revoked all server sessions. A full navigation
               // also discards in-memory account data, regardless of cookie cleanup.
               allowLeave();
-              window.location.replace("/login");
+              if (processing) {
+                try { sessionStorage.setItem("lockedin-deletion-receipt", processing.id); } catch { /* A receipt screen still works without storage. */ }
+              }
+              window.location.replace(processing ? "/account-deletion" : "/login");
             }} />
           </>
         ) : null}

@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma.js";
 import { sendEmail, sendPasswordResetEmail } from "./email.js";
 import { env } from "../config/env.js";
+import { accountDeletionInProgress } from "../features/profile/account-deletion.state.js";
 
 const requireEmailVerification = env.REQUIRE_EMAIL_VERIFICATION === "true";
 const publicAppOrigin = env.APP_URL.replace(/\/$/, "");
@@ -11,6 +12,9 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  databaseHooks: {
+    session: { create: { before: async session => !await accountDeletionInProgress(session.userId) } },
+  },
 
   trustedOrigins: [
     "http://localhost:3000",

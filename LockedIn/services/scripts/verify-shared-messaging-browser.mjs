@@ -8,7 +8,7 @@ import { mkdtempSync, openSync, closeSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { verifyTogetherExit } from "./verify-together-exit-browser.mjs";
+import { verifyTogetherExit, verifyPhotoCleanupReceipt } from "./verify-together-exit-browser.mjs";
 
 const database = new URL(process.env.DATABASE_URL ?? "invalid:");
 if (!["localhost","127.0.0.1"].includes(database.hostname) || database.search || database.hash || !/^\/lockedin_discovery_test_[a-f0-9]{24}$/.test(database.pathname)) throw Error("Owned disposable localhost database required");
@@ -27,6 +27,7 @@ let prisma, api, build, preview, browser;
 let mailServer;
 const outbox = [];
 const exitScenario = process.env.LOCKEDIN_BROWSER_SCENARIO === "together-exit";
+const photoCleanupScenario = process.env.LOCKEDIN_BROWSER_SCENARIO === "photo-cleanup";
 let venueProviderOffline = false;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 try {
@@ -46,9 +47,12 @@ try {
       RESEND_BASE_URL: `http://127.0.0.1:${mailServer.address().port}`, RESEND_API_KEY: "synthetic-local-key", RESEND_FROM_EMAIL: "lockedin@example.test",
     });
   }
+  if (photoCleanupScenario) Object.assign(process.env, {
+    ACCOUNT_PHOTO_DELETION_ENABLED: "true", CLOUDINARY_CLOUD_NAME: "synthetic", CLOUDINARY_API_KEY: "test", CLOUDINARY_API_SECRET: "test",
+  });
   ({prisma}=await import("../api/src/lib/prisma.ts"));
   const users=[];
-  for (const label of exitScenario ? ["Alex"] : ["Alex","Sam","Casey","Drew","Ellis","Finley"]) {
+  for (const label of exitScenario || photoCleanupScenario ? ["Alex"] : ["Alex","Sam","Casey","Drew","Ellis","Finley"]) {
     const id=`shared-browser-${label.toLowerCase()}`,token=randomUUID();
     await prisma.user.create({data:{id,email:`${id}@example.test`,name:"Synthetic account",displayName:label,emailVerified:true}});
     await prisma.session.create({data:{id:randomUUID(),userId:id,token,expiresAt:new Date(Date.now()+3600000)}});
@@ -82,6 +86,9 @@ try {
   async function pageFor(u) { const context=await browser.newContext({viewport:{width:393,height:852},reducedMotion:"reduce"});await context.addCookies([u.cookie]);const page=await context.newPage();page.setDefaultTimeout(20000);page.on("pageerror",error=>errors.push(error.message));contexts.set(u.id,context);return page; }
   if (exitScenario) {
     await verifyTogetherExit({ browser, prisma, base, outbox, alex: a, alexPage: await pageFor(a), sampleArea, sampleVenue });
+    assert.deepEqual(errors, [], "No browser runtime errors");
+  } else if (photoCleanupScenario) {
+    await verifyPhotoCleanupReceipt({ prisma, base, alex: a, alexPage: await pageFor(a) });
     assert.deepEqual(errors, [], "No browser runtime errors");
   } else {
   const pa=await pageFor(a),pb=await pageFor(b),pc=await pageFor(c),pd=await pageFor(d);

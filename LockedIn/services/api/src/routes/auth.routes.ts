@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { fromNodeHeaders } from "better-auth/node";
 import { auth } from "../lib/auth.js";
 import { emailVerificationRequired } from "../lib/journey-http.js";
+import { accountDeletionInProgress } from "../features/profile/account-deletion.state.js";
 
 const accountEntry = new Set([
   "/api/auth/get-session", "/api/auth/sign-in/email", "/api/auth/sign-up/email", "/api/auth/sign-out",
@@ -24,9 +25,13 @@ export async function authRoutes(server: FastifyInstance) {
         const headers = fromNodeHeaders(request.headers);
         const path = url.pathname.replace(/\/$/, "");
         const resetLink = request.method === "GET" && /^\/api\/auth\/reset-password\/[a-zA-Z0-9_-]+$/.test(path);
-        if (!accountEntry.has(path) && !resetLink) {
+        if (path === "/api/auth/get-session" || (!accountEntry.has(path) && !resetLink)) {
           const session = await auth.api.getSession({ headers });
-          if (session?.user && emailVerificationRequired(session.user)) {
+          if (session?.user && await accountDeletionInProgress(session.user.id)) {
+            if (path === "/api/auth/get-session") return reply.header("Cache-Control", "private, no-store").send(null);
+            return reply.code(403).send({ message: "Your account is pending deletion.", code: "ACCOUNT_DELETION_PENDING" });
+          }
+          if (path !== "/api/auth/get-session" && session?.user && emailVerificationRequired(session.user)) {
             return reply.code(403).send({ message: "Verify your email before using LockedIn.", code: "EMAIL_NOT_VERIFIED" });
           }
           if (expectedOwner && path === "/api/auth/change-password" && session?.user.id !== expectedOwner) {

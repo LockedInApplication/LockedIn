@@ -22,7 +22,7 @@ export default function ProfileDetails({
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
   return (
     <section className={styles.card} aria-labelledby="profile-details">
-      <h2 id="profile-details">Your details</h2>
+      <h2 id="profile-details" tabIndex={-1}>Your details</h2>
       <p>
         Your profile is private. Your chosen name and avatar appear to your
         partner.

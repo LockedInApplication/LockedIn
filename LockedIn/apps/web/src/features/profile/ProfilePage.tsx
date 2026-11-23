@@ -20,6 +20,14 @@ import { discoveryRequest } from "@/features/discovery/discovery.client";
 import type { DiscoveryMe } from "@/features/discovery/discovery.types";
 import { useDiscoveryResource } from "@/features/discovery/use-discovery-resource";
 const ignoreActivity = () => {};
+const sections = [
+  ["profile-shortcuts", "Personal settings"],
+  ["profile-details", "Your details"],
+  ["profile-security", "Account security"],
+  ["profile-notifications", "Notifications"],
+  ["profile-privacy", "Privacy & safety"],
+] as const;
+
 export default function ProfilePage() {
   const session = authClient.useSession();
   const router = useRouter();
@@ -39,6 +47,14 @@ export default function ProfilePage() {
 }
 function AccountProfile({ userId, name }: { userId: string; name: string }) {
   const { profile, setProfile, error, retry } = useProfile(userId);
+  const ready = !!profile;
+  // Profile is loaded after navigation, so a direct section link may initially have no target.
+  useEffect(() => {
+    if (!ready) return;
+    const id = window.location.hash.slice(1);
+    if (!sections.some(([section]) => section === id)) return;
+    document.getElementById(id)?.scrollIntoView();
+  }, [ready]);
   const [dirty, setDirty] = useState<Record<string, boolean>>({}),
     [signOutError, setSignOutError] = useState("");
   const router = useRouter();
@@ -90,55 +106,64 @@ function AccountProfile({ userId, name }: { userId: string; name: string }) {
         ) : null}
         {profile ? (
           <>
-            <div className={styles.intro}>
+            <header className={styles.intro}>
               <ProfileAvatar
                 name={profile.displayName}
                 preset={profile.avatarPreset}
               />
               <div>
+                <p className={styles.eyebrow}>Your account</p>
                 <h1>Profile &amp; settings</h1>
                 <p>Manage what others see and what you keep to yourself.</p>
               </div>
+            </header>
+            <div className={styles.layout}>
+              <nav className={styles.sectionNav} aria-label="Profile sections">
+                <p className={styles.eyebrow}>On this page</p>
+                <ul role="list">{sections.map(([id, label]) => <li key={id}><a href={`#${id}`}>{label}</a></li>)}</ul>
+              </nav>
+              <div className={styles.settings}>
+                <section className={styles.card} aria-labelledby="profile-shortcuts">
+                  <h2 id="profile-shortcuts" tabIndex={-1}>Personal settings</h2>
+                  <ul className={styles.settingList} role="list">
+                    <ProfileSettingRow title="Private reflection" description="Only you can see what you write." onOpen={() => void leave("/your-space")} />
+                    {access?.canManageProfile || access?.canDiscover ? (
+                      <ProfileSettingRow title="My Discovery profile" description="Edit your profile or pause visibility." onOpen={() => void leave("/discover/profile")} />
+                    ) : null}
+                    <ProfileMatchingSettings userId={userId} onOpen={() => void leave("/discover/matching")} />
+                  </ul>
+                </section>
+                <ProfileDetails
+                  profile={profile}
+                  onSaved={setProfile}
+                  onDirty={(value) => updateDirty("details", value)}
+                />
+                <ProfileSecurity
+                  profile={profile}
+                  onLeave={leave}
+                  onDirty={(value) => updateDirty("security", value)}
+                />
+                <ProfileNotifications
+                  profile={profile}
+                  onSaved={setProfile}
+                  onDirty={(value) => updateDirty("notifications", value)}
+                />
+                <section className={`${styles.card} ${styles.privacyCard}`} aria-labelledby="profile-privacy">
+                  <h2 id="profile-privacy" tabIndex={-1}>Privacy &amp; safety</h2>
+                  <InvitationBlocks />
+                  {access?.canModerate?<button type="button" className={styles.textButton} onClick={()=>void leave("/discovery/moderation")}>Moderation</button>:null}
+                </section>
+                <ProfileDeletion key={userId} userId={userId} pendingRequest={profile.accountDeletionRequest} onDeleted={processing => {
+                  // The deletion already revoked all server sessions. A full navigation
+                  // also discards in-memory account data, regardless of cookie cleanup.
+                  allowLeave();
+                  if (processing) {
+                    try { sessionStorage.setItem("lockedin-deletion-receipt", processing.id); } catch { /* A receipt screen still works without storage. */ }
+                  }
+                  window.location.replace(processing ? "/account-deletion" : "/login");
+                }} />
+              </div>
             </div>
-            <section className={styles.card} aria-labelledby="profile-shortcuts">
-              <h2 id="profile-shortcuts">Personal settings</h2>
-              <ul className={styles.settingList} role="list">
-                <ProfileSettingRow title="Private reflection" description="Only you can see what you write." onOpen={() => void leave("/your-space")} />
-                {access?.canManageProfile || access?.canDiscover ? (
-                  <ProfileSettingRow title="My Discovery profile" description="Edit your profile or pause visibility." onOpen={() => void leave("/discover/profile")} />
-                ) : null}
-                <ProfileMatchingSettings userId={userId} onOpen={() => void leave("/discover/matching")} />
-              </ul>
-            </section>
-            <ProfileDetails
-              profile={profile}
-              onSaved={setProfile}
-              onDirty={(value) => updateDirty("details", value)}
-            />
-            <ProfileSecurity
-              profile={profile}
-              onLeave={leave}
-              onDirty={(value) => updateDirty("security", value)}
-            />
-            <ProfileNotifications
-              profile={profile}
-              onSaved={setProfile}
-              onDirty={(value) => updateDirty("notifications", value)}
-            />
-            <section className={styles.card} aria-labelledby="profile-privacy">
-              <h2 id="profile-privacy">Privacy & safety</h2>
-              <InvitationBlocks />
-              {access?.canModerate?<button type="button" className={styles.textButton} onClick={()=>void leave("/discovery/moderation")}>Moderation</button>:null}
-            </section>
-            <ProfileDeletion key={userId} userId={userId} pendingRequest={profile.accountDeletionRequest} onDeleted={processing => {
-              // The deletion already revoked all server sessions. A full navigation
-              // also discards in-memory account data, regardless of cookie cleanup.
-              allowLeave();
-              if (processing) {
-                try { sessionStorage.setItem("lockedin-deletion-receipt", processing.id); } catch { /* A receipt screen still works without storage. */ }
-              }
-              window.location.replace(processing ? "/account-deletion" : "/login");
-            }} />
           </>
         ) : null}
       </main>

@@ -22,16 +22,20 @@ export default function ProfileSecurity({
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
   return (
     <section className={styles.card} aria-labelledby="profile-security">
-      <h2 id="profile-security">Account security</h2>
-      <p className={styles.email}>{profile.email}</p>
-      <p className={styles.hint}>
-        {profile.emailVerified ? "Email verified" : "Email not verified"}
-      </p>
-      {!profile.emailVerified ? (
-        <button type="button" className={styles.primary} onClick={() => onLeave("/verify-email?pending=1")}>
-          Verify email
-        </button>
-      ) : null}
+      <h2 id="profile-security" tabIndex={-1}>Account security</h2>
+      <div className={styles.accountEmail}>
+        <div>
+          <p className={styles.email}>{profile.email}</p>
+          <p className={styles.emailStatus} data-verified={profile.emailVerified}>
+            {profile.emailVerified ? "Email verified" : "Email not verified"}
+          </p>
+        </div>
+        {!profile.emailVerified ? (
+          <button type="button" className={styles.textButton} onClick={() => onLeave("/verify-email?pending=1")}>
+            Verify email
+          </button>
+        ) : null}
+      </div>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -97,18 +101,16 @@ export default function ProfileSecurity({
             Use 8–128 characters. Changing your password signs out your other
             sessions.
           </p>
-          <button className={styles.primary} disabled={!dirty || busy}>
-            {busy ? "Changing…" : "Change password"}
-          </button>
+          <div className={styles.formActions}>
+            <button className={styles.primary} disabled={!dirty || busy}>
+              {busy ? "Changing…" : "Change password"}
+            </button>
+            <button type="button" className={styles.textButton} onClick={() => onLeave("/forgot-password")}>
+              Forgot your password?
+            </button>
+          </div>
         </fieldset>
       </form>
-      <button
-        type="button"
-        className={styles.textButton}
-        onClick={() => onLeave("/forgot-password")}
-      >
-        Forgot your password?
-      </button>
       {error ? (
         <p role="alert" className={styles.error}>
           {error}

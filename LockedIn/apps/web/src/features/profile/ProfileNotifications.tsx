@@ -22,7 +22,7 @@ export default function ProfileNotifications({
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
   return (
     <section className={styles.card} aria-labelledby="profile-notifications">
-      <h2 id="profile-notifications">Notifications</h2>
+      <h2 id="profile-notifications" tabIndex={-1}>Notifications</h2>
       <p>A little less noise, on your terms.</p>
       <form
         onSubmit={async (e) => {
@@ -47,36 +47,42 @@ export default function ProfileNotifications({
           }
         }}
       >
-        <fieldset disabled={busy}>
+        <fieldset disabled={busy} className={styles.notificationFields}>
           <label className={styles.toggle}>
             <input
               type="checkbox"
               checked={email}
+              aria-labelledby="activity-email-label"
+              aria-describedby="activity-email-description"
               onChange={(e) => setEmail(e.target.checked)}
             />
             <span>
-              <strong>Relationship activity emails</strong>
-              <small>Invitations and updates about your shared space.</small>
+              <strong id="activity-email-label">Relationship activity emails</strong>
+              <small id="activity-email-description">Invitations and updates about your shared space.</small>
             </span>
           </label>
           <label className={styles.toggle}>
             <input
               type="checkbox"
               checked={inApp}
+              aria-labelledby="activity-in-app-label"
+              aria-describedby="activity-in-app-description"
               onChange={(e) => setInApp(e.target.checked)}
             />
             <span>
-              <strong>In-app activity alerts</strong>
-              <small>New alerts in your notification bell.</small>
+              <strong id="activity-in-app-label">In-app activity alerts</strong>
+              <small id="activity-in-app-description">New alerts in your notification bell.</small>
             </span>
           </label>
-          <p className={styles.hint}>
-            Your shared space still updates live when alerts are off. Existing
-            alerts stay saved; missed alerts are not replayed.
-          </p>
-          <p className={styles.hint}>
-            Security, verification, and password recovery emails remain enabled.
-          </p>
+          <div className={styles.notificationNote}>
+            <p className={styles.hint}>
+              Your shared space still updates live when alerts are off. Existing
+              alerts stay saved; missed alerts are not replayed.
+            </p>
+            <p className={styles.hint}>
+              Security, verification, and password recovery emails remain enabled.
+            </p>
+          </div>
           <button className={styles.primary} disabled={!dirty || busy}>
             {busy ? "Saving…" : "Save notification preferences"}
           </button>

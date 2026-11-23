@@ -43,7 +43,7 @@ export default function ProfileDeletion({
   }
 
   return (
-    <section className={styles.card} aria-labelledby="delete-account-heading">
+    <section className={`${styles.card} ${styles.deletionCard}`} aria-labelledby="delete-account-heading">
       <h2 id="delete-account-heading">Delete account</h2>
       <p>
         This permanently deletes your LockedIn account and signs you out on all devices.
@@ -51,7 +51,7 @@ export default function ProfileDeletion({
         You can’t undo this.
       </p>
       {!open ? (
-        <button type="button" className={styles.textButton} onClick={() => setOpen(true)}>
+        <button type="button" className={`${styles.textButton} ${styles.dangerOutline}`} onClick={() => setOpen(true)}>
           Delete account
         </button>
       ) : (

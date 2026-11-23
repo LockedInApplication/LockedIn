@@ -1,15 +1,13 @@
 .frame {
   --member-surface: var(--brand-paper);
-  --member-divider: #e5eaed;
+  --member-divider: var(--brand-rule);
   --member-hover: #f5f7f8;
-  --member-muted: #52626f;
+  --member-muted: var(--brand-muted);
   --cream: var(--member-surface);
   --paper: var(--member-surface);
 }
 .frame.editorial {
-  --member-divider: #dcd7ce;
   --member-hover: var(--brand-neutral);
-  --member-muted: #685e55;
   --editorial-ink: #1d1917;
   --editorial-accent: #a54428;
   --editorial-accent-hover: #87341d;

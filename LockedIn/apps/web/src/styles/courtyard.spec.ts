@@ -40,6 +40,24 @@ it("uses the homepage neutrals throughout and preserves contrast for Courtyard a
   expect(contrast(tokenColor(css, "accent"), tokenColor(css, "cream"))).toBeGreaterThanOrEqual(4.5);
 });
 
+it("shares neutral grays for secondary text, dividers, and outlines", () => {
+  for (const name of ["brand-muted", "brand-muted-on-dark", "brand-rule", "brand-outline"]) {
+    expect(tokenColor(css, name)).toMatch(/^#([0-9a-f]{2})\1\1$/);
+  }
+  for (const [stylesheet, name, shared] of [
+    [home, "home-muted", "brand-muted"],
+    [home, "home-rule", "brand-rule"],
+    [member, "member-muted", "brand-muted"],
+    [member, "member-divider", "brand-rule"],
+    [css, "stone-100", "brand-rule"],
+    [css, "stone-300", "brand-outline"],
+    [css, "stone-500", "brand-muted"],
+  ]) {
+    expect(tokenColor(stylesheet + css, name)).toBe(tokenColor(css, shared));
+  }
+  expect(contrast(tokenColor(css, "brand-muted"), tokenColor(css, "paper"))).toBeGreaterThanOrEqual(4.5);
+});
+
 it("shares local editorial fonts between the homepage and the app", () => {
   expect(css).toMatch(/--font-sans:\s*"Roboto"/);
   expect(css).toMatch(/--font-display:\s*var\(--font-sans\)/);

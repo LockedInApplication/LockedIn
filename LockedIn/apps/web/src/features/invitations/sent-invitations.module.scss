@@ -54,7 +54,7 @@
   gap: .4em;
   min-block-size: 44px;
   padding: .45rem .85rem;
-  border: 1px solid #cec7bd;
+  border: 1px solid var(--brand-outline);
   border-radius: 999px;
   background: transparent;
   color: var(--editorial-ink, var(--ink));
@@ -94,13 +94,13 @@
   place-items: center;
   width: 2rem;
   height: 2rem;
-  border: 1px solid #cec7bd;
+  border: 1px solid var(--brand-rule);
   border-radius: 50%;
   color: var(--member-muted);
 }
 .status {
   padding: .12rem .55rem;
-  border: 1px solid #cec7bd;
+  border: 1px solid var(--brand-rule);
   border-radius: 999px;
   background: var(--brand-neutral);
   color: var(--member-muted);

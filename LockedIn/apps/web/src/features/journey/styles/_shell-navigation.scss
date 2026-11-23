@@ -22,7 +22,7 @@
   min-height: 46px;
   border: 0;
   border-radius: 13px;
-  color: #68768a;
+  color: var(--brand-muted);
   background: transparent;
   font: inherit;
   font-size: 0.78rem;
@@ -95,7 +95,7 @@
 }
 
 .dashboardOverview > button span {
-  color: #84909e;
+  color: var(--brand-muted);
   font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;

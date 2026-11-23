@@ -3,7 +3,7 @@
 .seal { width: 60px; height: 60px; display: grid; place-items: center; border: 2px solid #231b33; border-radius: 50%; background: #fbd45d; font-size: 28px; margin-bottom: 22px; box-shadow: 3px 4px 0 #231b33; }
 .kicker { font-size: 11px; letter-spacing: .13em; font-weight: 800; color: #71518d; }
 .card h2 { font-size: clamp(27px,4vw,42px); line-height: 1.12; margin: 14px 0 24px; color: #231b33; }
-.card p { line-height: 1.6; font-size: 17px; color: #5e5768; }
+.card p { line-height: 1.6; font-size: 17px; color: var(--brand-muted); }
 .card strong { color: #231b33; }
 .privacy { max-width: 580px; }
 .card .expiry { font-size: 13px; }
@@ -12,10 +12,10 @@
 .actions button, .message button { padding: 13px 22px; border: 2px solid #231b33; border-radius: 14px; font: inherit; font-weight: 750; cursor: pointer; }
 .accept { color: white; background: #4b335f; box-shadow: 0 4px 0 #231b33; }
 .decline { color: #4b335f; background: var(--paper); }
-.boundaries { margin-top: 22px; border-top: 1px solid #d9d4d4; padding-top: 15px; color: #655d6b; font-size: 13px; }
+.boundaries { margin-top: 22px; border-top: 1px solid var(--brand-rule); padding-top: 15px; color: var(--brand-muted); font-size: 13px; }
 .boundaries summary { cursor: pointer; font-weight: 700; }
-.block { border: 1px solid #b8a6c8; border-radius: 12px; padding: 11px 15px; background: var(--paper); color: #4b335f; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
-.close { display: block; margin-top: 28px; padding: 5px 0; border: 0; background: transparent; text-decoration: underline; text-underline-offset: 4px; color: #5e5768; cursor: pointer; font: inherit; font-size: 14px; }
+.block { border: 1px solid var(--brand-outline); border-radius: 12px; padding: 11px 15px; background: var(--paper); color: #4b335f; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
+.close { display: block; margin-top: 28px; padding: 5px 0; border: 0; background: transparent; text-decoration: underline; text-underline-offset: 4px; color: var(--brand-muted); cursor: pointer; font: inherit; font-size: 14px; }
 .card button:disabled { opacity: .55; cursor: not-allowed; }
 .card button:focus-visible { outline: 3px solid #719fe7; outline-offset: 4px; }
 @media(max-width:500px) {

@@ -133,7 +133,7 @@
   input {
     width: 100%;
     box-sizing: border-box;
-    border: 1px solid #a89d91;
+    border: 1px solid var(--brand-outline);
     border-radius: .75rem;
     padding: .7rem .82rem;
     min-height: 48px;
@@ -164,7 +164,7 @@
 }
 .textButton {
   background: transparent;
-  border: 1px solid #b9aea3;
+  border: 1px solid var(--brand-outline);
   color: var(--editorial-ink, var(--action));
   &:enabled:hover { background: var(--member-hover); }
   &:disabled { opacity: .55; cursor: default; }

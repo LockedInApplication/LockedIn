@@ -5,7 +5,7 @@
   gap: 8px;
   background: var(--paper);
   color: var(--ink);
-  border: 1px solid #d5c8d5;
+  border: 1px solid var(--brand-rule);
   border-radius: 14px;
   padding: clamp(14px, 2.7vw, 24px);
   overflow-wrap: anywhere;
@@ -15,12 +15,12 @@
 .group summary { color: var(--plum); font-weight: 700; cursor: pointer; }
 .group[open] summary { margin-block-end: 10px; }
 .group[open] article + article { margin-block-start: 8px; }
-.meta { color: #66556b; font-size: .9rem; }
+.meta { color: var(--brand-muted); font-size: .9rem; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 4px; }
 .actions button {
   min-height: 44px;
   padding: 7px 13px;
-  border: 1px solid var(--plum);
+  border: 1px solid var(--brand-outline);
   border-radius: 8px;
   color: var(--plum);
   background: var(--paper);
@@ -28,10 +28,10 @@
   font-weight: 650;
   cursor: pointer;
 }
-.actions .primary { background: var(--plum); color: #fff; }
+.actions .primary { background: var(--plum); border-color: var(--plum); color: #fff; }
 .actions button:disabled { opacity: .65; cursor: default; }
 .actions button:focus-visible, .plan:focus-visible { outline: 3px solid var(--plum); outline-offset: 3px; }
 .plan label { display: grid; gap: 4px; font-weight: 650; }
-.plan :is(input, textarea) { width: 100%; min-width: 0; padding: 8px; border: 1px solid #99899e; border-radius: 8px; font-size: 1rem; }
+.plan :is(input, textarea) { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--brand-outline); border-radius: 8px; font-size: 1rem; }
 .plan textarea { resize: vertical; }
 .plan { scroll-margin-top: 10rem; }

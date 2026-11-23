@@ -3,7 +3,7 @@
 .emptyWorkspace,
 .alignmentNextPrompt {
   padding: clamp(26px, 4vw, 44px);
-  border: 1px solid rgba(19, 34, 56, 0.08);
+  border: 1px solid var(--brand-rule);
   border-radius: 28px;
   background: white;
   box-shadow: 0 16px 50px rgba(19, 34, 56, 0.06);
@@ -35,7 +35,7 @@
 .emptyWorkspace p,
 .alignmentNextPrompt p {
   margin: 0;
-  color: #66758a;
+  color: var(--brand-muted);
   line-height: 1.65;
 }
 
@@ -56,7 +56,7 @@
   align-items: center;
   margin-bottom: 22px;
   padding: 22px;
-  border: 1px solid #dce8e5;
+  border: 1px solid var(--brand-rule);
   border-radius: 20px;
   background: linear-gradient(135deg, #f1faf8, #fbfdfc);
 }
@@ -69,7 +69,7 @@
 
 .choiceBoard p {
   margin: 0;
-  color: #68778b;
+  color: var(--brand-muted);
   font-size: 0.76rem;
   line-height: 1.55;
 }
@@ -85,13 +85,13 @@
   gap: 4px;
   min-height: 76px;
   padding: 12px;
-  border: 1px solid rgba(19, 34, 56, 0.08);
+  border: 1px solid var(--brand-rule);
   border-radius: 12px;
   background: white;
 }
 
 .choiceStates span {
-  color: #8793a1;
+  color: var(--brand-muted);
   font-size: 0.63rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -145,7 +145,7 @@
   flex-direction: column;
   min-height: 300px;
   padding: 22px;
-  border: 1px solid #e2e8ea;
+  border: 1px solid var(--brand-rule);
   border-radius: 20px;
   background: linear-gradient(150deg, white, #f8fbfa);
 }
@@ -163,7 +163,7 @@
 }
 
 .packCard > span {
-  color: #8793a1;
+  color: var(--brand-muted);
   font-size: 0.66rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -196,7 +196,7 @@
 
 .packCard p {
   margin: 0 0 20px;
-  color: #69778a;
+  color: var(--brand-muted);
   font-size: 0.78rem;
   line-height: 1.6;
 }
@@ -204,7 +204,7 @@
 .packCard button {
   min-height: 42px;
   margin-top: auto;
-  border: 1px solid #d7e2df;
+  border: 1px solid var(--brand-rule);
   border-radius: 11px;
   color: #08776d;
   background: white;

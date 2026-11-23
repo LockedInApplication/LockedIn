@@ -161,7 +161,7 @@
 .atlasSharedProposal p { color: var(--stone-500); line-height: 1.7; }
 
 .atlasMiniSteps { display: flex; align-items: center; gap: 9px; margin: 23px 0; }
-.atlasMiniSteps span { display: inline-flex; align-items: center; gap: 5px; color: #59667a; font-size: 0.7rem; font-weight: 750; }
+.atlasMiniSteps span { display: inline-flex; align-items: center; gap: 5px; color: var(--brand-muted); font-size: 0.7rem; font-weight: 750; }
 .atlasMiniSteps b { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--ink); border-radius: 50%; background: white; }
 .atlasMiniSteps i { flex: 0 1 32px; height: 2px; background: #d4dbe5; }
 
@@ -198,7 +198,7 @@
 .atlasWaitingCopy h3 { margin: 8px 0 12px; font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3.8rem); letter-spacing: -0.05em; }
 .atlasWaitingCopy > p { max-width: 680px; color: var(--stone-500); line-height: 1.7; }
 .atlasDualKey { display: flex; align-items: center; gap: 14px; margin-top: 22px; }
-.atlasDualKey span { display: flex; align-items: center; gap: 14px; padding: 12px 15px; border: 2px solid #ccd4df; border-radius: 10px; background: white; font-size: 0.8rem; font-weight: 750; }
+.atlasDualKey span { display: flex; align-items: center; gap: 14px; padding: 12px 15px; border: 2px solid var(--brand-rule); border-radius: 10px; background: white; font-size: 0.8rem; font-weight: 750; }
 .atlasDualKey .atlasKeyReady { border-color: #549268; background: #edf8ef; }
 .atlasDualKey i { color: var(--accent); font-style: normal; font-weight: 900; }
 
@@ -206,19 +206,19 @@
 .atlasFormHeader { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 28px; align-items: center; }
 .atlasFormHeader .atlasStageIcon { width: 90px; height: 90px; font-size: 2rem; }
 .atlasPromptGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 32px 0 22px; }
-.atlasPromptGrid label { display: flex; flex-direction: column; min-height: 260px; padding: 20px; border: 2px solid #d8dee8; border-radius: 14px; background: #fbfcfe; transition: border-color 160ms ease, transform 160ms ease; }
+.atlasPromptGrid label { display: flex; flex-direction: column; min-height: 260px; padding: 20px; border: 2px solid var(--brand-rule); border-radius: 14px; background: #fbfcfe; transition: border-color 160ms ease, transform 160ms ease; }
 .atlasPromptGrid label:focus-within { border-color: var(--atlas-blue); transform: translateY(-3px); }
 .atlasPromptGrid label > span { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-size: 1.1rem; font-weight: 750; }
 .atlasPromptGrid label > span b { display: grid; place-items: center; width: 25px; height: 25px; border: 2px solid var(--ink); border-radius: 50%; background: var(--gold); font-family: var(--font-mono); font-size: 0.62rem; }
 .atlasPromptGrid small { min-height: 40px; margin-top: 9px; color: var(--stone-500); font-size: 0.67rem; line-height: 1.45; }
 .atlasPromptGrid textarea,
 .atlasChecksum textarea,
-.atlasSharedBuilder textarea { flex: 1; width: 100%; margin-top: 15px; padding: 14px; resize: vertical; border: 1px solid #cbd4e1; border-radius: 9px; color: var(--ink); background: white; font: inherit; line-height: 1.55; outline: none; }
+.atlasSharedBuilder textarea { flex: 1; width: 100%; margin-top: 15px; padding: 14px; resize: vertical; border: 1px solid var(--brand-outline); border-radius: 9px; color: var(--ink); background: white; font: inherit; line-height: 1.55; outline: none; }
 .atlasPromptGrid textarea:focus,
 .atlasChecksum textarea:focus,
 .atlasSharedBuilder textarea:focus { border-color: var(--atlas-blue); box-shadow: 0 0 0 4px rgba(77, 120, 219, 0.13); }
 .atlasPrivateForm > button { display: block; width: min(420px, 100%); margin: 0 auto; }
-.atlasPrivacyNote { display: block; margin-top: 18px; color: #697589; text-align: center; }
+.atlasPrivacyNote { display: block; margin-top: 18px; color: var(--brand-muted); text-align: center; }
 
 .atlasDiscovery { overflow: hidden; background: var(--paper); }
 .atlasRevealHeader { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 22px; align-items: center; padding: clamp(26px, 4vw, 46px); background: linear-gradient(110deg, #fff7d7, #e4f0ff); }
@@ -228,10 +228,10 @@
 .atlasMeaningCards article { min-height: 330px; padding: 26px; border: 2px solid var(--ink); border-radius: 20px 6px 20px 6px; background: white; box-shadow: 5px 6px 0 rgba(32, 24, 47, 0.13); }
 .atlasMeaningCards article > span { color: var(--accent); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 750; text-transform: uppercase; }
 .atlasMeaningCards h4 { margin: 15px 0 24px; font-family: var(--font-display); font-size: clamp(1.3rem, 2.5vw, 2.1rem); line-height: 1.2; }
-.atlasMeaningCards article div { padding-top: 13px; border-top: 1px solid #dde2e9; }
+.atlasMeaningCards article div { padding-top: 13px; border-top: 1px solid var(--brand-rule); }
 .atlasMeaningCards article div + div { margin-top: 17px; }
-.atlasMeaningCards b { color: #687489; font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.atlasMeaningCards p { margin: 7px 0 0; color: #3e4e64; line-height: 1.6; }
+.atlasMeaningCards b { color: var(--brand-muted); font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.atlasMeaningCards p { margin: 7px 0 0; color: var(--brand-muted); line-height: 1.6; }
 .atlasMeaningCards .atlasMysteryMoment { margin: -2px -9px 0; padding: 15px 9px; border: 1px dashed #bc7e18; border-radius: 9px; background: #fff8e3; }
 .atlasBridge { position: relative; z-index: 2; display: grid; place-items: center; width: 62px; height: 62px; margin-left: -6px; border: 3px solid var(--ink); border-radius: 50%; background: var(--sage); box-shadow: 3px 4px 0 var(--ink); }
 .atlasBridge span { font-size: 1.6rem; font-weight: 900; animation: atlasBridge 2s ease-in-out infinite; }
@@ -241,7 +241,7 @@
 .atlasChecksumHeader > span { display: grid; place-items: center; width: 56px; height: 56px; border: 2px solid var(--ink); border-radius: 50%; background: var(--gold); font-size: 1.5rem; font-weight: 800; }
 .atlasChecksumHeader h3 { font-size: clamp(1.7rem, 3vw, 2.8rem); }
 .atlasChecksumGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 24px; }
-.atlasChecksumGrid > article { min-width: 0; padding: 20px; border: 1px solid #c4cede; border-radius: 12px; background: white; }
+.atlasChecksumGrid > article { min-width: 0; padding: 20px; border: 1px solid var(--brand-rule); border-radius: 12px; background: white; }
 .atlasChecksum form { margin-top: 12px; }
 .atlasChecksum textarea { min-height: 120px; margin-top: 0; }
 .atlasChecksum form button { width: 100%; margin-top: 10px; background: var(--atlas-blue); }
@@ -250,15 +250,15 @@
 .atlasConfirmSummary blockquote { margin: 16px 0; color: var(--ink); font-family: var(--font-display); font-size: 1.15rem; line-height: 1.5; }
 .atlasSummaryState > span { display: inline-block; padding: 6px 9px; border-radius: 999px; color: #6e5a23; background: #fff3c8; font-size: 0.67rem; font-weight: 750; }
 .atlasSummaryState .atlasConfirmed { color: #2b6740; background: #dff2e5; }
-.atlasConfirmSummary > p { color: #5c687a; font-size: 0.78rem; }
+.atlasConfirmSummary > p { color: var(--brand-muted); font-size: 0.78rem; }
 .atlasConfirmSummary > div { display: grid; grid-template-columns: 1.2fr .7fr 1.2fr; gap: 7px; }
 .atlasConfirmSummary button { min-height: 42px; padding: 0 8px; background: var(--plum); font-size: 0.68rem; }
-.atlasListeningWait { display: flex; align-items: center; gap: 14px; min-height: 130px; color: #69768a; }
+.atlasListeningWait { display: flex; align-items: center; gap: 14px; min-height: 130px; color: var(--brand-muted); }
 .atlasListeningWait > span { display: grid; place-items: center; flex: 0 0 auto; width: 43px; height: 43px; border: 2px dashed #8794a8; border-radius: 50%; font-size: 1.2rem; animation: atlasOrbit 7s linear infinite; }
 
 .atlasNotReadyYet { display: flex; align-items: center; gap: 18px; margin: 0 clamp(24px, 4vw, 46px) 40px; padding: 18px 22px; border: 1px dashed #9ba6b5; border-radius: 12px; background: #f4f5f7; }
 .atlasNotReadyYet > span { color: var(--accent); font-size: 1.8rem; }
-.atlasNotReadyYet p { margin: 3px 0 0; color: #697589; font-size: 0.76rem; }
+.atlasNotReadyYet p { margin: 3px 0 0; color: var(--brand-muted); font-size: 0.76rem; }
 
 .atlasSharedBuilder,
 .atlasSharedProposal,
@@ -278,10 +278,10 @@
 .atlasConfetti i:nth-child(4) { right: 22%; bottom: 11%; animation-delay: -1.8s; }
 .atlasConfetti i:nth-child(5) { top: 48%; left: 4%; color: #4c9a64; animation-delay: -2.2s; }
 
-.atlasHistory { margin: 0 clamp(24px, 4vw, 46px) 38px; border-top: 1px solid #d8dee5; }
+.atlasHistory { margin: 0 clamp(24px, 4vw, 46px) 38px; border-top: 1px solid var(--brand-rule); }
 .atlasHistory summary { padding: 18px 0; color: var(--plum); font-weight: 750; cursor: pointer; }
-.atlasHistory > div { display: grid; grid-template-columns: 110px 1fr; gap: 18px; padding: 14px; border-top: 1px solid #e4e7ec; }
-.atlasHistory span { color: #778294; font-family: var(--font-mono); font-size: 0.6rem; }
+.atlasHistory > div { display: grid; grid-template-columns: 110px 1fr; gap: 18px; padding: 14px; border-top: 1px solid var(--brand-rule); }
+.atlasHistory span { color: var(--brand-muted); font-family: var(--font-mono); font-size: 0.6rem; }
 .atlasHistory p { margin: 0; line-height: 1.6; }
 
 .atlasProposalWait {
@@ -351,7 +351,7 @@
 .atlasBlendStudio form { display: grid; margin-top: 22px; }
 .atlasBlendStudio label { color: var(--plum); font-family: var(--font-display); font-size: 1.4rem; font-weight: 750; }
 .atlasBlendStudio textarea,
-.atlasRevisionStudio textarea { min-height: 120px; margin: 10px 0 14px; padding: 15px; resize: vertical; border: 2px solid #cbd4e1; border-radius: 10px; color: var(--ink); background: #fcfdff; font: inherit; line-height: 1.55; outline: none; }
+.atlasRevisionStudio textarea { min-height: 120px; margin: 10px 0 14px; padding: 15px; resize: vertical; border: 2px solid var(--brand-outline); border-radius: 10px; color: var(--ink); background: #fcfdff; font: inherit; line-height: 1.55; outline: none; }
 .atlasBlendStudio textarea:focus,
 .atlasRevisionStudio textarea:focus { border-color: var(--plum); box-shadow: 0 0 0 4px rgba(75, 49, 95, 0.12); }
 .atlasBlendStudio .atlasPrimary { justify-self: start; }
@@ -363,7 +363,7 @@
 .atlasFinalDraft > .atlasPrimary { margin-top: 20px; }
 
 .atlasApprovalKeys { display: flex; align-items: center; justify-content: center; gap: 13px; margin: 20px 0; }
-.atlasApprovalKeys span { min-width: 120px; padding: 10px 12px; border: 2px solid #c7ced9; border-radius: 10px; color: #778293; background: white; font-size: 0.72rem; font-weight: 800; }
+.atlasApprovalKeys span { min-width: 120px; padding: 10px 12px; border: 2px solid var(--brand-rule); border-radius: 10px; color: var(--brand-muted); background: white; font-size: 0.72rem; font-weight: 800; }
 .atlasApprovalKeys .atlasApprovalReady { border-color: #4c9a64; color: #2b6740; background: #e1f4e6; box-shadow: 0 3px 0 #4c9a64; }
 .atlasApprovalKeys i { color: var(--accent); font-style: normal; font-weight: 900; }
 .atlasApprovalWait { color: #2b6740; font-size: 0.76rem; font-weight: 800; }

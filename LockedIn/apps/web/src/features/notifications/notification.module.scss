@@ -7,21 +7,21 @@
 .panelHeader { padding: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--brand-rule); background: var(--cream); }
 .panelHeader h2 { margin: 5px 0 0; font: 550 1.5rem / 1.2 var(--font-serif); }
 .kicker { font-size: 10px; font-weight: 800; letter-spacing: .14em; color: #71518d; }
-.close { border: 1px solid #ded8e2; border-radius: 50%; width: 36px; height: 36px; background: var(--paper); color: inherit; font-size: 24px; cursor: pointer; }
+.close { border: 1px solid var(--brand-outline); border-radius: 50%; width: 36px; height: 36px; background: var(--paper); color: inherit; font-size: 24px; cursor: pointer; }
 .list { padding: 0; margin: 0; list-style: none; }
-.item { display: grid; grid-template-columns: 30px 1fr; gap: 12px; padding: 20px; border-bottom: 1px solid #ebe6de; }
+.item { display: grid; grid-template-columns: 30px 1fr; gap: 12px; padding: 20px; border-bottom: 1px solid var(--brand-rule); }
 .item h3 { font-size: 16px; margin: 0 0 6px; line-height: 1.35; }
-.item p { margin: 0 0 8px; font-size: 14px; color: #655f6d; }
-.item time { display: block; font-size: 11px; color: #7e7585; }
+.item p { margin: 0 0 8px; font-size: 14px; color: var(--brand-muted); }
+.item time { display: block; font-size: 11px; color: var(--brand-muted); }
 .itemIcon { width: 30px; height: 30px; display: grid; place-items: center; background: #e1f1df; border-radius: 50%; }
 .unread { background: #fff9df; }
 .unread .itemIcon { background: #fbd45d; }
 .openActivity { display: inline-flex; align-items: center; gap: 10px; margin-top: 12px; border: 0; padding: 0; color: #4b335f; background: transparent; font-weight: 800; cursor: pointer; font-size: 14px; }
-.completed { display: block; margin-top: 8px; font-size: 12px; color: #6e6973; }
+.completed { display: block; margin-top: 8px; font-size: 12px; color: var(--brand-muted); }
 .connection { margin: 0; padding: 16px 20px; background: #f2edf8; font-size: 13px; }
 .connection button, .more { padding: 9px 15px; background: #4b335f; border: 0; border-radius: 12px; color: white; font-weight: 700; cursor: pointer; }
 .more { margin: 16px 20px; }
-.empty { padding: 30px 22px; text-align: center; color: #655f6d; }
+.empty { padding: 30px 22px; text-align: center; color: var(--brand-muted); }
 .empty > span { font-size: 36px; color: #4b935f; }
 .empty h3 { color: #231b33; margin-bottom: 8px; }
 .empty p { font-size: 14px; }

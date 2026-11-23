@@ -277,7 +277,11 @@ main.welcomeMain {
   .welcome, .unlockList, .atlasPreview { grid-template-columns: minmax(0, 1fr); }
   .welcomeCopy { gap: 12px; }
   .primary { inline-size: 100%; }
-  .photo { aspect-ratio: 3 / 2; }
+  .photo img {
+    // Keep the image in flow so Safari reserves a row for it in the stacked layout.
+    position: static;
+    block-size: auto;
+  }
   .photo figcaption { inset: auto auto .7rem .7rem; }
   .unlockList li + li { border-inline-start: 0; border-block-start: 1px solid var(--member-divider); }
 }

@@ -2,13 +2,11 @@
 
 The homepage uses the original Blue Hour scene in `apps/web/public/home/`: two fictional adults talking outside a record shop after rain. It was created with the built-in image generator and exported to WebP in two landscape sizes and a tighter phone crop. It does not depict LockedIn members or use artwork from the reference site.
 
-The private-space section uses `apps/web/public/home/editorial-coffee.webp`, an optimized crop of the earlier coffee-date scene. It depicts fictional people, not a testimonial or LockedIn members.
-
-The Discovery phone preview uses `apps/web/public/home/discovery-preview-maya.webp`, cropped from that same scene. Its profile and the Atlas chapter in the Together phone are fictional examples; the previews never load member data.
+The Discovery phone preview uses `apps/web/public/home/discovery-preview-maya.webp`, cropped from the earlier coffee-date scene. Its profile and the Atlas of Us sample in both the privacy panel and the Together phone are fictional examples; the previews never load member data.
 
 The desktop sign-in and signup pages reuse the 1024px Blue Hour photograph as a decorative side panel. On phones the form takes the full width and the photo is omitted.
 
-The homepage and app share locally hosted Source Serif 4 for editorial headings and Roboto for controls and body text. Their SIL Open Font Licenses are in `apps/web/public/fonts/source-serif-4-OFL.txt` and `apps/web/public/fonts/roboto-OFL.txt`.
+The homepage uses local Latin WOFF2 builds of [Instrument Sans](https://github.com/google/fonts/tree/main/ofl/instrumentsans) and italic [Instrument Serif](https://github.com/google/fonts/tree/main/ofl/instrumentserif), with their SIL Open Font Licenses in `apps/web/public/fonts/`. The app still uses locally hosted Roboto and Source Serif 4.
 
 ## Earlier coffee-date artwork
 

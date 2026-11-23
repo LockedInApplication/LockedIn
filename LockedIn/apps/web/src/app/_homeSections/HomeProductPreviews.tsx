@@ -6,10 +6,38 @@ import home from "../page.module.scss";
 import styles from "./home-product-previews.module.scss";
 
 const atlasLandmarks = [
-  { title: "Support", symbol: "✓", status: "Shared" },
-  { title: "Space", symbol: "◌", status: "In progress" },
-  { title: "Quality time", symbol: "☀", status: "Unexplored" },
+  { title: "Support", status: "Shared" },
+  { title: "Space", status: "In progress" },
+  { title: "Quality time", status: "Unexplored" },
 ] as const;
+
+export function HomeAtlasExample({ variant }: { variant: "panel" | "phone" }) {
+  const panel = variant === "panel";
+  return (
+    <div className={panel ? `${styles.atlasExample} ${styles.atlasPanel}` : styles.atlasExample}>
+      <p className={styles.eyebrow}>{panel ? "Example from Together" : "Together · Understand each other"}</p>
+      <h3 className={styles.screenTitle}>The Atlas of Us</h3>
+      <p className={styles.atlasIntro}>
+        {panel
+          ? "Each of you answers a prompt on your own. Once you’ve both answered, you can read what the other wrote and agree on a shared meaning."
+          : "What does support look like when one of you is having a hard week?"}
+      </p>
+      <ul className={styles.landmarks} aria-label="Example Atlas landmarks" role="list">
+        {atlasLandmarks.map(({ title, status }) => (
+          <li key={title}>
+            <strong>{title}</strong>
+            <span className={styles.landmarkStatus}>{status}</span>
+          </li>
+        ))}
+      </ul>
+      <div className={styles.atlasChapter}>
+        <p className={styles.eyebrow}>A shared landmark</p>
+        <p>For us, “Support” means…</p>
+        <blockquote>“Ask if I want advice or just someone to listen.”</blockquote>
+      </div>
+    </div>
+  );
+}
 
 function Phone({ active, children }: { active: "Discover" | "Together"; children: ReactNode }) {
   return (
@@ -39,11 +67,11 @@ function Phone({ active, children }: { active: "Discover" | "Together"; children
 
 export default function HomeProductPreviews() {
   return (
-    <section id="app-preview" className={styles.section} aria-labelledby="app-preview-title">
+    <section id="app-preview" className={styles.section} aria-labelledby="app-preview-title" tabIndex={-1}>
       <div className={styles.intro}>
-        <p className={home.label}>Inside LockedIn</p>
-        <h2 id="app-preview-title">A look at the app.</h2>
-        <p>Example screens with a fictional profile and a sample Atlas chapter.</p>
+        <p className={home.label}>03 · Inside the app</p>
+        <h2 id="app-preview-title">A look at Discovery{" "}<em>and Together.</em></h2>
+        <p>These previews show a fictional profile and an example from the Atlas of Us.</p>
       </div>
 
       <div className={styles.showcase}>
@@ -57,41 +85,23 @@ export default function HomeProductPreviews() {
               <p className={styles.intention}>Looking for a long-term relationship</p>
               <div className={styles.prompt}>
                 <h4>{writtenPrompts.sunday}</h4>
-                <p>A record shop, a long walk, and nowhere to rush.</p>
+                <p>Coffee and a look through the used records at the shop down the street.</p>
               </div>
             </div>
           </Phone>
           <figcaption>
             <strong id="discovery-preview-caption">Discovery</strong>
-            <p>Photos and profile answers give you something to talk about.</p>
+            <p>If something in a photo or profile answer catches your eye, you can reply to it.</p>
           </figcaption>
         </figure>
 
         <figure className={`${styles.figure} ${home.fromRight}`} aria-labelledby="atlas-preview-caption" data-home-reveal="">
           <Phone active="Together">
-            <p className={styles.eyebrow}>Together · Understand each other</p>
-            <div className={styles.atlasHeader}>
-              <h3 className={styles.screenTitle}>The Atlas of Us</h3>
-              <p>What do everyday words like support and space mean to each of you?</p>
-            </div>
-            <ul className={styles.landmarks} aria-label="Atlas landmarks">
-              {atlasLandmarks.map(({ title, symbol, status }) => (
-                <li key={title}>
-                  <span className={styles.landmarkIcon} aria-hidden="true">{symbol}</span>
-                  <strong>{title}</strong>
-                  <span className={styles.landmarkStatus}>{status}</span>
-                </li>
-              ))}
-            </ul>
-            <div className={styles.atlasChapter}>
-              <p className={styles.eyebrow}>A shared landmark</p>
-              <h4>For us, “Support” means…</h4>
-              <blockquote>“Ask if I want advice or just someone to listen.”</blockquote>
-            </div>
+            <HomeAtlasExample variant="phone" />
           </Phone>
           <figcaption>
             <strong id="atlas-preview-caption">The Atlas of Us</strong>
-            <p>Answer on your own, see each other’s answers once you’ve both submitted, and write a meaning you both agree on.</p>
+            <p>Inside Together, you can explore what words like support and space mean to each of you.</p>
           </figcaption>
         </figure>
       </div>

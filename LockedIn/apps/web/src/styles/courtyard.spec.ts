@@ -58,20 +58,23 @@ it("shares neutral grays for secondary text, dividers, and outlines", () => {
   expect(contrast(tokenColor(css, "brand-muted"), tokenColor(css, "paper"))).toBeGreaterThanOrEqual(4.5);
 });
 
-it("shares local editorial fonts between the homepage and the app", () => {
+it("keeps the homepage's local Instrument fonts separate from the app's typography", () => {
   expect(css).toMatch(/--font-sans:\s*"Roboto"/);
   expect(css).toMatch(/--font-display:\s*var\(--font-sans\)/);
   expect(css).toMatch(/--font-serif:\s*"Source Serif 4"/);
-  expect(home).toMatch(/\.page\s*\{[^}]*font-family: var\(--font-sans\)/);
-  expect(home).toContain("--home-heading: var(--font-serif)");
+  expect(home).toMatch(/\.page\s*\{[^}]*font-family: var\(--home-heading\)/);
+  expect(home).toContain('--home-heading: "Instrument Sans", var(--font-sans)');
+  expect(home).toContain('--home-italic: "Instrument Serif", var(--font-serif)');
   expect(css).toContain("/fonts/roboto-latin-400-700.woff2");
   expect(css).toContain("/fonts/source-serif-4-latin-500-700.woff2");
-  expect(home).not.toContain("@font-face");
+  expect(css).not.toContain("Instrument Sans");
+  expect(home).toContain("/fonts/instrument-sans-latin-400-700.woff2");
+  expect(home).toContain("/fonts/instrument-serif-latin-italic.woff2");
 });
 
 it("animates the editorial sections only when motion is allowed", () => {
   const allowed = home.split("@media (prefers-reduced-motion: no-preference)")[1]?.split("@media")[0];
-  for (const name of ["editorialSlide", "connectorDraw"]) {
+  for (const name of ["editorialSlide", "settle"]) {
     expect(allowed).toContain(`animation: ${name}`);
     expect(home.match(new RegExp(`animation:\\s*${name}\\b`, "g"))).toHaveLength(1);
   }

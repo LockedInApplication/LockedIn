@@ -45,14 +45,14 @@ export default function HomeHeader() {
     <header ref={header} className={`${styles.header} ${onPaper ? styles.onPaper : ""}`}>
       <div className={styles.headerInner}>
         <a href="#top" className={styles.brand} aria-label="LockedIn home">
-          <span className={styles.brandMark} aria-hidden="true" /><span>Locked<em>In</em></span>
+          <span>Locked<em>In</em></span>
         </a>
         <nav className={styles.desktopNav} aria-label="Learn about LockedIn">
           <a href="#how-it-works">How it works</a>
           <a href="#trust">Private space</a>
           <a href="#app-preview">Inside the app</a>
         </nav>
-        <Link href="/signup" className={styles.headerJoin} aria-label="Join LockedIn">Join<span> LockedIn</span></Link>
+        <Link href="/signup" className={styles.headerJoin}>Get started</Link>
         <details ref={menu} className={styles.mobileMenu} onKeyDown={event => {
           if (event.key !== "Escape" || !event.currentTarget.open) return;
           closeMenu();

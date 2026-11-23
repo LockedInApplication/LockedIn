@@ -5,7 +5,7 @@ import Home from "./page";
 it("keeps signup, direct invitations, sign-in and app entry points in the editorial layout", () => {
   const html = renderToStaticMarkup(<Home />);
   expect(html.match(/href="\/signup"/g)).toHaveLength(3);
-  expect(html).toMatch(/<a[^>]*href="\/signup"[^>]*>Join LockedIn<\/a>/);
+  expect(html).toMatch(/<a[^>]*href="\/signup"[^>]*>Get started<\/a>/);
   expect(html).toMatch(/<a[^>]*href="\/connections\?compose=invite"[^>]*>Invite someone<\/a>/);
   expect(html).toMatch(/<a[^>]*href="\/login"[^>]*>Sign in<\/a>/);
   expect(html).toMatch(/<a[^>]*href="\/journey"[^>]*>Open LockedIn<\/a>/);
@@ -20,25 +20,34 @@ it("keeps signup, direct invitations, sign-in and app entry points in the editor
   expect(html).not.toContain('href="#preview"');
 });
 
-it("renders all editorial content before JavaScript with a real signup action", () => {
+it("renders the new hero and direct join and sign-in actions without JavaScript", () => {
   const html = renderToStaticMarkup(<Home />);
-  expect(html.match(/data-home-reveal=""/g)).toHaveLength(7);
-  expect(html).toContain("A good chat can");
-  expect(html).toContain("A space for just you two.");
-  expect(html).toMatch(/<img(?=[^>]*src="\/home\/editorial-coffee\.webp")(?=[^>]*loading="lazy")[^>]*>/);
-  expect(html).toContain("Go from hello <em>to a real date.</em>");
-  expect(html).toContain("Start with one good conversation.");
-  expect(html).toMatch(/<form\b[^>]*action="\/signup"/);
-  const email = html.match(/<input\b[^>]*id="home-signup-email"[^>]*>/)?.[0];
-  expect(email).toContain('type="email"');
-  expect(email).not.toMatch(/\sname=/);
-  expect(html).not.toContain("Request invite");
+  expect(html).toContain("Meet someone. <em>Make time for each other.</em>");
+  const join = html.match(/<section\b[^>]*id="join"[^>]*>.*?<\/section>/)?.[0];
+  expect(join).toContain("Start with <em>a conversation.</em>");
+  expect(join).toMatch(/href="\/signup"[^>]*>Join LockedIn<\/a>/);
+  expect(join).toMatch(/href="\/login"[^>]*>Sign in<\/a>/);
+  expect(join).not.toMatch(/<(?:form|input)\b/);
+});
+
+it("describes chat acceptance, mutual Lock In, and privacy as separate choices", () => {
+  const html = renderToStaticMarkup(<Home />);
+  const steps = html.match(/<ol\b[^>]*id="preview"[^>]*>.*?<\/ol>/)?.[0];
+  expect(steps?.match(/<li>/g)).toHaveLength(3);
+  expect(steps).toContain("or send a direct invite to someone you already know");
+  expect(steps).toContain("When they accept, a private chat opens in Inbox");
+  expect(steps).toContain("If you both say yes, you’ll have a private space in Together and Discovery will pause.");
+  const privacy = html.match(/<section\b[^>]*id="trust"[^>]*>.*?<\/section>/)?.[0];
+  expect(privacy).toContain("Your existing chats stay open while Discovery is paused.");
+  expect(privacy).toContain("Your private reflection is only visible to you.");
+  expect(privacy).toContain("Example from Together");
+  expect(privacy).toContain("Once you’ve both answered, you can read what the other wrote and agree on a shared meaning.");
 });
 
 it("shows clearly labeled Discovery and Atlas examples with no interactive controls", () => {
   const html = renderToStaticMarkup(<Home />);
   const preview = html.match(/<section\b[^>]*id="app-preview"[^>]*>.*?<\/section>/)?.[0];
-  expect(preview).toContain("fictional profile and a sample Atlas chapter");
+  expect(preview).toContain("a fictional profile and an example from the Atlas of Us");
   expect(preview).toContain('aria-labelledby="discovery-preview-caption"');
   expect(preview).toContain('aria-labelledby="atlas-preview-caption"');
   expect(preview).toContain("People nearby");

@@ -12,9 +12,10 @@ import DiscoverySafetyActions from "./DiscoverySafetyActions";
 import DiscoveryDistancePreferences, { type DistancePreferences } from "./DiscoveryDistancePreferences";
 import DiscoveryLocationCheck from "./DiscoveryLocationCheck";
 import DiscoveryMatchPreferences from "./DiscoveryMatchPreferences";
+import local from "./local-discovery.module.scss";
 export default function DiscoverPage(){return <DiscoveryShell><DiscoveryBrowse/></DiscoveryShell>;}
 function DiscoveryBrowse(){
-  const {userId,emailVerified,me,leave,installLocation}=useDiscovery(),[area,setArea]=useState(""),[selected,setSelected]=useState<string|null>(null);
+  const {userId,emailVerified,me,leave,installLocation,busy,setBusy}=useDiscovery(),[area,setArea]=useState(""),[selected,setSelected]=useState<string|null>(null);
   const matchingScope=me.matching?.revision??"",setupRequired=!!me.matching&&!me.matching.complete;
   const location=me.location;
   const worldwide=location?.mode==="worldwide";
@@ -26,11 +27,15 @@ function DiscoveryBrowse(){
   const matchingOpen=showMatching&&!!me.matching;
   const [showDistance,setShowDistance]=useState(false),[searchVersion,setSearchVersion]=useState(0),[confirmation,setConfirmation]=useState("");
   const [outsideArea,setOutsideArea]=useState(false);
+  const [visibilityError,setVisibilityError]=useState("");
+  const [localPreferenceNotice,setLocalPreferenceNotice]=useState("");
+  const visibilityRequest=useRef<AbortController|null>(null);
   const [expiredCheck,setExpiredCheck]=useState<string|null>(null);
   const [openedAt]=useState(Date.now);
   const cityPicker=useRef<HTMLSelectElement>(null);
   const loadOwn=useCallback((signal:AbortSignal)=>discoveryRequest<OwnDiscoveryProfile>(userId,"/api/discovery/profile",{signal}),[userId]);
   const own=useDiscoveryResource(userId,me.canDiscover?"profile":"",loadOwn);
+  useEffect(()=>()=>visibilityRequest.current?.abort(),[]);
   useEffect(()=>{
     if(!expiresAt)return;
     const timer=setTimeout(()=>setExpiredCheck(expiresAt),Math.max(0,Date.parse(expiresAt)-Date.now()));
@@ -52,6 +57,30 @@ function DiscoveryBrowse(){
   const onChecked=(value:DiscoveryLocation)=>{installLocation(value);restart();setSearchVersion(version=>version+1);setOutsideArea(!value.expiresAt);setConfirmation(value.expiresAt?"Location confirmed.":"");};
   const saveDistance=(value:DistancePreferences)=>{distance.install(value);restart();setSearchVersion(version=>version+1);setShowDistance(false);setConfirmation(value.preference?"Distance preferences saved.":"Search location removed. You’re browsing by city.");};
   const refreshSearch=()=>{restart();distance.retry();setSearchVersion(version=>version+1);};
+  const jumpTo=(id:string)=>{
+    const destination=document.getElementById(id);
+    destination?.focus({preventScroll:true});
+    destination?.scrollIntoView({block:"start"});
+  };
+  const changeVisibility=async(paused:boolean)=>{
+    if(busy||visibilityRequest.current||!me.canDiscover||!own.value?.published||own.value.suspended)return;
+    const request=new AbortController();
+    visibilityRequest.current=request;
+    setBusy(true);
+    setVisibilityError("");
+    setConfirmation("");
+    try {
+      const value=await discoveryRequest<OwnDiscoveryProfile>(userId,"/api/discovery/profile/visibility",{
+        method:"POST",signal:request.signal,body:JSON.stringify({paused}),
+      });
+      if(!request.signal.aborted){own.install(value);restart();setSearchVersion(version=>version+1);setConfirmation(value.paused?"Discovery visibility paused.":"Discovery visibility resumed.");}
+    } catch(error) {
+      if(!request.signal.aborted)setVisibilityError(error instanceof Error?error.message:"Couldn’t update visibility. Try again.");
+    } finally {
+      visibilityRequest.current=null;
+      if(!request.signal.aborted)setBusy(false);
+    }
+  };
   if(!me.canDiscover)return <section className={styles.card}>
     <h1>{me.discoveryLockedIn?"Discovery is paused while you’re locked in.":"Discovery is not available."}</h1>
     {emailVerified===false&&!me.discoveryLockedIn?<><p>Verify your email to use Discovery. Availability also depends on account eligibility.</p><button className={styles.primary} onClick={()=>void leave("/verify-email?pending=1")}>Verify email</button></>:null}
@@ -62,20 +91,62 @@ function DiscoveryBrowse(){
   if(!own.value)return <p role="status">Loading your profile…</p>;
   if(matchingOpen)return <><h1>Discovery matching</h1><DiscoveryMatchPreferences onCancel={()=>setShowMatching(false)} onSaved={value=>{setShowMatching(false);restart();setSearchVersion(version=>version+1);setConfirmation(value.settings?"Matching preferences saved.":"");}}/></>;
   if(setupRequired&&!own.value.paused&&!own.value.suspended)return <section className={styles.card}><p className={styles.eyebrow}>Private matching</p><h1>Meet people who are open to meeting you.</h1><p>Set who you’re open to meeting. We’ll only show people when your preferences fit both ways.</p><div className={styles.actions}><button className={styles.primary} onClick={()=>setShowMatching(true)}>Set up matching</button><button onClick={()=>void leave("/connections")}>Go to Inbox</button></div></section>;
+  if(location&&!setupRequired&&own.value.published&&!own.value.suspended&&(!searchArea||own.value.paused)&&(worldwide||own.value.published.areaId!==worldwideDiscoveryArea)){
+    const paused=own.value.paused;
+    return <div className={local.page}>
+      <section className={local.hero} aria-labelledby="local-discovery-title">
+        <p className={local.eyebrow}>Local Discovery</p>
+        <h1 id="local-discovery-title">{paused?"Your visibility is paused.":"Confirm your current area."}</h1>
+        <p className={local.intro}>{paused?"Your profile won’t appear in Discovery while visibility is paused. You can turn it back on below.":worldwide?"See people near your current area. We check only when you ask and use your broad area for up to 24 hours. Other people won’t see your location or distance.":"See people in the same supported area. We check only when you ask and keep only your metro area and when the check expires."} Existing chats and direct invites still work without it.</p>
+        {!paused&&location.expiresAt?<p className={local.message} role="status">Your location check expired. Confirm again to keep browsing.</p>:!paused&&outsideArea&&!worldwide?<p className={local.message} role="status">You’re outside an area where Discovery is open right now.</p>:null}
+        {confirmation?<p className={local.message} role="status">{confirmation}</p>:null}
+        <div className={local.actions}>
+          {!paused?<DiscoveryLocationCheck userId={userId} confirmed={false} onChecked={onChecked} buttonClassName={local.primary}/>:null}
+          {me.matching?.complete?<button type="button" onClick={()=>jumpTo("local-matching")}>Matching preferences</button>:null}
+          <button type="button" onClick={()=>jumpTo("local-visibility")}>Manage visibility</button>
+          <button type="button" onClick={()=>void leave("/connections")}>Go to Inbox</button>
+        </div>
+      </section>
+      <div className={local.settings}>
+        <section className={local.panel} aria-labelledby="local-matching">
+          <h2 id="local-matching" tabIndex={-1}>Matching preferences</h2>
+          <p>Choose who you’re open to meeting. You can change this any time.</p>
+          <div className={local.rangeNote}>
+            <strong>{worldwide?"Distance":"Search area"}</strong>
+            <span>{worldwide?"About 50 km":"Your confirmed metro area"}</span>
+            <p>{worldwide?"Local Discovery uses a fixed range around your confirmed area.":"People need a current location check in the same supported area."}</p>
+          </div>
+          {me.matching?.complete?<DiscoveryMatchPreferences compact onSaved={()=>{restart();setSearchVersion(version=>version+1);setLocalPreferenceNotice("Matching preferences saved.");}}/>:null}
+          {localPreferenceNotice?<p className={local.message} role="status">{localPreferenceNotice}</p>:null}
+          <div className={local.rangeNote}>
+            <strong>Looking for</strong>
+            <p>{own.value.published.intention==="LONG_TERM"?"A long-term relationship":own.value.published.intention==="OPEN_TO_LONG_TERM"?"Open to a long-term relationship":"Edit your relationship goal in your Discovery profile."}</p>
+          </div>
+          <div className={local.panelActions}>
+            {me.matching?.complete?<button type="button" disabled={busy} onClick={()=>setShowMatching(true)}>More matching settings</button>:null}
+            <button type="button" disabled={busy} onClick={()=>void leave("/discover/profile")}>My Discovery profile</button>
+          </div>
+        </section>
+        <section className={local.panel} aria-labelledby="local-visibility">
+          <h2 id="local-visibility" tabIndex={-1}>Manage visibility</h2>
+          <p>Decide whether your profile can appear in Discovery.</p>
+          <button type="button" className={local.toggle} role="switch" aria-checked={!paused} aria-labelledby="discover-toggle-label"
+            aria-describedby="discover-toggle-hint" disabled={busy} onClick={()=>void changeVisibility(!paused)}>
+            <span><strong id="discover-toggle-label">Show me in Discovery</strong><span id="discover-toggle-hint">Turn this off to hide your profile from Discovery. Existing chats and direct invites still work.</span></span>
+            <span className={local.switchTrack} aria-hidden="true"/>
+          </button>
+          <p className={local.privacy}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.65" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <span>{worldwide?"Your exact location and distance aren’t shown to other people.":"Your exact location isn’t shown. Discovery uses your metro area while the location check is active."}</span>
+          </p>
+          <p className={local.visibilityStatus}>Status: <strong>{paused?"Hidden from Discovery":"On · confirm your area to appear nearby"}</strong></p>
+          {visibilityError?<p role="alert" className={local.message}>{visibilityError}</p>:null}
+        </section>
+      </div>
+    </div>;
+  }
   if(!canBrowse)return <section className={styles.card}><p className={styles.eyebrow}>Optional discovery</p><h1>{own.value.paused?"Your visibility is paused.":"Meet someone to build with."}</h1><p>Choose exactly what to publish before exploring. Your shared space stays separate.</p><button className={styles.primary} onClick={()=>void leave("/discover/profile")}>{own.value.paused?"Manage visibility":"Set up my profile"}</button></section>;
   if(!worldwide&&own.value.published?.areaId===worldwideDiscoveryArea) return <section className={styles.card}><h1>Choose a city to use Discovery</h1><p>Update and publish your profile with a supported city before you browse again.</p><div className={styles.actions}><button className={styles.primary} onClick={()=>void leave("/discover/profile")}>Edit my profile</button><button onClick={()=>void leave("/connections")}>Go to Inbox</button></div></section>;
-  if(location&&!searchArea)return <section className={styles.card}>
-    <p className={styles.eyebrow}>Local Discovery</p>
-    <h1>Confirm your current area.</h1>
-    <p>{worldwide?"See people near your current area. We check only when you ask and use your broad area for up to 24 hours. Other people won’t see your location or distance.":"See people in the same supported area. We check only when you ask and keep only your metro area and when the check expires."} Existing chats and direct invites still work without it.</p>
-    {location.expiresAt?<p role="status">Your location check expired. Confirm again to keep browsing.</p>:outsideArea&&!worldwide?<p role="status">You’re outside an area where Discovery is open right now.</p>:null}
-    <div className={`${styles.actions} ${styles.locationActions}`}>
-      <DiscoveryLocationCheck userId={userId} confirmed={false} onChecked={onChecked}/>
-      {me.matching?.complete?<button type="button" onClick={()=>setShowMatching(true)}>Matching preferences</button>:null}
-      {worldwide?<button type="button" onClick={()=>void leave("/discover/profile")}>Manage visibility</button>:null}
-      <button type="button" onClick={()=>void leave("/connections")}>Go to Inbox</button>
-    </div>
-  </section>;
   const canSetDistance=!location&&distance.value&&(distance.value.configured||preference);
   return <><p className={styles.eyebrow}>Discovery · {location?"Browse locally":preference?"Browse by distance":"Browse by city"}</p><h1>{worldwide?"People nearby":"Find someone to build with."}</h1>
     <div className={`${styles.actions} ${styles.browseActions}`}>{!location&&distance.value&&!preference?<label className={styles.areaPicker}>Explore an area<select ref={cityPicker} aria-label="Explore an area" className={styles.field} value={searchArea} onChange={event=>{setArea(event.target.value);restart();}}>{me.areas.map(area=><option key={area.id} value={area.id}>{area.label}</option>)}</select></label>:null}

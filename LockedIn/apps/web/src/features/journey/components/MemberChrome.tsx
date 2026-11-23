@@ -26,7 +26,7 @@ type Props = Pick<WorkspaceHeaderProps, "onNavigate" | "onSignOut" | "user"> & {
 
 export default function MemberChrome({ userId, user, className, invitationView, onNavigate, onSignOut, onOpenNotification, onActivity, onExpired, onStatusChange, onChatSync, children }: Props) {
   const pathname = usePathname();
-  const editorial = pathname === "/journey" || pathname === "/connections";
+  const editorial = pathname === "/journey" || pathname === "/connections" || pathname === "/discover";
   const notifications = useNotifications(userId, onActivity, onExpired, onStatusChange, onChatSync);
   return <div className={`${styles.frame} ${className ?? ""} ${editorial ? styles.editorial : ""}`}>
     <WorkspaceHeader user={user} active={activeMemberTab(pathname, invitationView)} editorial={editorial} onNavigate={onNavigate} onSignOut={onSignOut}

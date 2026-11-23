@@ -1,0 +1,150 @@
+.page {
+  color: var(--editorial-ink, var(--ink));
+  padding-block: clamp(.75rem, 2vw, 1.5rem) 1rem;
+  button:not(.toggle) {
+    border-color: #cec7bd;
+    border-radius: 999px;
+    padding: .65rem 1.15rem;
+    background: transparent;
+    color: inherit;
+    &:enabled:hover { background: var(--member-hover); }
+    &.primary {
+      border-color: var(--editorial-ink);
+      background: var(--editorial-ink);
+      color: #fffaf4;
+      &:enabled:hover { background: #45342a; }
+    }
+  }
+}
+.hero {
+  border-block-start: 1px solid var(--member-divider);
+  padding-block-start: clamp(1.65rem, 4.5vw, 3.2rem);
+  h1 {
+    margin: .65rem 0 1.1rem;
+    font: 500 clamp(2.65rem, 5.1vw, 4.5rem)/1.03 var(--font-serif);
+    letter-spacing: -.047em;
+  }
+}
+.eyebrow {
+  color: var(--editorial-accent);
+  font: 650 .7rem/1.4 var(--font-sans);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+.intro { max-inline-size: 65ch; color: var(--member-muted); font-size: clamp(1rem, 1.5vw, 1.15rem); }
+.actions, .panelActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .65rem;
+}
+.actions {
+  margin-block-start: clamp(1.4rem, 3.5vw, 2.15rem);
+  > [role="alert"] { flex-basis: 100%; padding: .7rem .85rem; border-radius: .5rem; }
+}
+.settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(.85rem, 2vw, 1.35rem);
+  margin-block-start: clamp(2.2rem, 6.1vw, 5.75rem);
+}
+.panel {
+  min-inline-size: 0;
+  padding: clamp(1.1rem, 3vw, 1.95rem);
+  border: 1px solid var(--member-divider);
+  border-radius: clamp(1.05rem, 2.4vw, 1.65rem);
+  background: #fbf9f5;
+  h2 {
+    color: var(--editorial-ink);
+    font: 550 clamp(1.45rem, 2.7vw, 1.8rem)/1.15 var(--font-serif);
+    scroll-margin-block-start: 85px;
+  }
+  p { color: var(--member-muted); }
+}
+.rangeNote {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .25rem .7rem;
+  margin-block: 1.3rem;
+  > span { color: var(--member-muted); }
+  p { grid-column: 1 / -1; font-size: .875rem; }
+}
+.ageEditor {
+  margin-block: 1.2rem;
+  legend {
+    width: 100%;
+    margin-block-end: .55rem;
+    padding: 0;
+    span { float: inline-end; color: var(--member-muted); }
+  }
+  fieldset { gap: .35rem; }
+  input { accent-color: var(--editorial-accent); }
+  > button { margin-block-start: .65rem; }
+}
+.anyAge { display: flex; align-items: center; min-block-size: 44px; gap: .55rem; }
+.anyAge input { inline-size: 1rem; block-size: 1rem; }
+.sliders {
+  display: grid;
+  gap: .35rem;
+  label { display: grid; font-size: .875rem; }
+  input { margin: 0; width: 100%; height: 30px; }
+}
+.panelActions { margin-block-start: 1.2rem; }
+.panelActions button { font-size: .875rem; }
+.page .toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  width: 100%;
+  margin-block-start: 1.35rem;
+  padding: clamp(.8rem, 2vw, 1.1rem);
+  border: 1px solid var(--member-divider);
+  border-radius: .9rem;
+  background: var(--member-surface);
+  color: var(--editorial-ink);
+  text-align: start;
+  &:enabled:hover { background: var(--member-hover); }
+  strong + span { display: block; margin-top: .35rem; color: var(--member-muted); font-size: .9rem; font-weight: 400; }
+  > .switchTrack {
+    position: relative;
+    inline-size: 2.75rem;
+    block-size: 1.55rem;
+    margin: .1rem 0 0;
+    border: 1px solid #817467;
+    border-radius: 999px;
+    background: #817467;
+    &::before {
+      content: "";
+      position: absolute;
+      inset: .16rem auto .16rem .16rem;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: #fffaf4;
+    }
+  }
+  &[aria-checked="true"] .switchTrack {
+    border-color: var(--editorial-accent);
+    background: var(--editorial-accent);
+    &::before { inset-inline: auto .16rem; }
+  }
+}
+.privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  margin-block: 1rem;
+  padding: .85rem;
+  border: 1px dashed #bdb3a7;
+  border-radius: .8rem;
+  font-size: .9rem;
+  svg { flex: none; margin-top: .18rem; }
+}
+.visibilityStatus { font-size: .875rem; strong { color: var(--editorial-ink); } }
+.message { margin-block: .65rem; font-size: .9rem; }
+@media (max-width: 700px) {
+  .settings { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 430px) {
+  .actions > button { width: 100%; }
+}

@@ -8,6 +8,7 @@ import { discoveryRequest } from "./discovery.client";
 import type { DiscoveryMatchGender, DiscoveryMatchPreferencesView } from "./discovery.types";
 import { useDiscoveryResource } from "./use-discovery-resource";
 import styles from "./discovery.module.scss";
+import local from "./local-discovery.module.scss";
 
 const apiPath = "/api/discovery/match-preferences";
 const genders: Record<DiscoveryMatchGender, string> = { WOMAN: "Woman", MAN: "Man", NONBINARY: "Nonbinary", ANOTHER_GENDER: "Another gender" };
@@ -16,7 +17,9 @@ const youngestAdult = 18;
 const oldestSelectableAge = 120;
 const ageOptions = Array.from({ length: oldestSelectableAge - youngestAdult + 1 }, (_, index) => youngestAdult + index);
 
-export default function DiscoveryMatchPreferences({ onCancel, onSaved }: { onCancel?: () => void; onSaved: (value: DiscoveryMatchPreferencesView) => void }) {
+export default function DiscoveryMatchPreferences({ onCancel, onSaved, compact = false }: {
+  onCancel?: () => void; onSaved: (value: DiscoveryMatchPreferencesView) => void; compact?: boolean;
+}) {
   const { userId, me } = useDiscovery();
   const load = useCallback((signal: AbortSignal) => discoveryRequest<DiscoveryMatchPreferencesView>(userId, apiPath, { signal }), [userId]);
   const key = `matching:${me.matching?.revision ?? (me.matching ? "setup" : "off")}`;
@@ -24,8 +27,9 @@ export default function DiscoveryMatchPreferences({ onCancel, onSaved }: { onCan
   const value = resource.value;
   if (resource.error) return <section className={styles.card} role="alert"><p>{resource.error}</p><div className={styles.actions}><button onClick={resource.retry}>Try again</button>{onCancel?<button onClick={onCancel}>Back</button>:null}</div></section>;
   if (!value) return <p role="status">Opening matching preferences…</p>;
+  if (compact && !value.settings) return <p>Saved matching preferences aren’t available right now.</p>;
   if (!value.settings && (!value.required || !me.canDiscover)) return <section className={styles.card}><p>Matching setup is unavailable right now.</p>{onCancel?<button onClick={onCancel}>Back</button>:null}</section>;
-  return <MatchingEditor key={`${userId}:${value.settings?.revision ?? "new"}:${value.required}`} initial={value} canEdit={value.required && me.canDiscover} onCancel={onCancel} onReload={resource.retry} onSaved={next=>{resource.install(next);onSaved(next);}}/>;
+  return <MatchingEditor key={`${userId}:${value.settings?.revision ?? "new"}:${value.required}`} initial={value} canEdit={value.required && me.canDiscover} compact={compact} onCancel={onCancel} onReload={resource.retry} onSaved={next=>{resource.install(next);onSaved(next);}}/>;
 }
 
 export function DiscoveryMatchPreferencesPage() {
@@ -41,7 +45,9 @@ function AccountMatchingEditor() {
   </>;
 }
 
-export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved }: { initial: DiscoveryMatchPreferencesView; canEdit: boolean; onCancel?: () => void; onReload?: () => void; onSaved: (next: DiscoveryMatchPreferencesView) => void }) {
+export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved, compact = false }: {
+  initial: DiscoveryMatchPreferencesView; canEdit: boolean; onCancel?: () => void; onReload?: () => void; onSaved: (next: DiscoveryMatchPreferencesView) => void; compact?: boolean;
+}) {
   const { userId, busy, setBusy, installMatching } = useDiscovery();
   const settings = initial.settings;
   const heading = useId();
@@ -88,6 +94,33 @@ export function MatchingEditor({ initial, canEdit, onCancel, onReload, onSaved }
     event.preventDefault();
     if (!ready) return;
     void update("PUT", { revision: settings?.revision ?? null, birthDate, gender, meetGenders: meet, minAge: ageChoice === "any" ? youngestAdult : minAge, maxAge: ageChoice === "any" ? null : maxAge, ...(birthDateChanged && confirmed ? { confirmBirthDateChange: true } : {}) });
+  }
+
+  if (compact && settings) {
+    if (!canEdit) return <p>Matching preferences can’t be changed right now.</p>;
+    const ageChanged = ageChoice === "any" ? settings.maxAge !== null : minAge !== settings.minAge || maxAge !== settings.maxAge;
+    return <form className={local.ageEditor} onSubmit={submit}>
+      <fieldset className={styles.editorFields} disabled={busy}>
+        <legend><strong>Age range</strong> <span>{ageChoice === "range" ? `${minimum}–${maximum}` : "Any adult age"}</span></legend>
+        <label className={local.anyAge}><input type="checkbox" checked={ageChoice === "any"} onChange={event=>{
+          setAgeChoice(event.target.checked ? "any" : "range");
+          if (!minimum || !maximum) { setMinimum(String(youngestAdult)); setMaximum(String(oldestSelectableAge)); }
+        }}/> Any adult age</label>
+        {ageChoice === "range" ? <div className={local.sliders}>
+          <label>Youngest age<input type="range" min={youngestAdult} max={oldestSelectableAge} value={minimum} onChange={event=>{
+            setMinimum(event.target.value);
+            if (Number(event.target.value) > maxAge) setMaximum(event.target.value);
+          }}/></label>
+          <label>Oldest age<input type="range" min={youngestAdult} max={oldestSelectableAge} value={maximum} onChange={event=>{
+            setMaximum(event.target.value);
+            if (Number(event.target.value) < minAge) setMinimum(event.target.value);
+          }}/></label>
+        </div> : null}
+      </fieldset>
+      {error ? <p role="alert">{error}</p> : null}
+      {canReload && onReload ? <button type="button" disabled={busy} onClick={onReload}>Reload saved preferences</button> : null}
+      <button className={local.primary} type="submit" disabled={busy || !ready || !ageChanged}>Save preferences</button>
+    </form>;
   }
 
   return <section className={styles.card} aria-labelledby={heading}>

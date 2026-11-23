@@ -90,7 +90,22 @@ it("keeps Inbox and profile visibility reachable without a current worldwide che
   expect(html).toContain("Confirm my location");
   expect(html).toContain("Go to Inbox");
   expect(html).toContain("Manage visibility");
+  expect(html).toContain('role="switch" aria-checked="true"');
+  expect(html).toContain("Local Discovery uses a fixed range");
+  expect(html).toContain("About 50 km");
+  expect(html).not.toContain("Visible in Discovery");
   expect(html).not.toContain("supported area");
+  expect(state.resourceKeys.filter(Boolean)).toEqual(["profile"]);
+});
+
+it("shows an off visibility switch without checking location or loading candidates while paused", () => {
+  state.canDiscover = true;
+  state.paused = true;
+  state.location = { required: true, mode: "worldwide", areaId: null, expiresAt: null };
+  const html = renderToStaticMarkup(<DiscoverPage />);
+  expect(html).toContain('role="switch" aria-checked="false"');
+  expect(html).toContain("Hidden from Discovery");
+  expect(html).not.toContain("Confirm my location");
   expect(state.resourceKeys.filter(Boolean)).toEqual(["profile"]);
 });
 

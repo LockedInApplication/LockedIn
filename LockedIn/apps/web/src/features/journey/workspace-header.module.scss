@@ -1,5 +1,5 @@
 .frame {
-  --member-surface: #fff;
+  --member-surface: var(--brand-paper);
   --member-divider: #e5eaed;
   --member-hover: #f5f7f8;
   --member-muted: #52626f;
@@ -7,12 +7,10 @@
   --paper: var(--member-surface);
 }
 .frame.editorial {
-  --member-surface: #f6f4ef;
   --member-divider: #dcd7ce;
-  --member-hover: #ede9e2;
+  --member-hover: var(--brand-neutral);
   --member-muted: #685e55;
   --editorial-ink: #1d1917;
-  --editorial-stone: #ece8e1;
   --editorial-accent: #a54428;
   --editorial-accent-hover: #87341d;
   --editorial-gutter: clamp(1rem, 8.9vw, 8rem);
@@ -41,7 +39,7 @@
 .editorial .tabs a { border-radius: 999px; color: var(--member-muted); }
 .editorial .tabs a[aria-current] { background: var(--editorial-ink); color: #fffaf4; }
 .editorial .tabs a[aria-current]::after { content: none; }
-.editorial .tabs a[aria-current] .badge { background: #f6f4ef; color: var(--editorial-ink); }
+.editorial .tabs a[aria-current] .badge { background: var(--paper); color: var(--editorial-ink); }
 .editorial .tabs svg { flex: none; width: 19px; height: 19px; }
 .backToSite {
   display: inline-flex;

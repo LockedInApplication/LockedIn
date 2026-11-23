@@ -2,13 +2,13 @@
 :global(html):has(.page), :global(body):has(.page) { overflow-x: clip; }
 
 .page {
-  --home-frost: #f6f4ef;
+  --home-frost: var(--brand-paper);
   --home-ink: #1d1917;
   --home-muted: #685e55;
   --home-accent: #a54428;
   --home-glow: #e98656;
   --home-rule: #dcd7ce;
-  --home-stone: #ece8e1;
+  --home-stone: var(--brand-neutral);
   --home-action: var(--home-ink);
   --home-action-hover: #45342a;
   --home-heading: var(--font-serif);
@@ -60,7 +60,7 @@
   background: linear-gradient(#17141064, #17141008);
 }
 .header.onPaper {
-  background: #f6f4eff2;
+  background: #fffffff2;
   color: var(--home-ink);
   box-shadow: 0 1px var(--home-rule);
   backdrop-filter: blur(16px);
@@ -135,9 +135,9 @@
 .headerJoin span { margin-inline-start: .25em; }
 .page .header.onPaper .headerJoin, .page .primary { background: var(--home-action); color: #fff; }
 .page :is(.header.onPaper .headerJoin, .primary):hover { background: var(--home-action-hover); }
-.page :is(.header:not(.onPaper) .headerJoin, .lightButton):hover { background: #e8dfd2; }
-.page .outlineButton { color: var(--home-frost); background: #1d191736; border-color: #f6f4ef78; }
-.page .outlineButton:hover { background: #f6f4ef20; border-color: var(--home-frost); }
+.page :is(.header:not(.onPaper) .headerJoin, .lightButton):hover { background: var(--home-stone); }
+.page .outlineButton { color: var(--home-frost); background: #1d191736; border-color: #ffffff78; }
+.page .outlineButton:hover { background: #ffffff20; border-color: var(--home-frost); }
 
 .hero {
   isolation: isolate;
@@ -249,7 +249,7 @@
   font-size: clamp(1rem, 1.35vw, 1.125rem);
 }
 .approachCopy .primary { margin-top: clamp(1.15rem, 2.2vw, 1.9rem); }
-.trust { background: var(--home-stone); }
+.trust { background: var(--home-frost); border-block: 1px solid var(--home-rule); }
 .trust:focus-visible { outline-offset: -3px; }
 .trustInner {
   display: grid;
@@ -297,7 +297,7 @@
   border: 1px solid #e9865645;
   border-radius: 50%;
 }
-.join::after { inset: -12rem -10rem auto auto; border-color: #f6f4ef30; }
+.join::after { inset: -12rem -10rem auto auto; border-color: #ffffff30; }
 .joinContent { width: var(--home-measure); margin-inline: auto; text-align: center; }
 .join .label { color: var(--home-glow); }
 .join h2 { margin: 1.2rem auto 1rem; max-width: 17ch; text-wrap: balance; }

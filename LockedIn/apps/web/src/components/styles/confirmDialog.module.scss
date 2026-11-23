@@ -7,7 +7,7 @@
   padding: clamp(24px, 5vw, 34px);
   border: 2px solid #282036;
   border-radius: 24px;
-  background: #fffdf8;
+  background: var(--paper);
   color: #211930;
   box-shadow: 7px 8px 0 #bda6cc;
   &::backdrop {
@@ -75,7 +75,7 @@
   box-shadow: 0 3px 0 #282036;
 }
 .leave {
-  background: #fffdf8;
+  background: var(--paper);
   color: #633c62;
   border: 1px solid #b8a6c8;
 }

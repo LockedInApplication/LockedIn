@@ -31,7 +31,7 @@
   padding: clamp(1.05rem, 4vw, 3.1rem);
   border: 1px solid var(--member-divider);
   border-radius: clamp(1.1rem, 2.5vw, 1.8rem);
-  background: #fbf9f5;
+  background: var(--paper);
   box-shadow: 0 2px 4px #1d19170a;
   > .eyebrow { color: var(--member-muted); }
   h2 {
@@ -102,7 +102,7 @@
   padding: .12rem .55rem;
   border: 1px solid #cec7bd;
   border-radius: 999px;
-  background: var(--editorial-stone);
+  background: var(--brand-neutral);
   color: var(--member-muted);
   font-size: .75rem;
   font-weight: 650;

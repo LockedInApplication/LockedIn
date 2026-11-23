@@ -220,7 +220,7 @@
 .atlasPrivateForm > button { display: block; width: min(420px, 100%); margin: 0 auto; }
 .atlasPrivacyNote { display: block; margin-top: 18px; color: #697589; text-align: center; }
 
-.atlasDiscovery { overflow: hidden; background: #fdfcf8; }
+.atlasDiscovery { overflow: hidden; background: var(--paper); }
 .atlasRevealHeader { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 22px; align-items: center; padding: clamp(26px, 4vw, 46px); background: linear-gradient(110deg, #fff7d7, #e4f0ff); }
 .atlasBurst { display: grid; place-items: center; width: 82px; height: 82px; border: 3px solid var(--ink); border-radius: 50%; background: var(--accent); box-shadow: 5px 6px 0 var(--ink); font-size: 2rem; animation: atlasPop 650ms cubic-bezier(.18,1.4,.4,1); }
 .atlasChapterTag { align-self: start; padding: 8px 11px; border: 1px solid var(--ink); border-radius: 999px; background: white; font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; }

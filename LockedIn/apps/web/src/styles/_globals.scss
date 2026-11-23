@@ -18,8 +18,9 @@
 
 :root {
   // Shared editorial palette. Courtyard colors still mark states and landmarks.
-  --brand-paper: #fcfbfa;
-  --brand-canvas: #f3f0ed;
+  --brand-paper: #ffffff;
+  --brand-canvas: var(--brand-paper);
+  --brand-neutral: #f4f5f6;
   --brand-ink: #1b1a1a;
   --brand-muted: #444141;
   --brand-rule: #dedad6;

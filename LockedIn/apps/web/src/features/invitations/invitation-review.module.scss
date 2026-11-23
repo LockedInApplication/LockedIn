@@ -7,14 +7,14 @@
 .card strong { color: #231b33; }
 .privacy { max-width: 580px; }
 .card .expiry { font-size: 13px; }
-.message { padding: 15px 18px; border-radius: 15px; background: #fffdf8b8; }
+.message { padding: 15px 18px; border-radius: 15px; background: #ffffffb8; }
 .actions { display: flex; gap: 14px; margin-top: 26px; flex-wrap: wrap; }
 .actions button, .message button { padding: 13px 22px; border: 2px solid #231b33; border-radius: 14px; font: inherit; font-weight: 750; cursor: pointer; }
 .accept { color: white; background: #4b335f; box-shadow: 0 4px 0 #231b33; }
-.decline { color: #4b335f; background: #fffdf8; }
+.decline { color: #4b335f; background: var(--paper); }
 .boundaries { margin-top: 22px; border-top: 1px solid #d9d4d4; padding-top: 15px; color: #655d6b; font-size: 13px; }
 .boundaries summary { cursor: pointer; font-weight: 700; }
-.block { border: 1px solid #b8a6c8; border-radius: 12px; padding: 11px 15px; background: #fffdf8; color: #4b335f; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
+.block { border: 1px solid #b8a6c8; border-radius: 12px; padding: 11px 15px; background: var(--paper); color: #4b335f; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
 .close { display: block; margin-top: 28px; padding: 5px 0; border: 0; background: transparent; text-decoration: underline; text-underline-offset: 4px; color: #5e5768; cursor: pointer; font: inherit; font-size: 14px; }
 .card button:disabled { opacity: .55; cursor: not-allowed; }
 .card button:focus-visible { outline: 3px solid #719fe7; outline-offset: 4px; }

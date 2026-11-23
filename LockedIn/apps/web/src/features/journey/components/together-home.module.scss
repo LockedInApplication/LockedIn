@@ -11,7 +11,7 @@ main.welcomeMain {
   min-block-size: min(39vw, 37rem);
   border: 1px solid var(--member-divider, #dcd7ce);
   border-radius: clamp(1.25rem, 2.4vw, 2rem);
-  background: var(--editorial-stone, #ece8e1);
+  background: var(--paper);
   color: var(--editorial-ink, #1d1917);
 }
 
@@ -133,7 +133,8 @@ main.welcomeMain {
   gap: clamp(1.4rem, 5vw, 5rem);
   padding: clamp(1.25rem, 4.5vw, 4rem);
   border-radius: clamp(1rem, 2.4vw, 2rem);
-  background: var(--editorial-stone);
+  border: 1px solid var(--member-divider);
+  background: var(--paper);
 }
 .previewCopy h2 { margin-bottom: 1rem; }
 .sampleBadge {
@@ -171,7 +172,7 @@ main.welcomeMain {
   inline-size: 1.5rem;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: var(--editorial-stone);
+  background: var(--brand-neutral);
   color: var(--member-muted);
   &[data-shared="true"] { color: white; background: var(--editorial-accent); }
 }

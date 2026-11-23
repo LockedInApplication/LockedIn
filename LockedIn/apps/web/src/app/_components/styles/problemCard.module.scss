@@ -5,7 +5,7 @@
 .isVisible > .problemCard:nth-child(3) { transition-delay: 200ms; }
 .problemCard { position: relative; min-height: 310px; padding: 34px 30px 40px; border-right: 1px solid var(--stone-100); background: transparent; transition: background 180ms ease; }
 .problemCard:last-child { border-right: 0; }
-.problemCard:hover { background: rgba(255, 253, 248, 0.72); }
+.problemCard:hover { background: var(--brand-neutral); }
 .problemIcon { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 58px; border: 1px solid var(--ink); border-radius: 50%; color: var(--ink); font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; }
 .problemTitle { max-width: 260px; margin-bottom: 14px; color: var(--ink); font-family: var(--font-display); font-size: 1.55rem; font-weight: 650; line-height: 1.1; letter-spacing: -0.035em; }
 .problemDescription { max-width: 330px; color: var(--stone-500); font-size: 0.86rem; line-height: 1.7; }

@@ -38,7 +38,7 @@
   padding: clamp(1.4rem, 3.6vw, 2.8rem) 1.15rem;
   border: 1px dashed #bab2a8;
   border-radius: clamp(1rem, 2vw, 1.6rem);
-  background: #f0ede8;
+  background: var(--paper);
   text-align: center;
   h2 { margin: 0; font: 550 clamp(1.35rem, 2.2vw, 1.6rem)/1.15 var(--font-serif); }
   p { max-inline-size: 42ch; color: var(--member-muted); font-size: .9375rem; }

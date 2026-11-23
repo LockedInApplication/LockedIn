@@ -20,6 +20,15 @@ function contrast(a: string, b: string) {
 
 const css = compile(fileURLToPath(new URL("./_globals.scss", import.meta.url))).css;
 const home = compile(fileURLToPath(new URL("../app/page.module.scss", import.meta.url))).css;
+const member = compile(fileURLToPath(new URL("../features/journey/workspace-header.module.scss", import.meta.url))).css;
+
+it("uses pure white for the public and signed-in light surfaces", () => {
+  expect(tokenColor(css, "paper")).toBe("#ffffff");
+  expect(tokenColor(css, "cream")).toBe("#ffffff");
+  expect(tokenColor(home + css, "home-frost")).toBe("#ffffff");
+  expect(tokenColor(member + css, "member-surface")).toBe("#ffffff");
+  expect(tokenColor(home + css, "home-ink")).not.toBe("#ffffff");
+});
 
 it("uses the homepage neutrals throughout and preserves contrast for Courtyard accents", () => {
   expect(tokenColor(css, "cream")).toBe(tokenColor(css, "brand-canvas"));

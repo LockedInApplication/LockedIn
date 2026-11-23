@@ -53,7 +53,7 @@
   padding: clamp(1.1rem, 3vw, 1.95rem);
   border: 1px solid var(--member-divider);
   border-radius: clamp(1.05rem, 2.4vw, 1.65rem);
-  background: #fbf9f5;
+  background: var(--paper);
   h2 {
     color: var(--editorial-ink);
     font: 550 clamp(1.45rem, 2.7vw, 1.8rem)/1.15 var(--font-serif);

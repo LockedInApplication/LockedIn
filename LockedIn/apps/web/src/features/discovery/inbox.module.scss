@@ -70,19 +70,33 @@
   }
   .emptyPrimary {
     border-color: transparent;
-    background: var(--editorial-ink, var(--ink));
+    background: var(--editorial-accent, var(--accent));
     color: #fffaf4;
-    &:hover { background: #45342a; }
+    &:hover { background: var(--editorial-accent-hover, #87341d); }
   }
 }
 .empty button.sentLink {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .9rem;
+  width: 100%;
   min-height: 44px;
-  padding-inline: 0;
-  border: 0;
+  margin-block: 0 clamp(1.3rem, 3.3vw, 2.1rem);
+  padding: clamp(.9rem, 1.8vw, 1.45rem) clamp(1rem, 2.4vw, 1.55rem);
+  border: 1px solid var(--member-divider);
+  border-radius: clamp(1rem, 2vw, 1.6rem);
   background: transparent;
   color: var(--member-muted);
-  text-decoration: underline;
-  text-underline-offset: .22em;
+  text-align: start;
+  strong {
+    display: block;
+    margin-block-end: .35rem;
+    color: var(--editorial-ink, var(--ink));
+    font: 550 clamp(1.2rem, 2vw, 1.45rem)/1.2 var(--font-serif);
+  }
+  .sentDescription { font-size: .9375rem; font-weight: 400; }
+  &:hover { background: var(--member-hover); }
 }
 @media (max-width: 420px) {
   .empty .emptyActions { display: grid; grid-template-columns: minmax(0, 1fr); }

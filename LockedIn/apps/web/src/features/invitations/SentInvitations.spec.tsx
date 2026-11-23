@@ -31,6 +31,19 @@ describe("invitation history preview", () => {
     expect(html).not.toContain("View all invitations");
   });
 
+  it("shows counts for real loaded statuses without excluding other history from All", () => {
+    const html = renderToStaticMarkup(<SentInvitationsContent list={{
+      ...list, items: [items[0], { ...items[1], status: "ACCEPTED" }, { ...items[2], status: "EXPIRED" }],
+    }} />);
+    expect(html).toContain('aria-pressed="true">All <span>3</span>');
+    expect(html).toContain('aria-pressed="false">Pending <span>1</span>');
+    expect(html).toContain('aria-pressed="false">Accepted <span>1</span>');
+    expect(html).toContain("Invitation expired");
+    expect(html).toContain("Filters and counts apply to loaded invitations.");
+    expect(html).toContain("not that an email was delivered or opened");
+    expect(html).not.toContain("Preview data");
+  });
+
   it("keeps the empty state without an unnecessary history control", () => {
     const html = renderToStaticMarkup(<SentInvitationsContent list={{ ...list, items: [], nextCursor: null }} onViewAll={() => {}} />);
     expect(html).toContain("No invitations sent yet.");

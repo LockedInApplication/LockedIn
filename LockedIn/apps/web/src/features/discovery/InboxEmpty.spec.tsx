@@ -11,5 +11,7 @@ it("explains that Lock In is optional for chat and keeps real Inbox actions avai
   expect(html).toContain("Invite someone");
   expect(html).toContain("Go to Discover");
   expect(html).toContain("Sent invitations");
+  expect(html).toContain("See who you invited and whether they accepted.");
+  expect(html.indexOf("Sent invitations")).toBeLessThan(html.indexOf("Back to Together"));
   expect(renderToStaticMarkup(<InboxEmpty canInvite={false} onOpen={onOpen} />)).not.toContain("Invite someone");
 });

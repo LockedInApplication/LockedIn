@@ -97,12 +97,17 @@ export function InboxEmpty({ canInvite, onOpen }: { canInvite: boolean; onOpen: 
       <h2>Nothing waiting for you.</h2>
       <p>New chats and invitations to review will show up here.</p>
     </div>
+    <button className={inboxStyles.sentLink} type="button" aria-labelledby="inbox-sent-title" aria-describedby="inbox-sent-description"
+      onClick={() => void onOpen("/journey?invitations=manage")}>
+      <span><strong id="inbox-sent-title">Sent invitations</strong>
+        <span id="inbox-sent-description" className={inboxStyles.sentDescription}>See who you invited and whether they accepted.</span></span>
+      <span aria-hidden="true">→</span>
+    </button>
     <div className={inboxStyles.emptyActions}>
       <button type="button" className={inboxStyles.emptyPrimary} onClick={() => void onOpen("/journey")}>Back to Together</button>
       {canInvite ? <button type="button" onClick={() => void onOpen("/connections?compose=invite")}>Invite someone</button> : null}
       <button type="button" onClick={() => void onOpen("/discover")}>Go to Discover</button>
     </div>
-    <button className={inboxStyles.sentLink} type="button" onClick={() => void onOpen("/journey?invitations=manage")}>Sent invitations</button>
   </section>;
 }
 

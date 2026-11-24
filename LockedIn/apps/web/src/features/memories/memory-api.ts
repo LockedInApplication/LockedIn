@@ -3,17 +3,22 @@ import { API_URL, JourneyApiError, journeyRequest } from "@/features/journey/jou
 export type PhotoPoint = { x: number; y: number };
 export type MemoryNote = { id: string; yours: boolean; text: string | null; voiceDurationMs: number | null; updatedAt: string };
 export type MemoryPin = PhotoPoint & { id: string; title: string; notes: MemoryNote[] };
-export type MemoryPhoto = { id: string; title: string; width: number; height: number; yours: boolean; createdAt: string; pins: MemoryPin[] };
-export type Memories = { photos: MemoryPhoto[] };
+export type MemoryPhoto = { id: string; title: string; envelopeId: string | null; width: number; height: number; yours: boolean; createdAt: string; pins: MemoryPin[] };
+export const memoryEnvelopeTones = { CLAY: "Terracotta", OLIVE: "Olive", LINEN: "Linen", SLATE: "Blue hour" } as const;
+export type MemoryEnvelopeTone = keyof typeof memoryEnvelopeTones;
+export type MemoryEnvelopeFields = { title: string; day: string | null; tone: MemoryEnvelopeTone };
+export type MemoryEnvelope = MemoryEnvelopeFields & { id: string; coverPhotoId: string | null; captions: { text: string; yours: boolean }[] };
+export type Memories = { photos: MemoryPhoto[]; envelopes: MemoryEnvelope[] };
 export const maxMemoryPhotoBytes = 5 * 1024 * 1024;
 export const memoryPhotoTypes = ["image/jpeg", "image/png", "image/webp"];
 export const memoryPath = (space: string) => `/api/journey/relationships/${encodeURIComponent(space)}/memories`;
 export const memoryPhotoPath = (base: string, photo: string) => `${base}/${encodeURIComponent(photo)}`;
+export const memoryEnvelopePath = (base: string, envelope: string) => `${base}/envelopes/${encodeURIComponent(envelope)}`;
 export const memoryNotePath = (photo: string, pin: string) => `${photo}/pins/${encodeURIComponent(pin)}/note`;
 export const memoryVoicePath = (photo: string, pin: string, note: string) => `${photo}/pins/${encodeURIComponent(pin)}/notes/${encodeURIComponent(note)}/voice`;
 
-export function changeMemory<T>(path: string, method: "POST" | "PUT" | "DELETE", userId: string, body?: FormData) {
-  return journeyRequest<T>(path, { method, headers: { "X-Together-Owner": userId }, ...(body ? { body } : {}) });
+export function changeMemory<T>(path: string, method: "POST" | "PUT" | "DELETE", userId: string, body?: FormData | Record<string, unknown>) {
+  return journeyRequest<T>(path, { method, headers: { "X-Together-Owner": userId }, ...(body ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}) });
 }
 
 export async function readPrivateMemoryMedia(path: string, signal: AbortSignal) {

@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { readPrivateMemoryMedia } from "./memory-api";
 import styles from "./memories.module.scss";
 
-export function usePrivateAsset(path: string, version = "") {
+export function usePrivateAsset(path: string, version = "", enabled = true) {
   const [attempt, retry] = useState(0);
   const key = JSON.stringify([path, version, attempt]);
   const [result, setResult] = useState<{ key: string; url?: string; failed?: boolean }>();
   useEffect(() => {
+    if (!enabled) return;
     const controller = new AbortController();
     let url: string | undefined;
     void readPrivateMemoryMedia(path, controller.signal).then(blob => {
@@ -22,8 +23,8 @@ export function usePrivateAsset(path: string, version = "") {
       controller.abort();
       if (url) URL.revokeObjectURL(url);
     };
-  }, [key, path]);
-  return { ...(result?.key === key ? result : {}), retry: () => retry(value => value + 1) };
+  }, [enabled, key, path]);
+  return { ...(enabled && result?.key === key ? result : {}), retry: () => retry(value => value + 1) };
 }
 
 export function MemoryVoicePlayer({ path, version, label }: { path: string; version: string; label: string }) {

@@ -18,6 +18,9 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("Behind the Photo"
   const origin = "http://localhost:3001";
   const get = (person: Person, url: string) => app.inject({ url, headers: { cookie: person.cookie } });
   const remove = (person: Person, url: string) => app.inject({ method: "DELETE", url, headers: { cookie: person.cookie, origin, "x-together-owner": person.id } });
+  const json = (person: Person, method: "POST" | "PUT", url: string, payload: object) => app.inject({
+    method, url, payload, headers: { cookie: person.cookie, origin, "x-together-owner": person.id },
+  });
   async function send(person: Person, method: "POST" | "PUT", url: string, fields: Record<string, string>, attachment?: [string, Blob], overrides?: Record<string, string>) {
     const body = new FormData();
     for (const [key, value] of Object.entries(fields)) body.set(key, value);
@@ -57,7 +60,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("Behind the Photo"
     expect((await send(a, "POST", path, photo, file)).statusCode).toBe(201);
     const picture = `${path}/${photo.id}`;
     const gallery = (await get(b, path)).json();
-    expect(gallery).toEqual({ photos: [{ ...photo, yours: false, width: 330, height: 220, createdAt: expect.any(String), pins: [] }] });
+    expect(gallery).toEqual({ envelopes: [], photos: [{ ...photo, envelopeId: null, yours: false, width: 330, height: 220, createdAt: expect.any(String), pins: [] }] });
     const imageResponse = await get(b, `${picture}/media`);
     expect(imageResponse.statusCode).toBe(200);
     expect(imageResponse.headers["cache-control"]).toBe("private, no-store");
@@ -113,10 +116,92 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("Behind the Photo"
     } });
     expect((await get(a, path)).statusCode).toBe(404);
     await db.discoveryConnection.update({ where: { id: source.id }, data: { lockedInAt: new Date() } });
-    expect((await get(a, path)).json()).toEqual({ photos: [] });
+    expect((await get(a, path)).json()).toEqual({ envelopes: [], photos: [] });
     expect((await get(b, path)).statusCode).toBe(200);
     await db.discoveryConnection.update({ where: { id: source.id }, data: { closedAt: new Date() } });
     expect((await get(a, path)).statusCode).toBe(404);
     expect((await get(b, path)).statusCode).toBe(404);
+  });
+
+  it("files private photos without recreating them and gives each caption its own author", async () => {
+    const a = await createPerson(), b = await createPerson(), c = await createPerson(), d = await createPerson();
+    const makeSpace = (first: Person, second: Person, locked = true) => db.relationship.create({ data: {
+      directLockedInAt: locked ? new Date() : null, members: { create: [{ userId: first.id }, { userId: second.id }] },
+    } });
+    const space = await makeSpace(a, b, false);
+    const other = await makeSpace(c, d);
+    const path = "/api/journey/relationships/" + space.id + "/memories";
+    const otherPath = "/api/journey/relationships/" + other.id + "/memories";
+    const env = { id: randomUUID(), title: "The long way home", day: "2026-11-14", tone: "CLAY" };
+    const second = { ...env, id: randomUUID(), title: "Slow Sunday" };
+    const foreign = { ...env, id: randomUUID() };
+    const envPath = path + "/envelopes/" + env.id;
+    const folder = { title: env.title, day: env.day, tone: "OLIVE" };
+    const caption = envPath + "/caption";
+    expect((await json(a, "POST", path + "/envelopes", env)).statusCode).toBe(404);
+    await db.relationship.update({ where: { id: space.id }, data: { directLockedInAt: new Date() } });
+    expect((await json(a, "POST", path + "/envelopes", { ...env, day: "2026-02-30" })).statusCode).toBe(400);
+    expect((await json(a, "POST", path + "/envelopes", env)).statusCode).toBe(201);
+    expect((await json(a, "POST", path + "/envelopes", env)).json()).toEqual({ id: env.id });
+    expect((await json(b, "POST", path + "/envelopes", second)).statusCode).toBe(201);
+    expect((await json(c, "POST", otherPath + "/envelopes", foreign)).statusCode).toBe(201);
+    const bytes = await sharp({ create: { width: 700, height: 500, channels: 3, background: "#875752" } }).png().toBuffer();
+    const file: [string, Blob] = ["file", new Blob([new Uint8Array(bytes)], { type: "image/png" })];
+    const photo = { id: randomUUID(), title: "The platform" };
+    const picture = path + "/" + photo.id;
+    expect((await send(a, "POST", path, { ...photo, envelopeId: foreign.id }, file)).statusCode).toBe(404);
+    expect((await send(a, "POST", path, photo, file)).statusCode).toBe(201);
+    const pin = { id: randomUUID(), title: "The lamp", x: "3000", y: "4000", text: "The rain had just stopped." };
+    expect((await send(a, "POST", picture + "/pins", pin, ["voice", voice(16000)])).statusCode).toBe(201);
+    const before = (await get(a, path)).json().photos[0];
+    const clipPath = picture + "/pins/" + pin.id + "/notes/" + before.pins[0].notes[0].id + "/voice";
+    const clip = await get(a, clipPath);
+    expect(clip.statusCode).toBe(200);
+    const thumb = await get(b, picture + "/thumbnail");
+    expect(thumb.headers["cache-control"]).toBe("private, no-store");
+    expect((await sharp(thumb.rawPayload).metadata()).width).toBe(360);
+    expect((await get(c, picture + "/thumbnail")).statusCode).toBe(404);
+    expect((await get(c, path)).statusCode).toBe(404);
+    expect((await json(c, "PUT", caption, { text: "A stranger" })).statusCode).toBe(404);
+    expect((await json(b, "PUT", envPath, { ...folder, coverPhotoId: photo.id })).statusCode).toBe(409);
+    const filePhotos = (photoIds: string[], fromEnvelopeId: string | null, envelopeId: string | null) =>
+      json(b, "PUT", path + "/filing", { photoIds, fromEnvelopeId, envelopeId });
+    expect((await filePhotos([photo.id, randomUUID()], null, env.id)).statusCode).toBe(404);
+    expect((await filePhotos([photo.id], null, foreign.id)).statusCode).toBe(404);
+    expect((await get(a, path)).json().photos[0].envelopeId).toBeNull();
+    expect((await filePhotos([photo.id], null, env.id)).statusCode).toBe(200);
+    expect((await filePhotos([photo.id], null, env.id)).statusCode).toBe(200);
+    expect((await filePhotos([photo.id], null, second.id)).statusCode).toBe(409);
+    expect((await json(b, "PUT", envPath, { ...folder, coverPhotoId: photo.id })).statusCode).toBe(200);
+    expect((await get(a, path)).json().photos[0]).toEqual({ ...before, envelopeId: env.id });
+    expect((await get(b, clipPath)).rawPayload).toEqual(clip.rawPayload);
+
+    expect((await json(a, "PUT", caption, { text: "I thought we were lost." })).statusCode).toBe(200);
+    expect((await json(b, "PUT", caption, { text: "I was hoping we’d get lost.", authorId: a.id })).statusCode).toBe(400);
+    expect((await json(b, "PUT", caption, { text: "I was hoping we’d get lost." })).statusCode).toBe(200);
+    const bookmarks = async (viewer: Person) => (await get(viewer, path)).json().envelopes.find((item: { id: string }) => item.id === env.id);
+    expect(await bookmarks(b)).toMatchObject({ ...folder, coverPhotoId: photo.id, captions: expect.arrayContaining([
+      { yours: false, text: "I thought we were lost." }, { yours: true, text: "I was hoping we’d get lost." },
+    ]) });
+    expect((await remove(b, envPath)).statusCode).toBe(409);
+    expect((await remove(a, caption)).statusCode).toBe(200);
+    expect((await bookmarks(b)).captions).toEqual([{ yours: true, text: "I was hoping we’d get lost." }]);
+    expect((await remove(b, caption)).statusCode).toBe(200);
+
+    expect((await filePhotos([photo.id], env.id, null)).statusCode).toBe(200);
+    expect((await bookmarks(a)).coverPhotoId).toBeNull();
+    expect((await filePhotos([photo.id], null, env.id)).statusCode).toBe(200);
+    const uploadedInside = { id: randomUUID(), title: "Coffee", envelopeId: env.id };
+    expect((await send(b, "POST", path, uploadedInside, file)).statusCode).toBe(201);
+    expect((await get(a, path)).json().photos).toEqual(expect.arrayContaining([expect.objectContaining(uploadedInside)]));
+    expect((await remove(b, envPath)).statusCode).toBe(200);
+    const { photos } = (await get(a, path)).json();
+    expect(photos).toEqual(expect.arrayContaining([before, expect.objectContaining({ ...uploadedInside, envelopeId: null })]));
+    expect((await get(b, clipPath)).rawPayload).toEqual(clip.rawPayload);
+
+    const block = await db.invitationBlock.create({ data: { blockerId: a.id, blockedId: b.id } });
+    expect((await json(b, "PUT", path + "/envelopes/" + second.id + "/caption", { text: "After blocking" })).statusCode).toBe(404);
+    expect((await get(a, path)).statusCode).toBe(404);
+    await db.invitationBlock.delete({ where: { id: block.id } });
   });
 });

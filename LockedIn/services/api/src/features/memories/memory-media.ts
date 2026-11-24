@@ -25,6 +25,12 @@ export async function normalizeMemoryPhoto(bytes: Buffer, mime: string) {
   }
 }
 
+export function memoryThumbnail(bytes: Uint8Array) {
+  // Input is already a bounded, normalized JPEG. Serve small private previews on the shelf.
+  return sharp(Buffer.from(bytes), { limitInputPixels: 1400 * 1400 }).timeout({ seconds: 5 })
+    .resize({ width: 360, height: 360, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 74 }).toBuffer();
+}
+
 const sampleRate = 16_000;
 const headerBytes = 44;
 const bytesPerSample = 2;

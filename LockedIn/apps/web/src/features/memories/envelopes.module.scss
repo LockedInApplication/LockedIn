@@ -1,0 +1,129 @@
+.section { display: grid; gap: .65rem; min-inline-size: 0; }
+.sectionHeading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: .35rem; }
+.sectionHeading h2, .sectionHeading h3 { font-size: clamp(1.25rem, 2.75vw, 1.75rem); }
+.shelf, .photoGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(.5rem, 1.5vw, .9rem); }
+.shelf { grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr)); }
+
+.shelfCard, .photoCard, .photoChoice {
+  min-inline-size: 0; padding: 0; overflow: hidden;
+  display: grid; align-content: start; text-align: start;
+  color: inherit; background: var(--paper); border: 1px solid var(--member-divider, var(--brand-rule));
+  border-radius: .85rem;
+}
+.shelfCard, .photoCard, .photoChoice { cursor: pointer; }
+.shelfCard:hover:not(:disabled), .photoCard:hover:not(:disabled), .photoChoice:has(:checked) {
+  border-color: var(--editorial-accent, #a54428);
+}
+.cardCopy { padding: .65rem .75rem .72rem; display: grid; gap: .2rem; }
+.cardCopy strong { font-weight: 630; line-height: 1.22; }
+.shelfCard .cardCopy strong { font: 450 clamp(1.05rem, 2vw, 1.32rem)/1.15 var(--font-serif); }
+.thumb {
+  display: block; inline-size: 100%; min-inline-size: 0; aspect-ratio: 1.45;
+  background: var(--brand-neutral, #f3f0ed); overflow: hidden;
+  img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+}
+
+.artWell {
+  display: grid; place-items: center; inline-size: 100%;
+  padding: clamp(.55rem, 2vw, .95rem);
+  background: radial-gradient(ellipse at 50% 24%, var(--paper), var(--brand-neutral, #f0ede9));
+}
+.envelope {
+  position: relative; display: block; inline-size: min(100%, 16.5rem); aspect-ratio: 1.68;
+  isolation: isolate;
+}
+.envelope, .postcard, .swatchDot { --cardstock: #e0ad99; --fold: #bb816c; --flap: #edbeaa; --seal: #9d4e37; --address: #602d23; }
+:is(.envelope, .postcard, .swatchDot)[data-tone="OLIVE"] { --cardstock: #c5ccac; --fold: #98a478; --flap: #d9dfc6; --seal: #62704a; --address: #303b22; }
+:is(.envelope, .postcard, .swatchDot)[data-tone="LINEN"] { --cardstock: #e7d5b9; --fold: #c6aa83; --flap: #f4e4cc; --seal: #927047; --address: #513b23; }
+:is(.envelope, .postcard, .swatchDot)[data-tone="SLATE"] { --cardstock: #b9cad5; --fold: #8ba6b7; --flap: #ccdae2; --seal: #516f81; --address: #263f4a; }
+.envelopeBase {
+  position: absolute; z-index: 0; inset: 34% 2% 5%; border-radius: .35rem; background: var(--fold);
+  box-shadow: 0 10px 17px -11px #34272278;
+}
+.print, .extraPrint {
+  position: absolute; z-index: 1; inset: 4% auto auto 31%; inline-size: 43%; block-size: 65%;
+  border: 4px solid #fffdf7; border-block-end-width: 8px; transform: rotate(-9deg);
+  box-shadow: 0 3px 5px #34272230;
+}
+.extraPrint { background: #f3e9dd; transform: rotate(12deg); inset-inline-start: 46%; inset-block-start: 7%; }
+.pocket {
+  position: absolute; z-index: 2; inset: auto 2% 5%; block-size: 59%;
+  border-radius: 0 0 .35rem .35rem; overflow: hidden;
+  background: linear-gradient(130deg, var(--cardstock), color-mix(in srgb, var(--cardstock) 70%, var(--fold)));
+}
+.pocket::before, .pocket::after {
+  content: ""; position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--fold) 44%, var(--cardstock));
+  clip-path: polygon(0 0, 50% 56%, 100% 0, 100% 100%, 0 100%);
+}
+.pocket::after { background: var(--cardstock); clip-path: polygon(0 100%, 50% 54%, 100% 100%); }
+.flap {
+  position: absolute; z-index: 3; inset: 36% 2% auto; block-size: 36%;
+  background: linear-gradient(135deg, var(--flap), var(--cardstock));
+  clip-path: polygon(0 0, 100% 0, 51% 100%, 49% 100%);
+}
+.seal {
+  position: absolute; z-index: 4; display: grid; place-items: center;
+  inset: 60% auto auto 50%; transform: translateX(-50%) rotate(-5deg);
+  inline-size: clamp(1.15rem, 3vw, 1.65rem); aspect-ratio: 1;
+  background: var(--seal); border-radius: 51% 44% 46% 43%; color: #fff7eb; font-size: .85rem;
+  box-shadow: inset 0 0 0 2px #ffffff28, 0 2px 4px #49302445;
+}
+.address {
+  position: absolute; z-index: 4; inset: auto 8% 13% auto; color: var(--address);
+  font: italic .76rem var(--font-serif); text-align: end;
+}
+.envelope[data-open] {
+  .flap { z-index: 0; inset: 0 2% auto; block-size: 46%; clip-path: polygon(0 100%, 50% 0, 100% 100%); }
+  .print, .extraPrint { inset-block-start: 11%; }
+}
+.openEnvelope {
+  display: grid; gap: .85rem; align-items: center; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  border-block-end: 1px solid var(--member-divider, var(--brand-rule)); padding-block-end: .85rem;
+  .artWell { border-radius: .85rem; }
+}
+.envelopeHeading { display: grid; gap: .55rem; min-inline-size: 0; }
+
+.postcard {
+  display: grid; gap: .65rem; background: var(--paper); padding: clamp(.9rem, 3vw, 1.55rem);
+  border: 1px solid var(--member-divider, var(--brand-rule)); border-block-start: 4px solid var(--cardstock); border-radius: .8rem;
+}
+.postcardHead {
+  display: flex; justify-content: space-between; gap: .8rem; align-items: start;
+  border-block-end: 1px dashed var(--member-divider, var(--brand-rule)); padding-block-end: .75rem;
+  > div { display: grid; gap: .35rem; }
+}
+.stamp {
+  flex: none; inline-size: 2.1rem; block-size: 2.35rem; display: grid; place-items: center;
+  color: var(--editorial-accent, #a54428); border: 1px dashed currentColor;
+}
+.captions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.caption {
+  min-inline-size: 0; display: grid; align-content: start; gap: .55rem; padding: .5rem .75rem .3rem 0;
+  + .caption { padding-inline: .75rem 0; border-inline-start: 1px solid var(--member-divider, var(--brand-rule)); }
+  blockquote { font: italic 400 clamp(1.2rem, 2.9vw, 1.6rem)/1.3 var(--font-serif); white-space: pre-wrap; }
+}
+
+.picker { min-inline-size: 0; border: 0; margin: 0; padding: 0; }
+.picker legend { padding: 0; margin-block-end: .35rem; font-weight: 650; }
+.swatches { display: flex; flex-wrap: wrap; gap: .4rem; }
+.swatch, .checkLabel { display: flex; align-items: center; gap: .38rem; min-block-size: 2.75rem; }
+.swatch {
+  padding: .3rem .55rem; border: 1px solid var(--member-divider, var(--brand-rule)); border-radius: .6rem;
+  &:has(:checked) { border-color: var(--editorial-accent, #a54428); }
+}
+.swatchDot { inline-size: 1rem; block-size: 1rem; flex: none; border-radius: 50%; background: var(--cardstock); }
+.checkLabel { padding: .4rem .55rem; font-size: .875rem; line-height: 1.28; }
+.checkLabel input, .swatch input { flex: none; inline-size: 1.1rem; block-size: 1.1rem; accent-color: var(--editorial-accent, #a54428); }
+
+@media (max-width: 620px) {
+  .shelf, .photoGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .openEnvelope { grid-template-columns: minmax(0, 1fr); }
+  .envelope[data-open] { inline-size: min(65%, 13rem); }
+}
+@media (max-width: 390px) {
+  .captions { grid-template-columns: minmax(0, 1fr); }
+  .caption + .caption { padding: .65rem 0 0; border-inline-start: none; border-block-start: 1px solid var(--member-divider, var(--brand-rule)); }
+  .address { display: none; }
+  .cardCopy { padding-inline: .5rem; }
+}

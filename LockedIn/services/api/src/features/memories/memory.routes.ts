@@ -3,21 +3,35 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { requireAccountMutationIdentity } from "../../lib/account-mutation-http.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
-import { MemoryError, maxPhotoUploadBytes, maxVoiceUploadBytes, normalizeMemoryPhoto, validateMemoryVoice } from "./memory-media.js";
-import { addMemoryPhoto, addMemoryPin, assertMemoryAccess, deleteMemoryPhoto, listMemories, readMemoryPhoto, readMemoryVoice, removeMemoryNotePart, shareMemoryNote } from "./memory.service.js";
+import { MemoryError, maxPhotoUploadBytes, maxVoiceUploadBytes, memoryThumbnail, normalizeMemoryPhoto, validateMemoryVoice } from "./memory-media.js";
+import { addMemoryPhoto, addMemoryPin, assertMemoryAccess, deleteMemoryPhoto, listMemories, photoLimit, readMemoryPhoto, readMemoryVoice, removeMemoryNotePart, shareMemoryNote } from "./memory.service.js";
+import { changeMemoryCaption, createMemoryEnvelope, fileMemoryPhotos, removeMemoryEnvelope, updateMemoryEnvelope } from "./memory-envelope.service.js";
 
 const base = "/api/journey/relationships/:relationshipId/memories";
 const id = z.uuid();
 const relationship = z.strictObject({ relationshipId: id });
+const envelope = relationship.extend({ envelopeId: id });
 const photo = relationship.extend({ photoId: id });
 const pin = photo.extend({ pinId: id });
 const voice = pin.extend({ noteId: id });
 const part = pin.extend({ part: z.enum(["text", "voice"]) });
 const plain = (max: number) => z.string().trim().min(1).max(max).refine(value => !value.includes("\u0000"));
 const position = z.string().regex(/^\d{1,5}$/).transform(Number).pipe(z.int().min(0).max(10000));
-const photoFields = z.strictObject({ id, title: plain(80) });
+const photoFields = z.strictObject({ id, title: plain(80), envelopeId: id.optional() });
 const noteFields = z.strictObject({ text: plain(220).optional() });
 const pinFields = noteFields.extend({ id, title: plain(48), x: position, y: position });
+const envelopeFields = z.strictObject({
+  title: plain(65), day: z.iso.date().refine(day => day >= "1900-01-01").nullable(),
+  tone: z.enum(["CLAY", "OLIVE", "LINEN", "SLATE"]),
+});
+const createEnvelopeFields = envelopeFields.extend({ id });
+const updateEnvelopeFields = envelopeFields.extend({ coverPhotoId: id.nullable() });
+const captionFields = z.strictObject({ text: plain(160) });
+const filingFields = z.strictObject({
+  photoIds: z.array(id).min(1).max(photoLimit).refine(ids => new Set(ids).size === ids.length),
+  fromEnvelopeId: id.nullable(),
+  envelopeId: id.nullable(),
+});
 
 function route<P extends { relationshipId: string }>(
   schema: z.ZodType<P>, mutation: boolean,
@@ -70,6 +84,30 @@ export async function registerMemoryRoutes(server: FastifyInstance) {
   }
 
   server.get(base, route(relationship, false, async ({ relationshipId }, actor) => listMemories(relationshipId, actor)));
+  server.post(`${base}/envelopes`, { bodyLimit: 4096 }, route(relationship, true, async ({ relationshipId }, actor, request, reply) => {
+    const parsed = createEnvelopeFields.safeParse(request.body);
+    if (!parsed.success) return sendError(reply, 400, "Give the envelope a name and choose a paper color.");
+    return reply.code(201).send(await createMemoryEnvelope(relationshipId, actor, parsed.data));
+  }));
+  server.put(`${base}/envelopes/:envelopeId`, { bodyLimit: 4096 }, route(envelope, true, async ({ relationshipId, envelopeId }, actor, request, reply) => {
+    const parsed = updateEnvelopeFields.safeParse(request.body);
+    if (!parsed.success) return sendError(reply, 400, "Check the name, date, or cover and try again.");
+    return updateMemoryEnvelope(relationshipId, actor, envelopeId, parsed.data);
+  }));
+  server.delete(`${base}/envelopes/:envelopeId`, route(envelope, true,
+    async ({ relationshipId, envelopeId }, actor) => removeMemoryEnvelope(relationshipId, actor, envelopeId)));
+  server.put(`${base}/envelopes/:envelopeId/caption`, { bodyLimit: 4096 }, route(envelope, true, async ({ relationshipId, envelopeId }, actor, request, reply) => {
+    const parsed = captionFields.safeParse(request.body);
+    if (!parsed.success) return sendError(reply, 400, "Write a caption of up to 160 characters.");
+    return changeMemoryCaption(relationshipId, actor, envelopeId, parsed.data.text);
+  }));
+  server.delete(`${base}/envelopes/:envelopeId/caption`, route(envelope, true,
+    async ({ relationshipId, envelopeId }, actor) => changeMemoryCaption(relationshipId, actor, envelopeId, null)));
+  server.put(`${base}/filing`, { bodyLimit: 4096 }, route(relationship, true, async ({ relationshipId }, actor, request, reply) => {
+    const parsed = filingFields.safeParse(request.body);
+    if (!parsed.success) return sendError(reply, 400, "Choose which photos to tuck away.");
+    return fileMemoryPhotos(relationshipId, actor, parsed.data);
+  }));
   server.post(base, route(relationship, true, async ({ relationshipId }, actor, request, reply) => {
     await assertMemoryAccess(relationshipId, actor);
     const { fields, file } = await upload(request, "file", maxPhotoUploadBytes);
@@ -81,6 +119,10 @@ export async function registerMemoryRoutes(server: FastifyInstance) {
   server.get(`${base}/:photoId/media`, route(photo, false, async ({ relationshipId, photoId }, actor, _request, reply) => {
     const bytes = await readMemoryPhoto(relationshipId, actor, photoId);
     return reply.type("image/jpeg").send(Buffer.from(bytes));
+  }));
+  server.get(`${base}/:photoId/thumbnail`, route(photo, false, async ({ relationshipId, photoId }, actor, _request, reply) => {
+    const bytes = await readMemoryPhoto(relationshipId, actor, photoId);
+    return reply.type("image/jpeg").send(await memoryThumbnail(bytes));
   }));
   server.delete(`${base}/:photoId`, route(photo, true, async ({ relationshipId, photoId }, actor) => deleteMemoryPhoto(relationshipId, actor, photoId)));
   server.post(`${base}/:photoId/pins`, route(photo, true, async ({ relationshipId, photoId }, actor, request, reply) => {

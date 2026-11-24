@@ -5,8 +5,9 @@ import { pairClosure } from "../messaging/messaging-conversation.service.js";
 import { notificationBroker } from "../notifications/notification.broker.js";
 import { MemoryError, type normalizeMemoryPhoto, type validateMemoryVoice } from "./memory-media.js";
 
-const unavailable = () => new MemoryError(404, "This memory is not available.");
-const photoLimit = 24;
+export const unavailable = () => new MemoryError(404, "This memory is not available.");
+export const photoLimit = 24;
+export const envelopeLimit = 24;
 const pinLimit = 8;
 type Content = { text?: string; audio?: ReturnType<typeof validateMemoryVoice> };
 
@@ -34,7 +35,7 @@ export async function assertMemoryAccess(relationshipId: string, actorId: string
   if (await pairClosure(prisma, a!, b!)) throw unavailable();
 }
 
-async function withSpace<T>(relationshipId: string, actorId: string, action: (tx: Prisma.TransactionClient) => Promise<T>, changed = false) {
+export async function withSpace<T>(relationshipId: string, actorId: string, action: (tx: Prisma.TransactionClient) => Promise<T>, changed = false) {
   const { value, members } = await prisma.$transaction(async tx => {
     const initial = await activePair(tx, relationshipId, actorId);
     await lockDiscoveryUsers(tx, initial);
@@ -54,7 +55,7 @@ export function listMemories(relationshipId: string, actorId: string) {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: photoLimit,
       select: {
-        id: true, title: true, width: true, height: true, createdAt: true, uploaderId: true,
+        id: true, title: true, width: true, height: true, createdAt: true, uploaderId: true, envelopeId: true,
         pins: {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           select: {
@@ -67,6 +68,15 @@ export function listMemories(relationshipId: string, actorId: string) {
         },
       },
     });
+    const envelopes = await tx.togetherEnvelope.findMany({
+      where: { relationshipId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: envelopeLimit,
+      select: {
+        id: true, title: true, day: true, tone: true, coverPhotoId: true,
+        captions: { select: { authorId: true, text: true } },
+      },
+    });
     return {
       photos: photos.map(({ uploaderId, pins, ...photo }) => ({
         ...photo, yours: uploaderId === actorId,
@@ -75,17 +85,28 @@ export function listMemories(relationshipId: string, actorId: string) {
           notes: notes.map(({ authorId, ...note }) => ({ ...note, yours: authorId === actorId })),
         })),
       })),
+      envelopes: envelopes.map(({ day, captions, ...envelope }) => ({
+        ...envelope, day: day?.toISOString().slice(0, 10) ?? null,
+        captions: captions.map(({ authorId, text }) => ({ text, yours: authorId === actorId })),
+      })),
     };
   });
 }
 
-export function addMemoryPhoto(relationshipId: string, actorId: string, input: { id: string; title: string }, image: Awaited<ReturnType<typeof normalizeMemoryPhoto>>) {
+export async function requireMemoryEnvelope(tx: Prisma.TransactionClient, relationshipId: string, envelopeId: string) {
+  const envelope = await tx.togetherEnvelope.findFirst({ where: { id: envelopeId, relationshipId } });
+  if (!envelope) throw unavailable();
+  return envelope;
+}
+
+export function addMemoryPhoto(relationshipId: string, actorId: string, input: { id: string; title: string; envelopeId?: string }, image: Awaited<ReturnType<typeof normalizeMemoryPhoto>>) {
   return withSpace(relationshipId, actorId, async tx => {
     const prior = await tx.togetherPhoto.findUnique({ where: { id: input.id }, select: { relationshipId: true, uploaderId: true } });
     if (prior) {
       if (prior.relationshipId !== relationshipId || prior.uploaderId !== actorId) throw unavailable();
       return { id: input.id };
     }
+    if (input.envelopeId) await requireMemoryEnvelope(tx, relationshipId, input.envelopeId);
     if (await tx.togetherPhoto.count({ where: { relationshipId } }) >= photoLimit) {
       throw new MemoryError(409, "This space can hold 24 photos. Remove a photo you added before adding another.");
     }

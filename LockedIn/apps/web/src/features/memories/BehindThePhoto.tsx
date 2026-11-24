@@ -7,9 +7,11 @@ import { useQuietRefresh } from "@/features/notifications/use-quiet-refresh";
 import { MemoryPhotoCanvas } from "./MemoryPhotoCanvas";
 import { MemoryVoiceDraft } from "./MemoryVoiceDraft";
 import { MemoryVoicePlayer } from "./PrivateMemoryMedia";
+import { MemoryEnvelopeBack, MemoryEnvelopeContents, MemoryEnvelopeShelf } from "./MemoryEnvelopes";
+import { EnvelopeCaptionForm, EnvelopeSettingsForm, EnvelopeTuckForm } from "./MemoryEnvelopeForms";
 import {
-  changeMemory, maxMemoryPhotoBytes, memoryNotePath, memoryPath, memoryPhotoPath, memoryPhotoTypes, memoryVoicePath,
-  type Memories, type MemoryPhoto, type MemoryPin, type PhotoPoint,
+  changeMemory, maxMemoryPhotoBytes, memoryEnvelopePath, memoryNotePath, memoryPath, memoryPhotoPath, memoryPhotoTypes, memoryVoicePath,
+  type Memories, type MemoryEnvelopeFields, type MemoryPhoto, type MemoryPin, type PhotoPoint,
 } from "./memory-api";
 import styles from "./memories.module.scss";
 
@@ -18,9 +20,28 @@ type NoteDraft = {
   type: "note"; photoId: string; format: Format; text: string; clip: Blob | null; title: string;
   target: { pinId: string } | { id: string; point: PhotoPoint };
 };
-type Draft = { type: "photo"; id: string; title: string; file: File | null }
+type Draft = { type: "photo"; id: string; title: string; file: File | null; envelopeId: string | null }
+  | { type: "envelope"; id: string; creating: boolean }
+  | { type: "tuck"; envelopeId: string | null; initialPhotoId?: string }
+  | { type: "caption"; envelopeId: string }
   | { type: "place"; photoId: string } | NoteDraft | null;
-type Removal = { photoId: string } | { photoId: string; pinId: string; part: Format };
+type EnvelopeRemoval = { envelopeId: string };
+type Removal = { type: "photo"; photoId: string } | { type: "note"; photoId: string; pinId: string; part: Format }
+  | (EnvelopeRemoval & ({ type: "envelope" } | { type: "caption" }));
+
+function removalPrompt(removal: Removal | null) {
+  if (removal?.type === "envelope") return {
+    title: "Remove this envelope?", description: "The photos will go back to Loose photos with their pins and recordings. Just the envelope will be removed.",
+  };
+  if (removal?.type === "caption") return {
+    title: "Remove your caption?", description: "This only removes your caption. The envelope and your partner’s caption will stay.",
+  };
+  if (removal?.type === "note") return {
+    title: removal.part === "voice" ? "Remove your voice note?" : "Remove your written note?",
+    description: "The photo and any other notes will stay. If this was the only note at this spot, the pin will disappear.",
+  };
+  return { title: "Remove this photo?", description: "This removes the photo and all of its pinned details and recordings for both of you." };
+}
 
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 
@@ -33,6 +54,8 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [envelopeId, setEnvelopeId] = useState<string | null>(null);
+  const [side, setSide] = useState<"front" | "back">("front");
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [pinId, setPinId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(null);
@@ -41,9 +64,17 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
   const pending = useRef(false);
   const [recording, setRecording] = useState(false);
   const [removal, setRemoval] = useState<Removal | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const refocus = useRef(false);
 
   const read = useCallback((signal: AbortSignal) => journeyRequest<Memories>(base, { signal, cache: "no-store" }), [base]);
-  const apply = useCallback((data: Memories) => { setGallery(data); setLoadError(""); }, []);
+  const apply = useCallback((data: Memories) => {
+    const envelopes = data.envelopes ?? [];
+    setGallery({ ...data, envelopes });
+    setEnvelopeId(id => id && envelopes.some(item => item.id === id) ? id : null);
+    setPhotoId(id => id && data.photos.some(item => item.id === id) ? id : null);
+    setLoadError("");
+  }, []);
   const readFailed = useCallback((cause: unknown) => {
     if (cause instanceof JourneyApiError && cause.status === 401) onExpired();
     if (cause instanceof JourneyApiError && [401, 403, 404].includes(cause.status)) setGallery(null);
@@ -65,13 +96,52 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
     };
   }, [invalidate]);
 
-  const photo = gallery?.photos.find(item => item.id === photoId) ?? gallery?.photos[0];
+  const photo = gallery?.photos.find(item => item.id === photoId);
+  const envelope = gallery?.envelopes.find(item => item.id === (photo ? photo.envelopeId : envelopeId));
+  const contents = gallery?.photos.filter(item => envelope && item.envelopeId === envelope.id) ?? [];
+  const loose = gallery?.photos.filter(item => !item.envelopeId) ?? [];
   const pin = photo?.pins.find(item => item.id === pinId) ?? photo?.pins[0];
   const url = photo ? memoryPhotoPath(base, photo.id) : "";
   const isPlacing = draft?.type === "place";
   const note = draft?.type === "note" ? draft : null;
   const targetPinId = note && "pinId" in note.target ? note.target.pinId : null;
   const draftPoint = note && "point" in note.target ? note.target.point : null;
+  const prompt = removalPrompt(removal);
+
+  useEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    heading.current?.focus({ preventScroll: true });
+    heading.current?.scrollIntoView({ block: "nearest", behavior: "instant" });
+  }, [envelopeId, photoId, side]);
+
+  function openEnvelope(id: string | null) {
+    refocus.current = true;
+    setEnvelopeId(id);
+    setPhotoId(null);
+    setPinId(null);
+    setSide("front");
+    setNotice("");
+    setError("");
+  }
+  function openPhoto(photo: MemoryPhoto) {
+    refocus.current = true;
+    setEnvelopeId(photo.envelopeId ?? null);
+    setPhotoId(photo.id);
+    setPinId(null);
+    setNotice("");
+    setError("");
+  }
+  function flip(next: "front" | "back") {
+    refocus.current = true;
+    setSide(next);
+    setNotice("");
+    setError("");
+  }
+  function beginUpload(destination: string | null) {
+    setNotice("");
+    changeDraft({ type: "photo", id: crypto.randomUUID(), title: "", file: null, envelopeId: destination });
+  }
 
   function changeDraft(value: Draft) {
     draftRef.current = value;
@@ -126,11 +196,62 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
     body.set("id", draft.id);
     body.set("title", draft.title.trim());
     body.set("file", draft.file);
+    if (draft.envelopeId) body.set("envelopeId", draft.envelopeId);
     void run(async () => {
       const added = await changeMemory<{ id: string }>(base, "POST", userId, body);
+      refocus.current = true;
       setPhotoId(added.id);
       setPinId(null);
     }, `Photo shared with ${partnerName}.`);
+  }
+
+  function saveEnvelope(fields: MemoryEnvelopeFields, coverPhotoId: string | null) {
+    if (draft?.type !== "envelope") return;
+    void run(async () => {
+      if (draft.creating) {
+        const created = await changeMemory<{ id: string }>(base + "/envelopes", "POST", userId, { ...fields, id: draft.id });
+        openEnvelope(created.id);
+      } else await changeMemory(memoryEnvelopePath(base, draft.id), "PUT", userId, { ...fields, coverPhotoId });
+    }, draft.creating ? "Envelope created." : "Envelope updated.");
+  }
+  function tuckPhotos(destination: string, photoIds: string[]) {
+    void run(async () => {
+      await changeMemory(base + "/filing", "PUT", userId, { photoIds, fromEnvelopeId: null, envelopeId: destination });
+      openEnvelope(destination);
+    }, photoIds.length === 1 ? "Photo tucked in." : "Photos tucked in.");
+  }
+  function untuckPhoto(photo: MemoryPhoto) {
+    if (!photo.envelopeId) return;
+    void run(async () => {
+      await changeMemory(base + "/filing", "PUT", userId, { photoIds: [photo.id], fromEnvelopeId: photo.envelopeId, envelopeId: null });
+      openEnvelope(photo.envelopeId);
+    }, "Photo moved to Loose photos. Its pins and recordings are still on it.");
+  }
+  function saveCaption(text: string) {
+    if (draft?.type !== "caption") return;
+    void run(async () => {
+      await changeMemory(memoryEnvelopePath(base, draft.envelopeId) + "/caption", "PUT", userId, { text });
+    }, "Your caption was saved.");
+  }
+  function confirmRemoval() {
+    const target = removal;
+    if (!target) return;
+    setRemoval(null);
+    if (target.type === "envelope" || target.type === "caption") {
+      const path = memoryEnvelopePath(base, target.envelopeId);
+      void run(async () => {
+        await changeMemory(path + (target.type === "caption" ? "/caption" : ""), "DELETE", userId);
+        if (target.type === "envelope") openEnvelope(null);
+      }, target.type === "caption" ? "Your caption was removed." : "Envelope removed. Any photos are back in Loose photos.");
+    } else if (target.type === "note") {
+      const path = memoryNotePath(memoryPhotoPath(base, target.photoId), target.pinId);
+      void run(async () => { await changeMemory(path + "/" + target.part, "DELETE", userId); }, "Your note was removed.");
+    } else {
+      void run(async () => {
+        await changeMemory(memoryPhotoPath(base, target.photoId), "DELETE", userId);
+        openEnvelope(photo?.envelopeId ?? null);
+      }, "Photo removed from Together.");
+    }
   }
   function submitNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -172,8 +293,8 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
     <header className={styles.heading}>
       <div>
         <p className={styles.eyebrow}>Together / Memories</p>
-        <h1 id="behind-the-photo-heading">Behind the <em>Photo.</em></h1>
-        <p>Save a photo. Tap a detail and leave the part of the story you remember.</p>
+        <h1 id="behind-the-photo-heading" tabIndex={-1} ref={heading}>{photoId ? <>Behind the <em>Photo.</em></> : <>Memory <em>envelopes.</em></>}</h1>
+        <p>{photoId ? "Tap a detail and leave the part of the story you remember." : "Keep the photos that belong to the same story together."}</p>
       </div>
       <span className={styles.private}>Only you and {partnerName}</span>
     </header>
@@ -181,19 +302,19 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
     {loadError ? <p className={styles.error} role="alert">{loadError} <button type="button" className={styles.link} onClick={invalidate}>Try again</button></p> : null}
     {!gallery && !loadError ? <p className={styles.small} role="status">Opening your photos…</p> : null}
     {gallery ? <>
-      <div className={styles.toolbar}>
-        {gallery.photos.length > 1 ? <label className={styles.field}>Your photos
-          <select disabled={busy || !!draft} value={photo?.id ?? ""} onChange={event => { setPhotoId(event.target.value); setPinId(null); setNotice(""); setError(""); }}>
-            {gallery.photos.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
-          </select>
-        </label> : null}
-        <button type="button" className={photo ? styles.secondary : styles.primary} disabled={busy || !!draft} onClick={() => {
-          setNotice("");
-          changeDraft({ type: "photo", id: crypto.randomUUID(), title: "", file: null });
-        }}>Add a photo</button>
-      </div>
+      {(envelope || photoId) && !draft ? <nav className={styles.toolbar} aria-label="Memory navigation">
+        <div className={styles.actions}>
+          <button type="button" className={styles.link} disabled={busy} onClick={() => openEnvelope(null)}>← Shelf</button>
+          {photoId && envelope ? <button type="button" className={styles.link} disabled={busy} onClick={() => openEnvelope(envelope.id)}>Back to envelope</button> : null}
+          {!photoId && envelope && side === "back" ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => flip("front")}>Back to photos</button> : null}
+        </div>
+        {envelope && !photoId ? <button type="button" className={styles.link} disabled={busy} onClick={() => {
+          setNotice(""); changeDraft({ type: "envelope", id: envelope.id, creating: false });
+        }}>Customize envelope</button> : null}
+      </nav> : null}
       {draft?.type === "photo" ? <form className={styles.panel} onSubmit={submitPhoto} aria-label="Share a photo">
         <h2>Share a photo</h2>
+        {draft.envelopeId && envelope ? <p className={styles.small}>Saving into {envelope.title}</p> : null}
         <label className={styles.field}>Name this memory<input maxLength={80} value={draft.title} placeholder="Saturday at four" disabled={busy} onChange={event => changeDraft({ ...draft, title: event.target.value })} /></label>
         <label className={styles.field}>Photo<input type="file" disabled={busy} accept={memoryPhotoTypes.join(",")} onChange={event => {
           const file = event.target.files?.[0] ?? null;
@@ -208,10 +329,27 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
           <button type="submit" className={styles.primary} disabled={busy}>{busy ? "Sharing…" : "Share photo"}</button>
           <button type="button" className={styles.link} disabled={busy} onClick={() => changeDraft(null)}>Cancel</button>
         </div>
-      </form> : !photo ? <div className={styles.empty}>
-        <h2>A little photo book for the two of you.</h2>
-        <p>Add a photo you’d like to keep. It can stay just a photo, or either of you can pin something you remember.</p>
-      </div> : <div className={styles.book}>
+      </form> : draft?.type === "envelope" ? <EnvelopeSettingsForm key={draft.id}
+        envelope={draft.creating ? undefined : envelope} photos={draft.creating ? [] : contents} busy={busy}
+        onSave={saveEnvelope} onCancel={() => changeDraft(null)} onRemove={() => setRemoval({ type: "envelope", envelopeId: draft.id })} />
+        : draft?.type === "tuck" ? <EnvelopeTuckForm base={base} envelopes={gallery.envelopes} photos={loose}
+          destination={gallery.envelopes.find(item => item.id === draft.envelopeId)} initialPhotoId={draft.initialPhotoId}
+          busy={busy} onCancel={() => changeDraft(null)} onSave={tuckPhotos} />
+        : draft?.type === "caption" && envelope ? <EnvelopeCaptionForm envelope={envelope} busy={busy}
+          onCancel={() => changeDraft(null)} onSave={saveCaption} />
+        : !photoId && !envelopeId ? <MemoryEnvelopeShelf base={base} envelopes={gallery.envelopes} photos={gallery.photos} busy={busy}
+          onCreate={() => { setNotice(""); changeDraft({ type: "envelope", id: crypto.randomUUID(), creating: true }); }}
+          onUpload={() => beginUpload(null)} onOpen={openEnvelope} onPhoto={openPhoto} />
+        : !photoId && envelope ? side === "back"
+          ? <MemoryEnvelopeBack envelope={envelope} partnerName={partnerName} busy={busy}
+            onEdit={() => { setNotice(""); changeDraft({ type: "caption", envelopeId: envelope.id }); }}
+            onRemove={() => setRemoval({ type: "caption", envelopeId: envelope.id })} />
+          : <MemoryEnvelopeContents base={base} envelope={envelope} photos={contents} busy={busy} looseCount={loose.length}
+            onUpload={() => beginUpload(envelope.id)}
+            onTuck={() => { setNotice(""); changeDraft({ type: "tuck", envelopeId: envelope.id }); }}
+            onFlip={() => flip("back")} onPhoto={openPhoto} />
+        : !photo ? <p className={styles.small} role="status">{photoId ? "Opening photo…" : "Opening envelope…"}</p>
+        : <div className={styles.book}>
         <div className={styles.photoTitle}><p className={styles.eyebrow}>Shared photo</p><h2>{photo.title}</h2></div>
         <div className={styles.spread}>
           <MemoryPhotoCanvas key={photo.id} photo={photo} path={url} selected={targetPinId ?? pin?.id ?? null}
@@ -248,7 +386,7 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
               <button type="button" className={styles.link} disabled={busy} onClick={() => changeDraft(null)}>Cancel</button>
             </div>
           </form> : pin ? <PinDetail pin={pin} photo={photo} photoUrl={url} partnerName={partnerName} busy={busy}
-            onStart={format => beginNote(photo, pin, format)} onRemove={part => setRemoval({ photoId: photo.id, pinId: pin.id, part })} />
+            onStart={format => beginNote(photo, pin, format)} onRemove={part => setRemoval({ type: "note", photoId: photo.id, pinId: pin.id, part })} />
             : <div className={styles.panel}><h3>Just the photo</h3><p>Pin the little thing you remember. Your person can add their side anytime.</p></div>}
           <div className={styles.tools}>
             {photo.pins.length ? <div className={styles.actions} role="group" aria-label="Browse pinned details">
@@ -259,7 +397,12 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
               <button type="button" className={styles.primary} disabled={busy} onClick={() => {
                 setNotice(""); changeDraft({ type: "place", photoId: photo.id });
               }}>+ Pin a detail</button>
-              {photo.yours ? <button type="button" className={styles.link} disabled={busy} onClick={() => setRemoval({ photoId: photo.id })}>Remove photo</button> : null}
+              {photo.envelopeId
+                ? <button className={styles.secondary} type="button" disabled={busy} onClick={() => untuckPhoto(photo)}>Move to Loose photos</button>
+                : gallery.envelopes.length ? <button className={styles.secondary} type="button" disabled={busy} onClick={() => {
+                  setNotice(""); changeDraft({ type: "tuck", envelopeId: null, initialPhotoId: photo.id });
+                }}>Tuck into an envelope</button> : null}
+              {photo.yours ? <button type="button" className={styles.link} disabled={busy} onClick={() => setRemoval({ type: "photo", photoId: photo.id })}>Remove photo</button> : null}
             </div> : null}
           </div>
         </div>
@@ -267,22 +410,9 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
     </> : null}
     {error ? <p className={styles.error} role="alert">{error}</p> : null}
     <ConfirmDialog open={removal !== null}
-      title={removal && "pinId" in removal ? (removal.part === "voice" ? "Remove your voice note?" : "Remove your written note?") : "Remove this photo?"}
-      description={removal && "pinId" in removal ? "The photo and any other notes will stay. If this was the only note at this spot, the pin will disappear."
-        : "This removes the photo and all of its pinned details and recordings for both of you."}
+      title={prompt.title} description={prompt.description}
       cancelLabel="Keep it" confirmLabel="Remove"
-      onCancel={() => setRemoval(null)} onConfirm={() => {
-        if (!removal) return;
-        const target = memoryPhotoPath(base, removal.photoId);
-        setRemoval(null);
-        if ("pinId" in removal) void run(async () => {
-          await changeMemory(`${memoryNotePath(target, removal.pinId)}/${removal.part}`, "DELETE", userId);
-        }, "Your note was removed.");
-        else void run(async () => {
-          await changeMemory(target, "DELETE", userId);
-          setPhotoId(null); setPinId(null);
-        }, "Photo removed from Together.");
-      }} />
+      onCancel={() => setRemoval(null)} onConfirm={confirmRemoval} />
   </section>;
 }
 

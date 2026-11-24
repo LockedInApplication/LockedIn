@@ -1,5 +1,7 @@
-export type WorkspaceView = "home" | "conversations" | "atlas" | "roadmap" | "chapters" | "memories" | "room-to-talk";
-export const currentCheckInHref = "/journey#current-action";
+export type WorkspaceView = "home" | "talk" | "check-ins" | "conversations" | "atlas" | "roadmap" | "chapters" | "memories" | "room-to-talk" | "options";
+export const workspaceHref = (view: WorkspaceView) => view === "home" ? "/journey" : `/journey?view=${view}`;
+export const checkInsHref = workspaceHref("check-ins");
+export const currentCheckInHref = `${checkInsHref}#current-action`;
 export const conversationTopicAnchor = "your-topic";
 export const conversationTopicHref = `/journey?view=conversations#${conversationTopicAnchor}`;
 
@@ -10,18 +12,37 @@ export function roomToTalkHref(destination?: { shelf?: string; topic?: string })
   return `/journey?${query}`;
 }
 
-export function getWorkspaceView(search: string): WorkspaceView {
+export function getWorkspaceView(search: string, hash = ""): WorkspaceView {
   const view = new URLSearchParams(search).get("view");
   switch (view) {
+    case "talk":
+    case "check-ins":
     case "conversations":
     case "atlas":
     case "roadmap":
     case "chapters":
     case "memories":
     case "room-to-talk":
+    case "options":
       return view;
     default:
+      // Older notifications and bookmarks pointed at the check-in on Home.
+      if ((view === null || view === "home") && hash === "#current-action") return "check-ins";
       return "home";
+  }
+}
+
+export function workspaceBack(view: WorkspaceView): { view: WorkspaceView; label: string } {
+  switch (view) {
+    case "conversations":
+    case "chapters":
+      return { view: "check-ins", label: "Check-ins" };
+    case "room-to-talk":
+    case "check-ins":
+    case "atlas":
+      return { view: "talk", label: "Talk" };
+    default:
+      return { view: "home", label: "Together" };
   }
 }
 
@@ -33,7 +54,8 @@ export function workspaceViewUrl(currentUrl: string, view: WorkspaceView): strin
   }
   if (view === "home") url.searchParams.delete("view");
   else url.searchParams.set("view", view);
-  if (view !== "home" && url.hash === "#current-action") url.hash = "";
+  if (view !== "check-ins" && url.hash === "#current-action") url.hash = "";
   if (view !== "conversations" && url.hash === `#${conversationTopicAnchor}`) url.hash = "";
+  if (view !== "roadmap" && url.hash.startsWith("#step-")) url.hash = "";
   return `${url.pathname}${url.search}${url.hash}`;
 }

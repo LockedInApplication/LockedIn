@@ -10,6 +10,7 @@ import { useChatRefresh } from "./use-chat-refresh";
 import { useChatRead } from "./use-chat-read";
 import MessageSafetyActions from "./MessageSafetyActions";
 import MessageActions from "./MessageActions";
+import ChatPrompt from "./ChatPrompt";
 import ChatDateTools from "./ChatDateTools";
 import SharedDateSheet from "./SharedDateSheet";
 import { useDatePlans } from "./use-date-plans";
@@ -17,7 +18,7 @@ import type { DatePlanEvent, DateSheetTarget } from "./date-plans.types";
 import type { ChatPartner } from "./messaging.types";
 import chatStyles from "./chat.module.scss";
 
-type ChatProps = { conversationId: string; userId: string; partner: ChatPartner; onAccessEnded: () => void; openingContext?: ReactNode; backAction?: ReactNode; initialDraft?: string; onViewProfile?: () => void; busy?: boolean; ariaLabel?: string; request?: ChatRequest; messagesPath?: string; renderReport?: (message: Message, onBlocked: () => void) => ReactNode; dateSpotsConversationId?: string; datePlansConversationId?: string };
+type ChatProps = { conversationId: string; userId: string; partner: ChatPartner; onAccessEnded: () => void; openingContext?: ReactNode; backAction?: ReactNode; initialDraft?: string; showTogetherPrompt?: boolean; onViewProfile?: () => void; busy?: boolean; ariaLabel?: string; request?: ChatRequest; messagesPath?: string; renderReport?: (message: Message, onBlocked: () => void) => ReactNode; dateSpotsConversationId?: string; datePlansConversationId?: string };
 export default function Chat(props: ChatProps) {
   return <ChatBody key={props.userId + ":" + props.conversationId} {...props}/>;
 }
@@ -93,10 +94,13 @@ function DateSheetLink({ onOpen }: { onOpen: (id: string) => void }) {
   return null;
 }
 
-function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, backAction, initialDraft = "", onViewProfile, busy = false, ariaLabel = "Messages", request = messagingRequest, messagesPath, renderReport, dateSpotsConversationId, datePlansConversationId }: ChatProps) {
+function ChatBody({ conversationId, userId, partner, onAccessEnded, openingContext, backAction, initialDraft = "", showTogetherPrompt = false, onViewProfile, busy = false, ariaLabel = "Messages", request = messagingRequest, messagesPath, renderReport, dateSpotsConversationId, datePlansConversationId }: ChatProps) {
   const path = messagesPath ?? `/api/messaging/conversations/${conversationId}/messages`;
   const [page, setPage] = useState<Page | null>(null);
   const [draft, setDraft] = useState(initialDraft);
+  const [starterDraft, setStarterDraft] = useState(Boolean(initialDraft));
+  const draftField = useRef<HTMLTextAreaElement>(null);
+  const hasStarterDraft = starterDraft && Boolean(draft.trim());
   const draftHint = useId();
   const [sending, setSending] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -272,6 +276,7 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       followLatest.current = true;
       setNewMessages(false);
       setDraft("");
+      setStarterDraft(false);
       refresh.current?.();
     } catch (error) {
       if (signal.aborted || ended.current) return;
@@ -400,8 +405,17 @@ function ChatBody({ conversationId, userId, partner, onAccessEnded, openingConte
       {page ? <ChatDateTools userId={userId} dateSpotsConversationId={sheet ? undefined : dateSpotsConversationId} activePlan={null}
         sharedPlace={sharedPlace} clearSharedPlace={clearSharedPlace} onVenueAvailability={updateVenueAvailability} onCurrentPlan={() => {}}>
         <form className={chatStyles.composer} onSubmit={event => { event.preventDefault(); void send(); }}>
-        {initialDraft && draft.trim() ? <p id={draftHint} className={chatStyles.muted}>Draft · Only you can see this until you send it.</p> : null}
-        <label><span className={chatStyles.srOnly}>Message</span><textarea aria-describedby={initialDraft && draft.trim() ? draftHint : undefined} rows={1} maxLength={2000} value={draft} disabled={sending || busy} placeholder="Write a message…" onChange={event => setDraft(event.target.value)}/></label>
+        {showTogetherPrompt ? <ChatPrompt hasDraft={Boolean(draft.trim())} disabled={sending || busy} onUse={prompt => {
+          if (draft.trim() || sendLock.current || busy || ended.current) return;
+          setDraft(prompt);
+          setStarterDraft(true);
+          draftField.current?.focus();
+        }} /> : null}
+        {hasStarterDraft ? <p id={draftHint} className={chatStyles.muted} role="status">Draft · Only you can see this until you send it.</p> : null}
+        <label><span className={chatStyles.srOnly}>Message</span><textarea ref={draftField} aria-describedby={hasStarterDraft ? draftHint : undefined} rows={1} maxLength={2000} value={draft} disabled={sending || busy} placeholder="Write a message…" onChange={event => {
+          setDraft(event.target.value);
+          if (!event.target.value.trim()) setStarterDraft(false);
+        }}/></label>
         <button className={chatStyles.send} type="submit" aria-label={sending ? "Sending…" : "Send message"} disabled={!draft.trim() || sending || busy}>
           <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
         </button>

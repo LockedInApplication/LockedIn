@@ -37,6 +37,7 @@ export function navigateWorkspaceUrl(url:string) {
 
 export function useWorkspaceNavigation() {
   const location = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const activeView=getWorkspaceView(new URL(location,"http://localhost").search);
+  const {search,hash}=new URL(location,"http://localhost");
+  const activeView=getWorkspaceView(search,hash);
   return [activeView, navigate, location] as const;
 }

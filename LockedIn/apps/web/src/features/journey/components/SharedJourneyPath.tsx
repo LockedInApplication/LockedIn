@@ -44,7 +44,7 @@ export default function SharedJourneyPath({ session, historyCount, partnerName, 
         onNavigate={event => { event.preventDefault(); onViewConversations(); }}>
         <div>
           <h2 id="journey-map-title">Shared progress</h2>
-          <p>{chapters ? `${chapters} completed conversation${chapters === 1 ? "" : "s"}` : "Your first conversation starts with a topic."}</p>
+          <p>{chapters ? `${chapters} completed check-in${chapters === 1 ? "" : "s"}` : "Your first check-in starts with a topic."}</p>
         </div>
         <span className={styles.journeyMapChevron} aria-hidden="true">›</span>
       </Link>

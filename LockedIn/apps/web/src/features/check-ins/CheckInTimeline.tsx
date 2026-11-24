@@ -4,7 +4,7 @@ import { addDays, formatDate } from "@/features/journey/journey.utils";
 
 export type CheckInTimelineProps = {
   partnerName: string;
-  session: JourneySession;
+  session: JourneySession | null;
   history: JourneyOverview["checkInHistory"];
   onChooseConversation: () => void;
 };
@@ -19,17 +19,16 @@ export default function CheckInTimeline({
     <section className={styles.timelineCard}>
       <div className={styles.timelineHeader}>
         <div>
-          <span className={styles.eyebrow}>RELATIONSHIP CHAPTERS</span>
           <h2>Your shared ground over time.</h2>
           <p>
-            Each chapter keeps only what you both chose to reveal at that time. Starting
+            Each check-in keeps only what you both chose to reveal at that time. Starting
             again always means fresh private answers and fresh sharing consent.
           </p>
         </div>
-        {session.bothRevealed ? (
+        {session?.bothRevealed ? (
           <div className={styles.checkInAction}>
             <button className={styles.primaryAction} onClick={onChooseConversation}>
-              Choose next conversation
+              Choose another check-in
             </button>
             <span>Anytime, or gently revisit around {formatDate(addDays(session.createdAt, 90))}.</span>
           </div>
@@ -37,24 +36,24 @@ export default function CheckInTimeline({
       </div>
 
       <div className={styles.timelineList}>
-        <article className={styles.currentChapter}>
+        {session ? <article className={styles.currentChapter}>
           <span className={styles.timelineDot} aria-hidden="true" />
           <div>
-            <span className={styles.currentLabel}>Current chapter</span>
+            <span className={styles.currentLabel}>Current check-in</span>
             <h3>{session.topic}</h3>
             <p>
               {session.bothRevealed
-                ? `Shared ${formatDate(session.createdAt)}. Your earlier chapters remain unchanged below.`
-                : `Started ${formatDate(session.createdAt)}. Nothing from this chapter is shared until both people consent.`}
+                ? `Shared ${formatDate(session.createdAt)}. Your earlier check-ins remain unchanged below.`
+                : `Started ${formatDate(session.createdAt)}. Nothing from this check-in is shared until both people consent.`}
             </p>
           </div>
-        </article>
+        </article> : null}
 
         {history.map((snapshot) => (
           <article className={styles.pastChapter} key={snapshot.id}>
             <span className={styles.timelineDot} aria-hidden="true" />
             <div>
-              <span className={styles.pastLabel}>Earlier chapter</span>
+              <span className={styles.pastLabel}>Earlier check-in</span>
               <h3>{snapshot.topic}</h3>
               <p>Shared {formatDate(snapshot.revealedAt)}</p>
               {snapshot.alignment.length ? (
@@ -74,7 +73,7 @@ export default function CheckInTimeline({
                   </div>
                 </details>
               ) : (
-                <p>No answers were mutually revealed in this chapter.</p>
+                <p>No answers were mutually revealed in this check-in.</p>
               )}
             </div>
           </article>

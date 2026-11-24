@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { conversationTopicHref, getWorkspaceView, roomToTalkHref, workspaceViewUrl } from "./journey.navigation";
+import { currentCheckInHref, conversationTopicHref, getWorkspaceView, roomToTalkHref, workspaceBack, workspaceViewUrl } from "./journey.navigation";
 
 describe("workspace section URLs", () => {
-  it.each(["home", "conversations", "atlas", "roadmap", "chapters", "memories", "room-to-talk"] as const)(
+  it.each(["home", "talk", "check-ins", "conversations", "atlas", "roadmap", "chapters", "memories", "room-to-talk", "options"] as const)(
     "restores the %s section from the URL", (view) => {
       expect(getWorkspaceView(`?view=${view}`)).toBe(view);
     },
@@ -33,5 +33,18 @@ describe("workspace section URLs", () => {
   it("leaves the room’s private topic and shelf out of unrelated Together URLs", () => {
     expect(workspaceViewUrl(roomToTalkHref({ topic: "a" }), "conversations")).toBe("/journey?view=conversations");
     expect(workspaceViewUrl(roomToTalkHref({ shelf: "marriage" }), "home")).toBe("/journey");
+  });
+
+  it("keeps old check-in links intact without putting the check-in back on Home", () => {
+    expect(getWorkspaceView("", "#current-action")).toBe("check-ins");
+    expect(currentCheckInHref).toBe("/journey?view=check-ins#current-action");
+    expect(workspaceViewUrl("/journey#current-action", "home")).toBe("/journey");
+  });
+
+  it("gives each subview a contextual parent instead of another row of tabs", () => {
+    expect(workspaceBack("room-to-talk")).toEqual({ view: "talk", label: "Talk" });
+    expect(workspaceBack("check-ins")).toEqual({ view: "talk", label: "Talk" });
+    expect(workspaceBack("chapters")).toEqual({ view: "check-ins", label: "Check-ins" });
+    expect(workspaceBack("roadmap")).toEqual({ view: "home", label: "Together" });
   });
 });

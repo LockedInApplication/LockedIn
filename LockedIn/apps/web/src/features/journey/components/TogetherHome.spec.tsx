@@ -1,12 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import SessionStage from "@/features/check-ins/SessionStage";
-import type { JourneySession } from "../journey.types";
+import type { JourneyOverview, JourneySession } from "../journey.types";
 import SharedJourneyPath from "./SharedJourneyPath";
 import WorkspaceNav from "./WorkspaceNav";
 import TogetherChatActions from "./TogetherChatActions";
-import { TogetherHomeHeading, TogetherPlan, TogetherWelcome } from "./TogetherHome";
-import { getUpcomingTogetherPlan, shouldCelebrateLockIn } from "../together-home";
+import { QuietTogetherHome, TogetherHomeHeading, TogetherPlan, TogetherWelcome } from "./TogetherHome";
+import { getTogetherNextUp, getUpcomingTogetherPlan, shouldCelebrateLockIn } from "../together-home";
 import type { SimplePlan } from "@/features/roadmap/roadmap.types";
 
 const session: JourneySession = {
@@ -15,6 +15,13 @@ const session: JourneySession = {
   ownResponse: { answers: {}, shareKeys: [], contextNotes: {}, contextShareKeys: [], revealConsented: true },
   partnerState: { name: "Jordan", submitted: true, revealConsented: true },
   bothRevealed: true, alignment: [], proposals: [], proposalHistory: [], nextSteps: [], nextStep: null,
+};
+const plan: SimplePlan = { id: "a/b", title: "Try the café", status: "ACCEPTED", note: null, day: "2099-11-24", completionOpensAt: "2099-11-24T05:00:00.000Z", version: 1, yours: true, proposerName: "Devon", resolvedBy: null };
+const overview: JourneyOverview = {
+  user: { id: "me", name: "Devon", email: "devon@example.test" },
+  relationship: { id: "space", isMutuallyLockedIn: true, partner: { name: "Maya", email: "maya@example.test" } },
+  messaging: { enabled: true, conversationId: "chat" }, pendingInvites: [], session: null,
+  simplePlans: [plan], checkInHistory: [], conversationPacks: [], conversationSelection: null, atlas: { words: [] },
 };
 
 it("prioritizes the right Inbox action and keeps Discover on the photo welcome", () => {
@@ -66,38 +73,60 @@ it("shows only the next actual shared plan and links directly to it", () => {
   expect(html).toContain("Try the café");
 });
 
-it("makes the main message link draft-free and offers the prompt as a separate action", () => {
+it("opens the main chat without a draft and has no separate prompt shortcut", () => {
   const html = renderToStaticMarkup(<TogetherChatActions conversationId="chat" partnerName="Maya" confirmLeave={() => true} />);
   expect(html).toContain('href="/messages/chat?from=together"');
-  expect(html).toContain('href="/messages/chat?from=together&amp;starter=good-memory"');
-  expect(html.indexOf("Message Maya")).toBeLessThan(html.indexOf("Try a prompt"));
+  expect(html).not.toContain("starter=");
+  expect(html).not.toContain("Try a prompt");
   expect(html).not.toContain("<form");
 });
 
-it("uses quiet links for Atlas, next steps, and history without duplicating the topic picker", () => {
-  const html = renderToStaticMarkup(<WorkspaceNav active="home" onChange={() => {}} />);
+it("puts only Talk, Plans and Memories in the home navigation", () => {
+  const html = renderToStaticMarkup(<WorkspaceNav section="home" lockedTogether onNavigate={() => {}} />);
   expect(html.match(/<a\b/g)).toHaveLength(3);
-  expect(html).toContain('href="/journey?view=atlas">Atlas</a>');
-  expect(html).toContain('href="/journey?view=roadmap">Our next steps</a>');
-  expect(html).toContain('href="/journey?view=chapters">Past conversations</a>');
-  expect(html).not.toContain('view=conversations');
+  expect(html).toContain('href="/journey?view=talk"');
+  expect(html).toContain('href="/journey?view=roadmap"');
+  expect(html).toContain('href="/journey?view=memories"');
+  expect(html).not.toMatch(/view=(atlas|chapters|conversations|room-to-talk)/);
 });
 
-it("preserves the workspace navigation when viewing a destination", () => {
-  const html = renderToStaticMarkup(<WorkspaceNav active="atlas" onChange={() => {}} />);
-  expect(html.match(/<a\b/g)).toHaveLength(5);
-  expect(html).toContain('href="/journey"');
-  expect(html).toContain('href="/journey?view=conversations"');
-  expect(html).toContain('aria-current="page"');
+it("puts Room to Talk, Check-ins and Atlas under Talk", () => {
+  const html = renderToStaticMarkup(<WorkspaceNav section="talk" lockedTogether onNavigate={() => {}} />);
+  expect(html.match(/<a\b/g)).toHaveLength(3);
+  expect(html).toContain('href="/journey?view=room-to-talk"');
+  expect(html).toContain('href="/journey?view=check-ins"');
+  expect(html).toContain('href="/journey?view=atlas"');
+  expect(html).not.toMatch(/view=(roadmap|memories|chapters)/);
 });
 
-it("offers Behind the Photo and Room to Talk only in a mutually locked-in workspace", () => {
-  const closed = renderToStaticMarkup(<WorkspaceNav active="home" onChange={() => {}} />);
-  expect(closed).not.toContain("Behind the Photo");
-  expect(closed).not.toContain("Room to Talk");
-  const open = renderToStaticMarkup(<WorkspaceNav active="home" lockedTogether onChange={() => {}} />);
-  expect(open).toContain('href="/journey?view=memories">Behind the Photo</a>');
-  expect(open).toContain('href="/journey?view=room-to-talk">Room to Talk</a>');
+it("keeps Memories and Room to Talk gated by the mutual lock-in", () => {
+  const home = renderToStaticMarkup(<WorkspaceNav section="home" lockedTogether={false} onNavigate={() => {}} />);
+  const talk = renderToStaticMarkup(<WorkspaceNav section="talk" lockedTogether={false} onNavigate={() => {}} />);
+  expect(home).not.toContain("Memories");
+  expect(talk).not.toContain("Room to Talk");
+  expect(talk).toContain("Check-ins");
+});
+
+it("shows one timely item in Quiet home, with neither progress nor chat prompts on the page", () => {
+  const waitingOnMe = { ...session, bothRevealed: false, ownResponse: null };
+  const html = renderToStaticMarkup(<QuietTogetherHome overview={{ ...overview, session: waitingOnMe }}
+    onNavigate={() => {}} confirmLeave={() => true} />);
+  expect(html.match(/data-next-up\b/g)).toHaveLength(1);
+  expect(html.indexOf("Message Maya")).toBeLessThan(html.indexOf("Answer your private check-in"));
+  expect(html.indexOf("Answer your private check-in")).toBeLessThan(html.indexOf("Your space"));
+  expect(html).toContain('href="/journey?view=check-ins#current-action"');
+  expect(html).toContain('aria-label="Together options"');
+  expect(html).not.toMatch(/Try a prompt|Shared progress|Try the café|Past check-ins/);
+});
+
+it("falls back to the next accepted plan when a check-in is waiting and leaves the slot empty when there is nothing due", () => {
+  const waiting = { ...session, bothRevealed: false, partnerState: { ...session.partnerState, submitted: false } };
+  expect(getTogetherNextUp({ ...overview, session: waiting }, "2026-11-24")).toEqual({ kind: "plan", plan });
+  expect(getTogetherNextUp({ ...overview, simplePlans: [] }, "2026-11-24")).toBeUndefined();
+  const invitation = { ownChoice: { submitted: false, packKey: null }, partnerChoice: { submitted: true, packKey: "support", name: "Maya" } };
+  expect(getTogetherNextUp({ ...overview, conversationSelection: invitation })).toMatchObject({
+    kind: "check-in", href: "/journey?view=conversations#your-topic", title: "Review a check-in topic",
+  });
 });
 
 it("links Shared progress to the chosen conversation without making the milestones interactive", () => {

@@ -85,6 +85,7 @@ export async function registerMessagingRoutes(server: FastifyInstance) {
       const publicPartner = profile ? publicDiscoveryProfile(profile.id, profile.publishedSnapshot) : null;
       return { ok: true as const, value: {
         id: c.id, canChat, unavailableReason: canChat ? null : own.emailVerified ? "UNAVAILABLE" : "VERIFY_EMAIL",
+        inTogether: canChat && !!c.relationshipId,
         ...(canChat && dateSpotsAvailable() ? { dateSpotsConversationId: c.id } : {}),
         ...(canChat && datePlansEnabled() ? { datePlansConversationId: c.id } : {}),
         ...(canChat ? { lockIn: await directLockInView(tx, c, user.id) } : {}),

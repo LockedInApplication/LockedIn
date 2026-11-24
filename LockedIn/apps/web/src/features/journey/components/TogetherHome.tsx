@@ -2,10 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import type { SimplePlan } from "@/features/roadmap/roadmap.types";
-import { shouldCelebrateLockIn } from "../together-home";
+import { getTogetherNextUp, shouldCelebrateLockIn, togetherPlanHref } from "../together-home";
+import { workspaceHref } from "../journey.navigation";
+import type { JourneyOverview } from "../journey.types";
+import TogetherChatActions from "./TogetherChatActions";
+import WorkspaceNav from "./WorkspaceNav";
 import photo from "../../../../public/together/two-coffees.webp";
 import styles from "./together-home.module.scss";
 
@@ -123,15 +127,59 @@ export function TogetherHomeHeading({ user, userId, partner, locked, lockedAt }:
       <ProfileAvatar name={user.name} preset={user.avatarPreset} />
       <ProfileAvatar name={partner.name} preset={partner.avatarPreset} />
     </div>
-    <p className={styles.eyebrow}>Together</p>
-    <h1 id="together-pair">You &amp; {partner.name}</h1>
-    {locked ? <p className={styles.locked} role="status">You both chose to lock in.</p> : null}
+    <div className={styles.pairTitle}>
+      <p className={styles.eyebrow}>Together</p>
+      <h1 id="together-pair">You &amp; {partner.name}</h1>
+      {locked ? <p className={styles.locked} role="status">You both chose to lock in.</p> : null}
+    </div>
   </section>;
 }
 
+export function TogetherOptionsLink({ onNavigate }: { onNavigate: (href: string) => void }) {
+  const href = workspaceHref("options");
+  return <Link href={href} className={styles.optionsLink} aria-label="Together options"
+    onNavigate={event => { event.preventDefault(); onNavigate(href); }}>
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+      <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
+    </svg>
+  </Link>;
+}
+
+export function QuietTogetherHome({ overview, onNavigate, confirmLeave, children }: {
+  overview: JourneyOverview;
+  onNavigate: (href: string) => void;
+  confirmLeave: () => boolean;
+  children?: ReactNode;
+}) {
+  const relationship = overview.relationship;
+  if (!relationship) return null;
+  const lockedTogether = relationship.isMutuallyLockedIn === true;
+  const chatId = overview.messaging?.enabled ? overview.messaging.conversationId : null;
+  const nextUp = getTogetherNextUp(overview);
+  return <div className={styles.quietHome}>
+    <header className={styles.quietHeader}>
+      <TogetherHomeHeading user={{ ...overview.user, name: overview.user.name || overview.user.email }} userId={overview.user.id}
+        partner={relationship.partner} locked={lockedTogether} lockedAt={relationship.mutuallyLockedInAt} />
+      <TogetherOptionsLink onNavigate={onNavigate} />
+    </header>
+    {chatId ? <TogetherChatActions conversationId={chatId} partnerName={relationship.partner.name} confirmLeave={confirmLeave} /> : null}
+    {nextUp?.kind === "check-in" ? <NextUpLink label="Your turn" href={nextUp.href} title={nextUp.title} detail={nextUp.detail} onOpen={onNavigate} />
+      : nextUp?.kind === "plan" ? <TogetherPlan plan={nextUp.plan} onOpen={onNavigate} /> : null}
+    <WorkspaceNav section="home" lockedTogether={lockedTogether} onNavigate={onNavigate} />
+    {children}
+  </div>;
+}
+
+const planDay = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 export function TogetherPlan({ plan, onOpen }: { plan: SimplePlan; onOpen: (href: string) => void }) {
-  const href = `/journey?view=roadmap#step-${encodeURIComponent(plan.id)}`;
-  return <Link className={styles.plan} href={href} onNavigate={event => { event.preventDefault(); onOpen(href); }}>
-    <span><span className={styles.eyebrow}>Coming up together</span><strong>{plan.title}</strong></span><span aria-hidden="true">↗</span>
+  return <NextUpLink href={togetherPlanHref(plan.id)} label="Coming up together" title={plan.title}
+    detail={plan.day ? <time dateTime={plan.day}>{planDay.format(new Date(`${plan.day}T12:00:00Z`))}</time> : "No day picked yet"} onOpen={onOpen} />;
+}
+
+function NextUpLink({ href, label, title, detail, onOpen }: {
+  href: string; label: string; title: string; detail: ReactNode; onOpen: (href: string) => void;
+}) {
+  return <Link className={styles.plan} data-next-up href={href} onNavigate={event => { event.preventDefault(); onOpen(href); }}>
+    <span><span className={styles.eyebrow}>{label}</span><strong>{title}</strong><small>{detail}</small></span><span aria-hidden="true">↗</span>
   </Link>;
 }

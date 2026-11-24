@@ -21,14 +21,6 @@ type Run = <T>(work: () => Promise<T>, after?: (value: T) => void) => Promise<vo
 type TopicAction = { action: "suggest" | "withdraw" | "start" | "later" | "reopen" } | { action: "discuss"; takeaway: string | null };
 type TopicSummary = Pick<RoomTopic, "phase" | "inPersonBy">;
 
-export function RoomTalkEntry({ onNavigate }: { onNavigate: (href: string) => void }) {
-  return <Link href={roomToTalkHref()} className={styles.entry} onNavigate={event => { event.preventDefault(); onNavigate(roomToTalkHref()); }}>
-    <span><span className={styles.kicker}>Just for the two of you</span><strong>Room to Talk</strong>
-      <small>Make shelves for your own questions and talk them through when you’re ready.</small></span>
-    <span aria-hidden="true">›</span>
-  </Link>;
-}
-
 export default function RoomToTalk(props: Props) {
   const { relationshipId, revision, onExpired, topicId, shelfId } = props;
   const base = roomPath(relationshipId);
@@ -260,7 +252,7 @@ function RoomView({
   const next = library.topics.filter(item => item.phase === "TALK_NEXT");
   return <>
     <header className={styles.hero}>
-      <div className={styles.heroCopy}><p className={styles.kicker}>Together / Conversations</p><h1 ref={heading} tabIndex={-1}>Room to <em>Talk.</em></h1>
+      <div className={styles.heroCopy}><p className={styles.kicker}>Together / Talk</p><h1 ref={heading} tabIndex={-1}>Room to <em>Talk.</em></h1>
         <p>Questions for later. Conversations worth coming back to.</p></div>
       <button className={styles.primary} type="button" disabled={busy || !!edit} onClick={() => begin({ kind: "topic", shelf: "unsorted" })}>Add a topic</button>
     </header>

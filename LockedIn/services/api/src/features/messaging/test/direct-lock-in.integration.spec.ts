@@ -51,7 +51,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("direct invitation
     expect((await request(a,"GET","/api/journey/notifications")).json().items).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: "DIRECT_INVITATION_ACCEPTED", entityId: id, view: "messages" }),
     ]));
-    expect((await metadata(a,id)).json().value).toMatchObject({canChat:true, lockIn:{state:"available"}, datePlansConversationId:id});
+    expect((await metadata(a,id)).json().value).toMatchObject({canChat:true, inTogether:false, lockIn:{state:"available"}, datePlansConversationId:id});
     expect((await request(a,"GET",`${chat}/date-plans`)).statusCode).toBe(200);
     expect((await request(a,"POST",`${chat}/messages`,{ text:"Coffee first?", requestId:randomUUID() })).statusCode).toBe(200);
     expect((await request(c,"POST",lock,{ action:"request" })).statusCode).toBe(404);
@@ -80,6 +80,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("direct invitation
         messaging:{conversationId:id},
       });
       expect((await request(person,"GET","/api/discovery/me")).json().value).toMatchObject({canDiscover:false,discoveryLockedIn:true});
+      expect((await metadata(person,id)).json().value).toMatchObject({canChat:true, inTogether:true});
     }
     expect((await request(a,"POST",`/api/journey/invites/${later.token}/accept`)).statusCode).toBe(409);
     expect((await request(a,"GET",`${chat}/messages`)).json().value.items[0].text).toBe("Coffee first?");

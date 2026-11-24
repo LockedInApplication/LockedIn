@@ -55,7 +55,8 @@ function Starter({connection,setConnection,onRefresh}:{connection:DiscoveryConne
       <div className={styles.actions}>{connection.canAccept?<button className={styles.primary} disabled={busy} onClick={()=>void run(`${url}/accept`,{})}>Accept and chat</button>:null}<button disabled={busy} onClick={()=>void run(`${url}/decline`,{})}>Decline quietly</button></div>
     </>:<><p>Your invitation has been sent. Once accepted, your reply opens the conversation. Invitations expire after seven days.</p><button disabled={busy} onClick={()=>void run(`${url}/withdraw`,{})}>Withdraw invitation</button></>}<details><summary>What acceptance means</summary><p>Acceptance lets you message each other. It does not create a full shared workspace.</p></details></section>:!canChat?<><p className={styles.eyebrow}>Your connection</p><h1>Conversation with {partnerName}</h1></>:null}
     {canChat ? <DiscoveryChat key={connection.id} connectionId={connection.id} opening={connection} onBlocked={onBlocked} backAction={backAction}
-      onViewProfile={connected?()=>setProfileOpen(true):undefined} dateSpotsConversationId={connection.dateSpotsConversationId} datePlansConversationId={connection.datePlansConversationId}/> : connected ? <p role="status">Messaging is currently unavailable for this connection.</p> : null}
+      onViewProfile={connected?()=>setProfileOpen(true):undefined} showTogetherPrompt={connection.state==="PROMOTED" && connection.lockedIn===true}
+      dateSpotsConversationId={connection.dateSpotsConversationId} datePlansConversationId={connection.datePlansConversationId}/> : connected ? <p role="status">Messaging is currently unavailable for this connection.</p> : null}
     {profileOpen?<ConnectedProfile connectionId={connection.id} onClose={()=>setProfileOpen(false)} onBlocked={()=>void onBlocked()}/>:null}
     <ConnectionStatus connection={connection} sharedSpaceEnded={sharedSpaceEnded}/>
     {canChat && directConversationId

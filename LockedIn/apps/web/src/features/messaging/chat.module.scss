@@ -92,6 +92,30 @@
   background: var(--action);
   color: var(--on-action);
 }
+.promptTool { grid-column: 1 / -1; min-width: 0; }
+.chat .promptToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-block-size: 44px;
+  padding: .3rem .6rem;
+  border-color: transparent;
+  border-radius: .6rem;
+  background: transparent;
+  color: var(--forest);
+  font-size: .82rem;
+}
+.promptPanel:not([hidden]) {
+  display: grid;
+  justify-items: start;
+  gap: .5rem;
+  margin-block: 0 .35rem;
+  padding: .65rem .85rem;
+  border: 1px solid var(--member-divider, var(--brand-rule));
+  border-radius: .65rem;
+  background: var(--brand-neutral, var(--stone-50));
+}
+.chat .composer .promptPanel p:first-child { font-size: .9rem; line-height: 1.45; }
 .chat .newMessages { display: block; margin: .5rem auto 0; border-radius: 999px; background: #deeee6; }
 .composerTools {
   display: grid;

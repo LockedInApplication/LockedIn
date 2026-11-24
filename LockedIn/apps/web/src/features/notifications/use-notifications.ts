@@ -5,7 +5,7 @@ import { fetchNotifications, readNotification } from "./notification.client";
 import type { ConnectionState, NotificationInbox, UnreadChats } from "./notification.types";
 import { fetchUnreadChats, unreadChatsEvent } from "./message-alerts.client";
 import { signalChatRefresh } from "../messaging/use-chat-refresh";
-export function useNotifications(userId: string, onActivity: () => void, onExpired: () => void,onStatusChange?:(activity?:boolean)=>void,onChatSync?:()=>void) {
+export function useNotifications(userId: string, onActivity: () => void, onExpired: () => void,onStatusChange?:(activity?:boolean)=>void,onChatSync?:()=>void,onRoomSync?:()=>void) {
     const [inbox, setInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, nextCursor: null });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -71,10 +71,13 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
         const stream = new EventSource(`${API_URL}/api/journey/notifications/stream`, { withCredentials: true });
         source.current = stream;
         stream.onopen = () => { if (!abort.signal.aborted) {
-            setConnection("live"); signalChatRefresh(userId); onChatSync?.(); void refreshChats();
+            setConnection("live"); signalChatRefresh(userId); onChatSync?.(); onRoomSync?.(); void refreshChats();
         } };
-        stream.addEventListener("discovery-chat-changed", () => { if (!abort.signal.aborted) { signalChatRefresh(userId); onChatSync?.(); void refreshChats(); } });
+        stream.addEventListener("discovery-chat-changed", () => { if (!abort.signal.aborted) {
+            signalChatRefresh(userId); onChatSync?.(); onRoomSync?.(); void refreshChats();
+        } });
         stream.addEventListener("unread-chats-changed", () => void refreshChats());
+        stream.addEventListener("room-to-talk-changed", () => { if (!abort.signal.aborted) onRoomSync?.(); });
         stream.addEventListener("notifications-changed", event => {
             if (abort.signal.aborted)
                 return;
@@ -101,7 +104,7 @@ export function useNotifications(userId: string, onActivity: () => void, onExpir
         window.addEventListener("focus", focus);
         window.addEventListener(unreadChatsEvent, unreadChanged);
         return () => { abort.abort(); stream.close(); clearInterval(timer); window.removeEventListener("focus", focus); window.removeEventListener(unreadChatsEvent,unreadChanged); controller.current = null; source.current = null; };
-    }, [userId, load, onActivity, onExpired,onStatusChange,onChatSync]);
+    }, [userId, load, onActivity, onExpired,onStatusChange,onChatSync,onRoomSync]);
     const markRead = async (id: string) => {
         const signal = controller.current?.signal;
         if (!signal)

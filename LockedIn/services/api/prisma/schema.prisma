@@ -151,6 +151,12 @@ model User {
   togetherPhotos             TogetherPhoto[]
   togetherPhotoNotes         TogetherPhotoNote[]
   togetherEnvelopeCaptions   TogetherEnvelopeCaption[]
+  roomTalkShelves             RoomTalkShelf[]
+  roomTalkTopics              RoomTalkTopic[] @relation("RoomTalkAuthor")
+  roomTalkSuggestions         RoomTalkTopic[] @relation("RoomTalkProposer")
+  roomTalkInPersonMarks       RoomTalkTopic[] @relation("RoomTalkInPerson")
+  roomTalkMessages            RoomTalkMessage[]
+  roomTalkPresence            RoomTalkPresence[]
 
   @@map("user")
 }
@@ -258,6 +264,97 @@ model Relationship {
   chatConversation    ChatConversation?
   togetherPhotos      TogetherPhoto[]
   togetherEnvelopes   TogetherEnvelope[]
+  roomTalkShelves     RoomTalkShelf[]
+  roomTalkTopics      RoomTalkTopic[]
+}
+
+enum RoomTalkStarterShelf {
+  MARRIAGE
+  DATE_IDEAS
+}
+
+enum RoomTalkPhase {
+  SAVED
+  SUGGESTED
+  TALK_NEXT
+  DISCUSSED
+}
+
+enum RoomTalkMessageKind {
+  REPLY
+  QUESTION
+}
+
+model RoomTalkShelf {
+  id             String       @id @default(uuid())
+  relationshipId String
+  authorId       String
+  name           String       @db.VarChar(48)
+  createdAt      DateTime     @default(now())
+  relationship   Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  author         User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  topics         RoomTalkTopic[]
+
+  @@index([relationshipId, createdAt, id])
+  @@index([authorId])
+}
+
+model RoomTalkTopic {
+  id             String               @id @default(uuid())
+  relationshipId String
+  authorId       String
+  shelfId        String?
+  starterShelf   RoomTalkStarterShelf?
+  question       String               @db.VarChar(200)
+  phase          RoomTalkPhase        @default(SAVED)
+  suggestedById  String?
+  inPersonById   String?
+  takeaway       String?              @db.VarChar(280)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  relationship   Relationship         @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  author         User                 @relation("RoomTalkAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  shelf          RoomTalkShelf?       @relation(fields: [shelfId], references: [id], onDelete: SetNull)
+  suggestedBy    User?                @relation("RoomTalkProposer", fields: [suggestedById], references: [id], onDelete: SetNull)
+  inPersonBy     User?                @relation("RoomTalkInPerson", fields: [inPersonById], references: [id], onDelete: SetNull)
+  messages       RoomTalkMessage[]
+  viewers        RoomTalkPresence[]
+
+  @@index([relationshipId, updatedAt, id])
+  @@index([authorId])
+  @@index([shelfId])
+  @@index([suggestedById])
+  @@index([inPersonById])
+}
+
+model RoomTalkMessage {
+  id          String              @id @default(uuid())
+  topicId     String
+  authorId    String
+  kind        RoomTalkMessageKind
+  body        String              @db.VarChar(420)
+  replyToId   String?
+  createdAt   DateTime            @default(now())
+  topic       RoomTalkTopic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  author      User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replyTo     RoomTalkMessage?    @relation("RoomTalkAnswer", fields: [replyToId], references: [id], onDelete: SetNull)
+  answers     RoomTalkMessage[]   @relation("RoomTalkAnswer")
+
+  @@index([topicId, createdAt, id])
+  @@index([authorId])
+  @@index([replyToId])
+}
+
+model RoomTalkPresence {
+  topicId   String
+  userId    String
+  viewerId  String
+  expiresAt DateTime
+  topic     RoomTalkTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([topicId, userId, viewerId])
+  @@index([userId, expiresAt])
 }
 
 enum TogetherEnvelopeTone {

@@ -21,13 +21,14 @@ type Props = Pick<WorkspaceHeaderProps, "onNavigate" | "onSignOut" | "user"> & {
   onExpired: () => void;
   onStatusChange?: (activity?: boolean) => void;
   onChatSync?: () => void;
+  onRoomSync?: () => void;
   children: ReactNode;
 };
 
-export default function MemberChrome({ userId, user, className, invitationView, onNavigate, onSignOut, onOpenNotification, onActivity, onExpired, onStatusChange, onChatSync, children }: Props) {
+export default function MemberChrome({ userId, user, className, invitationView, onNavigate, onSignOut, onOpenNotification, onActivity, onExpired, onStatusChange, onChatSync, onRoomSync, children }: Props) {
   const pathname = usePathname();
   const editorial = pathname === "/journey" || pathname === "/connections" || pathname === "/discover" || pathname === "/profile";
-  const notifications = useNotifications(userId, onActivity, onExpired, onStatusChange, onChatSync);
+  const notifications = useNotifications(userId, onActivity, onExpired, onStatusChange, onChatSync, onRoomSync);
   return <div className={`${styles.frame} ${className ?? ""} ${editorial ? styles.editorial : ""}`}>
     <WorkspaceHeader user={user} active={activeMemberTab(pathname, invitationView)} editorial={editorial} onNavigate={onNavigate} onSignOut={onSignOut}
       unreadCount={notifications.unreadChatCount}

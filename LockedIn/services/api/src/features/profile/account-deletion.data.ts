@@ -12,6 +12,11 @@ export async function eraseAccountRows(tx: Prisma.TransactionClient, userId: str
   await tx.relationship.updateMany({
     where: { status: "ACTIVE", members: { some: { userId } } }, data: { status: "ENDED" },
   });
+  // Room to Talk belongs to the pair. An ended room can't be reopened by either
+  // person; erase its shared questions, replies, and takeaways with the account.
+  const room = { relationship: { members: { some: { userId } } } };
+  await tx.roomTalkTopic.deleteMany({ where: room });
+  await tx.roomTalkShelf.deleteMany({ where: room });
   await tx.relationshipInvite.deleteMany({
     where: { inviteeId: null, inviteeEmail: { equals: email, mode: "insensitive" } },
   });

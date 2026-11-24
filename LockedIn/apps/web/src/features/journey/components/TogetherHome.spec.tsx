@@ -91,11 +91,13 @@ it("preserves the workspace navigation when viewing a destination", () => {
   expect(html).toContain('aria-current="page"');
 });
 
-it("offers Behind the Photo only in a mutually locked-in workspace", () => {
+it("offers Behind the Photo and Room to Talk only in a mutually locked-in workspace", () => {
   const closed = renderToStaticMarkup(<WorkspaceNav active="home" onChange={() => {}} />);
   expect(closed).not.toContain("Behind the Photo");
-  const open = renderToStaticMarkup(<WorkspaceNav active="home" memoriesAvailable onChange={() => {}} />);
+  expect(closed).not.toContain("Room to Talk");
+  const open = renderToStaticMarkup(<WorkspaceNav active="home" lockedTogether onChange={() => {}} />);
   expect(open).toContain('href="/journey?view=memories">Behind the Photo</a>');
+  expect(open).toContain('href="/journey?view=room-to-talk">Room to Talk</a>');
 });
 
 it("links Shared progress to the chosen conversation without making the milestones interactive", () => {

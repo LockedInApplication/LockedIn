@@ -12,24 +12,27 @@ const links: Array<{ key: WorkspaceView; label: string; icon: string }> = [
   { key: "memories", label: "Behind the Photo", icon: "▧" },
   { key: "chapters", label: "Past conversations", icon: "◌" },
 ];
-const secondaryLinks = links.filter(({ key }) => key !== "home" && key !== "conversations");
+const secondaryLinks = [
+  { key: "room-to-talk", label: "Room to Talk", icon: "◎" } as const,
+  ...links.filter(({ key }) => key !== "home" && key !== "conversations"),
+];
 
 export default function WorkspaceNav({
   active,
   onChange,
-  memoriesAvailable = false,
+  lockedTogether = false,
 }: {
   active: WorkspaceView;
   onChange: (view: WorkspaceView) => void;
-  memoriesAvailable?: boolean;
+  lockedTogether?: boolean;
 }) {
   const home = active === "home";
 
   return (
     <nav className={home ? navStyles.homeLinks : `${navStyles.navigation} ${active === "conversations" ? navStyles.compact : ""}`}
-      data-memories={memoriesAvailable || undefined}
+      data-memories={lockedTogether || undefined}
       aria-label={home ? "Together resources" : "Relationship workspace"}>
-      {(home ? secondaryLinks : links).filter(({ key }) => key !== "memories" || memoriesAvailable).map(({ key, label, icon }) => (
+      {(home ? secondaryLinks : links).filter(({ key }) => (key !== "memories" && key !== "room-to-talk") || lockedTogether).map(({ key, label, icon }) => (
         <Link
           key={key}
           href={key === "home" ? "/journey" : `/journey?view=${key}`}

@@ -23,6 +23,11 @@ describe("safe notification destinations", () => {
     it("focuses the exact roadmap item", () => {
         expect(notificationDestination({ view: "roadmap", entityId: "step/a", wordKey: null })).toBe("/journey?view=roadmap#step-step%2Fa");
     });
+    it("opens the exact Room to Talk topic for either kind of update", () => {
+        for (const kind of ["ROOM_TALK_SUGGESTED", "ROOM_TALK_IN_PERSON"]) {
+            expect(notificationDestination({ view: "room-to-talk", kind, entityId: "topic/a", wordKey: null })).toBe("/journey?view=room-to-talk&topic=topic%2Fa");
+        }
+    });
     it("falls back safely for unknown destinations", () => {
         expect(notificationDestination({ view: "https://evil.test", entityId: "x", wordKey: null })).toBe("/journey");
     });

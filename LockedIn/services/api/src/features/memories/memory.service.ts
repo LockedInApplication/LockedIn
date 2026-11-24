@@ -1,8 +1,6 @@
 import type { Prisma } from "../../../generated/prisma/client.js";
-import { prisma } from "../../lib/prisma.js";
-import { lockDiscoveryUsers } from "../discovery/discovery-locks.js";
-import { pairClosure } from "../messaging/messaging-conversation.service.js";
 import { notificationBroker } from "../notifications/notification.broker.js";
+import { assertLockedTogether, withLockedTogether } from "../relationships/locked-together.service.js";
 import { MemoryError, type normalizeMemoryPhoto, type validateMemoryVoice } from "./memory-media.js";
 
 export const unavailable = () => new MemoryError(404, "This memory is not available.");
@@ -11,40 +9,15 @@ export const envelopeLimit = 24;
 const pinLimit = 8;
 type Content = { text?: string; audio?: ReturnType<typeof validateMemoryVoice> };
 
-async function activePair(tx: Prisma.TransactionClient, relationshipId: string, actorId: string) {
-  const space = await tx.relationship.findFirst({
-    where: {
-      id: relationshipId,
-      status: "ACTIVE",
-      members: { some: { userId: actorId } },
-      AND: [
-        { OR: [{ directLockedInAt: { not: null } }, { discoveryConnection: { is: { state: "PROMOTED", lockedInAt: { not: null }, closedAt: null } } }] },
-        { OR: [{ chatConversation: null }, { chatConversation: { is: { closedAt: null } } }] },
-      ],
-    },
-    select: { members: { select: { userId: true } } },
-  });
-  if (space?.members.length !== 2) throw unavailable();
-  return space.members.map(member => member.userId);
-}
-
 // Before decoding an upload, reject anyone who cannot use this space. The
 // transaction checks again before publishing, under the same locks as leave/block.
-export async function assertMemoryAccess(relationshipId: string, actorId: string) {
-  const [a, b] = await activePair(prisma, relationshipId, actorId);
-  if (await pairClosure(prisma, a!, b!)) throw unavailable();
+export function assertMemoryAccess(relationshipId: string, actorId: string) {
+  return assertLockedTogether(relationshipId, actorId, unavailable);
 }
 
 export async function withSpace<T>(relationshipId: string, actorId: string, action: (tx: Prisma.TransactionClient) => Promise<T>, changed = false) {
-  const { value, members } = await prisma.$transaction(async tx => {
-    const initial = await activePair(tx, relationshipId, actorId);
-    await lockDiscoveryUsers(tx, initial);
-    await tx.$queryRaw`SELECT "id" FROM "Relationship" WHERE "id" = ${relationshipId} FOR UPDATE`;
-    const members = await activePair(tx, relationshipId, actorId);
-    if (!members.every(id => initial.includes(id)) || await pairClosure(tx, members[0]!, members[1]!)) throw unavailable();
-    return { value: await action(tx), members };
-  });
-  if (changed) for (const id of members) notificationBroker.publish(id, false);
+  const { value, partnerId } = await withLockedTogether(relationshipId, actorId, unavailable, action);
+  if (changed) for (const id of [actorId, partnerId]) notificationBroker.publish(id, false);
   return value;
 }
 

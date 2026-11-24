@@ -39,6 +39,7 @@ import DirectLockIn from "@/features/messaging/DirectLockIn";
 import { conversationTopicAnchor, conversationTopicHref, currentCheckInHref } from "./journey.navigation";
 import TinyLantern from "./components/TinyLantern";
 import BehindThePhoto from "@/features/memories/BehindThePhoto";
+import RoomToTalk, { RoomTalkEntry } from "@/features/room-to-talk/RoomToTalk";
 
 type Notice = { tone: "success" | "error"; message: string; reviewDiscovery?: boolean } | null;
 
@@ -56,6 +57,8 @@ export default function JourneyWorkspace() {
   const editRevision=useRef(0);
   const busyRef=useRef(false);
   const [quietRevision,setQuietRevision]=useState(0);
+  const [roomRevision,setRoomRevision]=useState(0);
+  const onRoomSync=useCallback(()=>setRoomRevision(value=>value+1),[]);
   const [savedRefreshFailed,setSavedRefreshFailed]=useState(false);
   const refreshAfterAction=useRef(false);
   const onExpired=useCallback(()=>{
@@ -210,7 +213,10 @@ export default function JourneyWorkspace() {
     return true;
   }
   const isHome = Boolean(overview.relationship && activeView === "home");
-  const memoriesAvailable = overview.relationship?.isMutuallyLockedIn === true;
+  const lockedTogether = overview.relationship?.isMutuallyLockedIn === true;
+  const isRoom = activeView === "room-to-talk";
+  const compactView = activeView === "conversations" || isRoom;
+  const openRoomDestination = (href: string) => { if (!busy && confirmDiscard()) navigateWorkspaceUrl(href); };
   const chatId = isHome && overview.messaging?.enabled ? overview.messaging.conversationId : null;
   const comingUp = isHome ? getUpcomingTogetherPlan(overview.simplePlans ?? []) : undefined;
   const openCurrentCheckIn = () => {
@@ -248,7 +254,7 @@ export default function JourneyWorkspace() {
       if (path === "/journey") navigateWorkspaceUrl(path);
       else router.push(path);
     } },
-    onOpenNotification: openNotification, onActivity: requestQuietRefresh, onExpired, onStatusChange: onInvitationUpdate };
+    onOpenNotification: openNotification, onActivity: requestQuietRefresh, onExpired, onStatusChange: onInvitationUpdate, onRoomSync };
   const showAtlas = Boolean(overview.relationship && activeView === "atlas" && overview.atlas.words.length);
   const checkInStage = overview.session ? (
     <div id="current-action" tabIndex={-1} className={guidanceStyles.currentAction}>
@@ -282,13 +288,13 @@ export default function JourneyWorkspace() {
 
   return (
     <MemberChrome key={overview.user.id} {...chrome}>
-      <main className={`${styles.main} ${!overview.relationship && !suggestionReference ? togetherStyles.welcomeMain : ""} ${activeView==='conversations'?conversationStyles.compactMain:''} ${isHome?guidanceStyles.home:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={activeView === "memories" ? undefined : ()=>setDirty(true)}>
+      <main className={`${styles.main} ${!overview.relationship && !suggestionReference ? togetherStyles.welcomeMain : ""} ${compactView?conversationStyles.compactMain:''} ${isHome?guidanceStyles.home:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={activeView === "memories" || isRoom ? undefined : ()=>setDirty(true)}>
         {overview.relationship && isHome ? <TogetherHomeHeading
           key={`${overview.user.id}:${overview.relationship.id}`}
           user={{ ...overview.user, name: overview.user.name || overview.user.email }} userId={overview.user.id}
           partner={overview.relationship.partner} locked={overview.relationship.isMutuallyLockedIn === true}
           lockedAt={overview.relationship.mutuallyLockedInAt}
-        /> : overview.relationship && activeView !== "conversations" && activeView !== "memories" && !showAtlas ? <section className={styles.intro}>
+        /> : overview.relationship && !compactView && activeView !== "memories" && !showAtlas ? <section className={styles.intro}>
           <div>
             <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
             <h1>Build the relationship you both choose.</h1>
@@ -321,12 +327,12 @@ export default function JourneyWorkspace() {
         </> : isHome ? <NextActionCard overview={overview} busy={busy} onNavigate={setActiveView} onFocusCurrent={focusCurrentAction} /> : null}
         {comingUp ? <TogetherPlan plan={comingUp} onOpen={href => { if (!busy && confirmDiscard()) navigateWorkspaceUrl(href); }} /> : null}
         {!suggestionReference && overview.relationship ? (
-          activeView === "conversations"
-            ? <Link className={conversationStyles.backToTogether} href="/journey"
-                onNavigate={event => { event.preventDefault(); setActiveView("home"); }}>← Together</Link>
-            : <WorkspaceNav active={activeView} onChange={setActiveView} memoriesAvailable={memoriesAvailable} />
+          compactView
+            ? <Link className={conversationStyles.backToTogether} href={isRoom ? "/journey?view=conversations" : "/journey"}
+                onNavigate={event => { event.preventDefault(); setActiveView(isRoom ? "conversations" : "home"); }}>{isRoom ? "← Conversations" : "← Together"}</Link>
+            : <WorkspaceNav active={activeView} onChange={setActiveView} lockedTogether={lockedTogether} />
         ) : null}
-        {overview.relationship && !isHome && activeView !== "conversations" && activeView !== "memories"
+        {overview.relationship && !isHome && !compactView && activeView !== "memories"
           ? <RelationshipMessages messaging={overview.messaging} confirmLeave={() => !busy && confirmDiscard()}/>
           : null}
         {chatId && overview.lockIn && overview.lockIn.state !== "locked"
@@ -358,7 +364,8 @@ export default function JourneyWorkspace() {
         ) : !overview.relationship ? (
           <TogetherWelcome canInvite={overview.canInviteToChat !== false} requiresLockIn={overview.canInviteToChat !== undefined}
             hasInboxActivity={overview.hasInboxActivity ?? Boolean(overview.directChats?.length || overview.pendingInvites.length)} />
-        ) : activeView === "conversations" ? (
+        ) : activeView === "conversations" ? (<>
+          {lockedTogether ? <RoomTalkEntry onNavigate={openRoomDestination} /> : null}
           <ConversationLibrary
             packs={overview.conversationPacks}
             selection={overview.conversationSelection}
@@ -378,6 +385,12 @@ export default function JourneyWorkspace() {
               )
             }
           />
+        </>) : isRoom ? (
+          lockedTogether ? <RoomToTalk key={`${overview.user.id}:${overview.relationship.id}`}
+            relationshipId={overview.relationship.id} userId={overview.user.id} partnerName={overview.relationship.partner.name}
+            shelfId={targetQuery.get("shelf")} topicId={targetQuery.get("topic")} revision={quietRevision + roomRevision}
+            onNavigate={openRoomDestination} onDirty={setDirty} onExpired={onExpired} />
+          : <section className={styles.intro}><div><h1>Room to Talk</h1><p>Your private shelves open when you both choose to lock in.</p></div></section>
         ) : activeView === "atlas" ? (
           <AtlasView
             key={`${targetWord??"default"}:${targetChapter??"current"}`}
@@ -390,7 +403,7 @@ export default function JourneyWorkspace() {
             runAction={runAction}
           />
         ) : activeView === "memories" ? (
-          memoriesAvailable ? <BehindThePhoto key={`${overview.user.id}:${overview.relationship.id}`}
+          lockedTogether ? <BehindThePhoto key={`${overview.user.id}:${overview.relationship.id}`}
             relationshipId={overview.relationship.id} userId={overview.user.id} partnerName={overview.relationship.partner.name}
             revision={quietRevision} onDirty={setDirty} onExpired={onExpired} />
             : <section className={styles.intro}><div><h1>Behind the Photo</h1><p>This private photo book opens when you both choose to lock in.</p></div></section>

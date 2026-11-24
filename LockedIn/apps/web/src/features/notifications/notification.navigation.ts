@@ -1,5 +1,5 @@
 import type { NotificationItem } from "./notification.types";
-import { currentCheckInHref } from "@/features/journey/journey.navigation";
+import { currentCheckInHref, roomToTalkHref } from "@/features/journey/journey.navigation";
 export function notificationDestination(item: Pick<NotificationItem, "view" | "entityId" | "wordKey" | "planId"> & {id?:string;kind?:string}) {
     const query = new URLSearchParams();
     if(item.view==="discovery" || item.view==="messages") {
@@ -7,6 +7,7 @@ export function notificationDestination(item: Pick<NotificationItem, "view" | "e
         return `/${item.view === "discovery" ? "connections" : "messages"}/${encodeURIComponent(item.entityId)}${query.size ? "?" + query : ""}`;
     }
     if(item.view==="invitations")return `/journey?invitation=${encodeURIComponent(item.entityId)}`;
+    if(item.view==="room-to-talk")return roomToTalkHref({topic:item.entityId});
     if (item.view === "atlas") {
         query.set("view", "atlas");
         query.set("chapter", item.entityId);

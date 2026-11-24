@@ -13,6 +13,8 @@ export const notificationCatalog: Record<string, {
     DIRECT_INVITATION_ACCEPTED: { title: "Your invite was accepted", message: "You can start chatting.", view: "messages" },
     DIRECT_LOCK_IN_REQUEST: { title: "An invitation to lock in", message: "Review the choice when you’re ready. Nothing changes unless you both agree.", view: "messages" },
     CONVERSATION_CHOICE: { title: "A conversation suggestion is waiting", message: "Review your choices and decide together.", view: "conversations" },
+    ROOM_TALK_SUGGESTED: { title: "A topic to talk about together", message: "Open Room to Talk to see the suggestion.", view: "room-to-talk" },
+    ROOM_TALK_IN_PERSON: { title: "A topic was saved for in person", message: "Open Room to Talk to see the topic. You can still reply there.", view: "room-to-talk" },
     CONVERSATION_READY: { title: "Your conversation is ready", message: "Your private questions are ready to answer.", view: "home" },
     SHARING_READY: { title: "Review what you would like to share", message: "Both reflections are submitted. Your sharing choices remain yours.", view: "home" },
     GROUND_READY: { title: "Your shared ground is ready", message: "You both consented. Only mutually selected answers are included.", view: "home" },

@@ -53,7 +53,7 @@ it("celebrates a recent server-confirmed choice only once", () => {
 });
 
 it("shows only the next actual shared plan and links directly to it", () => {
-  const base: SimplePlan = { id: "a/b", title: "Try the café", status: "ACCEPTED", note: null, day: "2026-11-24", version: 1, yours: true, proposerName: "Devon", resolvedBy: null };
+  const base: SimplePlan = { id: "a/b", title: "Try the café", status: "ACCEPTED", note: null, day: "2026-11-24", completionOpensAt: "2026-11-24T05:00:00.000Z", version: 1, yours: true, proposerName: "Devon", resolvedBy: null };
   const otherPlans = [
     { ...base, id: "past", day: "2026-11-20" },
     { ...base, id: "pending", status: "PENDING", day: "2026-11-22" } as const,

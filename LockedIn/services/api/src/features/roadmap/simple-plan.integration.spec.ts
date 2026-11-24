@@ -17,6 +17,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("day-one roadmap a
   const get = (cookie: string, url: string) => app.inject({ url, headers: { cookie } });
   const post = (cookie: string, url: string, payload: object, owner?: string) => app.inject({ method: "POST", url, payload,
     headers: { cookie, origin: "http://localhost:3001", "x-roadmap-owner": owner ?? decodeURIComponent(cookie).split("token-")[1]?.split(".")[0] ?? "" } });
+  const overview = (cookie: string) => get(cookie, "/api/journey/overview");
 
   it("agrees on the current version without a check-in, handles retries and resolves only the correct alert", async () => {
     const a = await createPerson(), b = await createPerson(), outsider = await createPerson();
@@ -30,13 +31,12 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("day-one roadmap a
     const { id } = created.json();
     expect((await post(a.cookie, path, offer)).json()).toEqual({ id });
     expect((await post(a.cookie, path, { ...offer, plan: { title: "Different plan" } })).statusCode).toBe(409);
-    const overview = (cookie: string) => get(cookie, "/api/journey/overview");
     expect((await overview(a.cookie)).json()).toMatchObject({ session: null, simplePlans: [{ title: "Cook together", yours: true, status: "PENDING" }] });
     expect((await overview(b.cookie)).json()).toMatchObject({ session: null, simplePlans: [{ id, yours: false }] });
     expect((await overview(outsider.cookie)).json().simplePlans).toEqual([]);
     const action = { requestId: randomUUID(), action: "accept", version: 1 };
     expect((await post(a.cookie, `${path}/${id}`, action)).statusCode).toBe(409);
-    expect((await post(b.cookie, `${path}/${id}`, { ...action, requestId: randomUUID(), action: "counter", plan: { title: "Cook on Sunday", day: "2026-11-29" } })).statusCode).toBe(200);
+    expect((await post(b.cookie, `${path}/${id}`, { ...action, requestId: randomUUID(), action: "counter", plan: { title: "Cook on Sunday", day: null } })).statusCode).toBe(200);
     expect((await post(a.cookie, `${path}/${id}`, action)).statusCode).toBe(409);
     const firstEvent = await db.notification.findFirstOrThrow({ where: { recipientId: b.id, entityId: id, kind: "ROADMAP_PLAN_REPLY" } });
     expect(firstEvent.resolvedAt).not.toBeNull();
@@ -48,7 +48,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("day-one roadmap a
     expect(responses.map(response => response.statusCode)).toEqual([200, 200]);
     expect(await notificationFingerprint(b.id)).not.toBe(beforeAccept);
     const accepted = (await overview(b.cookie)).json().simplePlans[0];
-    expect(accepted).toMatchObject({ title: "Cook on Sunday", day: "2026-11-29", version: 3, status: "ACCEPTED" });
+    expect(accepted).toMatchObject({ title: "Cook on Sunday", day: null, completionOpensAt: null, version: 3, status: "ACCEPTED" });
     expect((await post(a.cookie, `${path}/${id}`, { requestId: randomUUID(), action: "pass", version: 2 })).statusCode).toBe(409);
     expect((await post(b.cookie, `${path}/${id}`, { requestId: randomUUID(), action: "done", version: 3 })).statusCode).toBe(200);
     expect((await overview(b.cookie)).json().simplePlans[0]).toMatchObject({ status: "DONE", resolvedBy: "You" });
@@ -72,6 +72,64 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("day-one roadmap a
     expect((await post(a.cookie, path, { ...offer, requestId: randomUUID() })).statusCode).toBe(404);
     await db.relationship.update({ where: { id: space.id }, data: { status: "ENDED" } });
     expect((await post(b.cookie, path, offer)).statusCode).toBe(404);
+  });
+
+  it("rejects early completion and lets the other member undo it without a new proposal", async () => {
+    const opensAt = "2030-11-24T08:00:00.000Z";
+    vi.setSystemTime(new Date(Date.parse(opensAt) - 1));
+    try {
+      const a = await createPerson(), b = await createPerson(), outsider = await createPerson();
+      const space = await db.relationship.create({ data: { members: { create: [{ userId: a.id }, { userId: b.id }] } } });
+      const list = `/api/journey/relationships/${space.id}/plans`;
+      const plan = { title: "Get dessert", day: "2030-11-24", timeZone: "America/Los_Angeles" };
+      const create = await post(a.cookie, list, { requestId: randomUUID(), plan });
+      expect(create.statusCode).toBe(201);
+      const path = `${list}/${create.json().id}`;
+      const command = (action: string, version: number) => ({ requestId: randomUUID(), action, version });
+      const current = async (cookie: string) => (await overview(cookie)).json().simplePlans[0];
+      expect((await post(b.cookie, path, { ...command("counter", 1), plan: { ...plan, timeZone: "Asia/Tokyo", note: "Try the pie" } })).statusCode).toBe(200);
+      expect((await post(a.cookie, path, command("accept", 2))).statusCode).toBe(200);
+      const markDone = command("done", 3);
+      const early = await post(b.cookie, path, markDone);
+      expect(early.statusCode).toBe(409);
+      expect(early.body).toContain("once its scheduled day starts");
+      expect((await post(a.cookie, path, { ...command("done", 3), timeZone: "Asia/Tokyo" })).statusCode).toBe(409);
+      for (const person of [a, b]) {
+        expect(await current(person.cookie)).toMatchObject({ status: "ACCEPTED", version: 3, completionOpensAt: opensAt });
+      }
+
+      vi.setSystemTime(new Date(opensAt));
+      expect((await post(b.cookie, path, markDone)).statusCode).toBe(200);
+      expect(await current(b.cookie)).toMatchObject({ status: "DONE", version: 4, resolvedBy: "You" });
+      const undo = command("undo-done", 4);
+      expect((await post(outsider.cookie, path, undo)).statusCode).toBe(404);
+      expect((await post(a.cookie, path, undo)).statusCode).toBe(200);
+      expect((await post(a.cookie, path, undo)).statusCode).toBe(200);
+      expect((await post(b.cookie, path, command("undo-done", 4))).statusCode).toBe(409);
+      for (const person of [a, b]) {
+        expect(await current(person.cookie)).toMatchObject({
+          status: "ACCEPTED", version: 5, resolvedBy: null, day: plan.day, completionOpensAt: opensAt, title: plan.title, note: "Try the pie",
+        });
+      }
+      expect(await db.notification.count({ where: { relationshipId: space.id, resolvedAt: null } })).toBe(0);
+      expect((await post(a.cookie, path, command("done", 5))).statusCode).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("lets a plan marked done by older code be reopened even if its day has not started", async () => {
+    const a = await createPerson(), b = await createPerson();
+    const space = await db.relationship.create({ data: { members: { create: [{ userId: a.id }, { userId: b.id }] } } });
+    const day = new Date(Date.now() + 2 * 86_400_000);
+    day.setUTCHours(0, 0, 0, 0);
+    const plan = await db.roadmapPlan.create({ data: {
+      relationshipId: space.id, proposerId: a.id, resolvedById: a.id, title: "Beach walk", day, status: "DONE", version: 3,
+    } });
+    const path = `/api/journey/relationships/${space.id}/plans/${plan.id}`;
+    expect((await post(b.cookie, path, { requestId: randomUUID(), action: "undo-done", version: 3 })).statusCode).toBe(200);
+    expect((await overview(a.cookie)).json().simplePlans[0]).toMatchObject({ status: "ACCEPTED", version: 4, resolvedBy: null });
+    expect((await post(a.cookie, path, { requestId: randomUUID(), action: "done", version: 4 })).statusCode).toBe(409);
   });
 
   it("blocks existing unverified sessions at the API while allowing account verification entry", async () => {

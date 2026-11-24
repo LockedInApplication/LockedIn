@@ -5,15 +5,26 @@ import { JourneyApiError, journeyRequest } from "@/features/journey/journey.clie
 import type { SimplePlan } from "./roadmap.types";
 import styles from "./styles/simple-plans.module.scss";
 
-type PlanFields = { title: string; note: string | null; day: string | null };
+type PlanFields = { title: string; note: string | null; day: string | null; timeZone?: string };
 type Edit = { counter: SimplePlan | null; title: string };
-type Action = "accept" | "counter" | "pass" | "withdraw" | "done" | "cancel";
+type Action = "accept" | "counter" | "pass" | "withdraw" | "done" | "undo-done" | "cancel";
 const presets = ["Cook together", "Try a new spot", "Make time to talk"];
 const labels = { PASSED: "Passed", WITHDRAWN: "Withdrawn", DONE: "Done", CANCELED: "Canceled" };
+const actionFeedback: Partial<Record<Action, string>> = {
+  accept: "Added to Coming up.",
+  counter: "Your change was sent for their reply.",
+  done: "Plan marked done. You can undo it in Past plans.",
+  "undo-done": "Plan moved back to Coming up.",
+};
 const calendar = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
-function todayLocal() {
-  const date = new Date();
+const completionCalendar = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+function localDay(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function completionOpening(plan: SimplePlan) {
+  // Match the API's fallback if the web build is running ahead of the API.
+  return plan.day ? plan.completionOpensAt ?? `${plan.day}T12:00:00.000Z` : null;
 }
 
 type Props = {
@@ -29,16 +40,40 @@ type Props = {
 
 export default function SimplePlans({ relationshipId, userId, plans, busy, onConflict, onDiscard, onEditing, runAction }: Props) {
   const [edit, setEdit] = useState<Edit | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => () => onEditing(false), [onEditing]);
   const retry = useRef<{ signature: string; requestId: string } | null>(null);
   const pending = plans.filter(plan => plan.status === "PENDING");
   const inbox = pending.filter(plan => !plan.yours);
   const outgoing = pending.filter(plan => plan.yours);
-  const today = todayLocal();
+  const today = localDay(new Date(now));
   const rank = (day: string | null) => day ? (day >= today ? 0 : 2) : 1;
   const upcoming = plans.filter(plan => plan.status === "ACCEPTED").sort((a, b) => rank(a.day) - rank(b.day) || (a.day ?? "").localeCompare(b.day ?? ""));
   const past = plans.filter(plan => plan.status !== "PENDING" && plan.status !== "ACCEPTED");
   const disableCardActions = busy || edit !== null;
+  const nextOpening = upcoming.reduce((earliest, plan) => {
+    const opening = completionOpening(plan);
+    const ms = opening ? Date.parse(opening) : 0;
+    return ms > now ? Math.min(earliest, ms) : earliest;
+  }, Infinity);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const refresh = () => {
+      window.clearTimeout(timer);
+      const time = Date.now();
+      setNow(time);
+      if (Number.isFinite(nextOpening) && nextOpening > time) {
+        timer = window.setTimeout(refresh, Math.min(2_147_483_647, nextOpening - time));
+      }
+    };
+    if (Number.isFinite(nextOpening)) timer = window.setTimeout(refresh, 0);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [nextOpening]);
 
   function updateEdit(value: Edit | null) {
     setEdit(value);
@@ -64,7 +99,7 @@ export default function SimplePlans({ relationshipId, userId, plans, busy, onCon
         }
         throw error;
       }
-    }, action === "accept" ? "Added to Coming up." : action === "counter" ? "Your change was sent for their reply." : action ? "Plan updated." : "Suggestion sent.");
+    }, action ? actionFeedback[action] ?? "Plan updated." : "Suggestion sent.");
   }
 
   function send(event: FormEvent<HTMLFormElement>) {
@@ -80,11 +115,15 @@ export default function SimplePlans({ relationshipId, userId, plans, busy, onCon
       input.reportValidity();
       return;
     }
-    submitCommand(edit.counter, edit.counter ? "counter" : null, { title, note, day });
+    const timeZone = day ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
+    submitCommand(edit.counter, edit.counter ? "counter" : null, { title, note, day, timeZone });
   }
 
   function card(plan: SimplePlan) {
-    return <article className={styles.plan} key={plan.id} id={`step-${encodeURIComponent(plan.id)}`} tabIndex={-1}>
+    const id = `step-${encodeURIComponent(plan.id)}`;
+    const opening = completionOpening(plan);
+    const lockedUntil = opening && Date.parse(opening) > now ? opening : null;
+    return <article className={styles.plan} key={plan.id} id={id} tabIndex={-1}>
       <h4>{plan.title}</h4>
       <p className={styles.meta}>{plan.day ? calendar.format(new Date(`${plan.day}T12:00:00Z`)) : "No day picked yet"}</p>
       {plan.note ? <p>{plan.note}</p> : null}
@@ -97,10 +136,18 @@ export default function SimplePlans({ relationshipId, userId, plans, busy, onCon
             <button type="button" disabled={disableCardActions} onClick={() => submitCommand(plan, "pass")}>Pass</button>
           </>}
         </div>
-      </> : plan.status === "ACCEPTED" ? <div className={styles.actions}>
-        <button type="button" disabled={disableCardActions} onClick={() => submitCommand(plan, "done")}>Mark done</button>
-        <button type="button" disabled={disableCardActions} onClick={() => submitCommand(plan, "cancel")}>Cancel plan</button>
-      </div> : <p className={styles.meta}>{labels[plan.status]}{plan.resolvedBy ? ` · ${plan.resolvedBy}` : ""}</p>}
+      </> : plan.status === "ACCEPTED" ? <>
+        {lockedUntil ? <p id={`${id}-completion`} className={styles.meta}>Mark done becomes available <time dateTime={lockedUntil}>{completionCalendar.format(new Date(lockedUntil))}</time>.</p> : null}
+        <div className={styles.actions}>
+          <button type="button" disabled={disableCardActions || Boolean(lockedUntil)} aria-describedby={lockedUntil ? `${id}-completion` : undefined} onClick={() => submitCommand(plan, "done")}>Mark done</button>
+          <button type="button" disabled={disableCardActions} onClick={() => submitCommand(plan, "cancel")}>Cancel plan</button>
+        </div>
+      </> : <>
+        <p className={styles.meta}>{labels[plan.status]}{plan.resolvedBy ? ` · ${plan.resolvedBy}` : ""}</p>
+        {plan.status === "DONE" ? <div className={styles.actions}>
+          <button type="button" disabled={disableCardActions} onClick={() => submitCommand(plan, "undo-done")}>Undo done</button>
+        </div> : null}
+      </>}
     </article>;
   }
 

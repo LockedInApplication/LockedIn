@@ -26,6 +26,7 @@ export type SimplePlan = {
   title: string;
   note: string | null;
   day: string | null;
+  completionOpensAt: string | null;
   status: "PENDING" | "ACCEPTED" | "PASSED" | "WITHDRAWN" | "DONE" | "CANCELED";
   version: number;
   yours: boolean;

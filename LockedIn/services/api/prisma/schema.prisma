@@ -960,6 +960,7 @@ model RoadmapPlan {
   title          String
   note           String?
   day            DateTime?         @db.Date
+  completionOpensAt DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 

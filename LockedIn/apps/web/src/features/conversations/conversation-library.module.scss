@@ -101,6 +101,19 @@
     color: var(--action);
   }
 }
+.topic[data-picked], .own[data-picked] {
+  padding-inline: 12px;
+  border-radius: 8px;
+  border-inline-start: 3px solid var(--brand-accent);
+  background: color-mix(in srgb, var(--brand-accent) 8%, var(--paper));
+}
+.pickLabel {
+  display: block;
+  margin-block-end: 3px;
+  color: var(--brand-accent);
+  font-size: .78rem;
+  font-weight: 700;
+}
 .library .primary {
   display: block;
   background: var(--action);

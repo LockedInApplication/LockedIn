@@ -1,4 +1,6 @@
+import Link from "next/link";
 import styles from "@/app/journey/journey.module.scss";
+import { conversationTopicHref } from "../journey.navigation";
 import type { JourneySession } from "../journey.types";
 
 type MilestoneState = "complete" | "current" | "waiting" | "upcoming";
@@ -13,10 +15,11 @@ const route = "M300 52 C300 105 178 96 178 174 C178 256 422 240 422 326 C422 410
 // Distance along the winding SVG route at each milestone.
 const routeStops = [0, 15, 39, 63, 87, 100];
 
-export default function SharedJourneyPath({ session, historyCount, partnerName }: {
+export default function SharedJourneyPath({ session, historyCount, partnerName, onViewConversations }: {
   session: JourneySession | null;
   historyCount: number;
   partnerName: string;
+  onViewConversations: () => void;
 }) {
   const bothAnswered = Boolean(session?.ownResponse && session.partnerState.submitted);
   const shared = Boolean(session?.bothRevealed);
@@ -37,10 +40,14 @@ export default function SharedJourneyPath({ session, historyCount, partnerName }
 
   return (
     <section className={styles.journeyMap} aria-labelledby="journey-map-title">
-      <header className={styles.journeyMapHeader}>
-        <h2 id="journey-map-title">Shared progress</h2>
-        <p>{chapters ? `${chapters} completed conversation${chapters === 1 ? "" : "s"}` : "Your first conversation starts with a topic."}</p>
-      </header>
+      <Link className={styles.journeyMapHeader} href={conversationTopicHref} aria-labelledby="journey-map-title"
+        onNavigate={event => { event.preventDefault(); onViewConversations(); }}>
+        <div>
+          <h2 id="journey-map-title">Shared progress</h2>
+          <p>{chapters ? `${chapters} completed conversation${chapters === 1 ? "" : "s"}` : "Your first conversation starts with a topic."}</p>
+        </div>
+        <span className={styles.journeyMapChevron} aria-hidden="true">›</span>
+      </Link>
       <div className={styles.pathCanvas}>
         <svg className={styles.pathSvg} viewBox="0 0 600 760" aria-hidden="true" focusable="false">
           <path className={styles.pathBase} d={route} pathLength="100" />

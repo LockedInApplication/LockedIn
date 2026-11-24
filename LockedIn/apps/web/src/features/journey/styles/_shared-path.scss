@@ -7,11 +7,20 @@
 }
 
 .journeyMapHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   padding: clamp(16px, 3.2vw, 32px);
   border-block-end: 1px solid var(--brand-rule);
+  color: var(--ink);
+  text-decoration: none;
+  &:hover { background: var(--member-hover, var(--brand-canvas)); }
+  &:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
   h2 { font: 550 clamp(1.35rem, 2.8vw, 1.75rem)/1.2 var(--font-serif); }
   p { margin-block-start: 4px; color: var(--brand-muted); font-size: .875rem; }
 }
+.journeyMapChevron { color: var(--brand-accent); font-size: 1.5rem; line-height: 1; }
 
 .pathCanvas {
   position: relative;

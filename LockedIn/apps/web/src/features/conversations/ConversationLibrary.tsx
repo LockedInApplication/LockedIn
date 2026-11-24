@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { conversationTopicAnchor } from "@/features/journey/journey.navigation";
 import type { JourneyOverview } from "@/features/journey/journey.types";
 import type { ConversationPack } from "./conversation.types";
 import ConversationTopicPreview from "./ConversationTopicPreview";
@@ -17,6 +18,7 @@ export type ConversationLibraryProps = {
 export default function ConversationLibrary({
   packs,
   selection,
+  currentPackKey,
   canStart,
   busy,
   onStart,
@@ -39,6 +41,9 @@ export default function ConversationLibrary({
     own = selection?.ownChoice;
   const suggested = packs.find(pack => pack.key === partner?.packKey);
   const topics = partner?.submitted && canStart && suggested ? packs.filter(pack => pack.key !== suggested.key) : packs;
+  const pickedKey = own?.submitted ? own.packKey : currentPackKey;
+  const hasPickedTopic = packs.some(pack => pack.key === pickedKey);
+  const focusHeading = !hasPickedTopic && !own?.submitted;
   function openTopic(pack: ConversationPack, source: "suggestion" | "list") {
     returnTo.current = source === "suggestion" ? "[data-review-suggestion]" : `[data-topic="${CSS.escape(pack.key)}"]`;
     setPreview(pack);
@@ -47,6 +52,23 @@ export default function ConversationLibrary({
     key === null
       ? "Either conversation"
       : (packs.find((p) => p.key === key)?.title ?? "Unavailable topic");
+
+  function topicButton(pack: ConversationPack, source: "suggestion" | "list") {
+    const isSuggestion = source === "suggestion";
+    const picked = pack.key === pickedKey && (!isSuggestion || canStart);
+    return <button key={pack.key} className={styles.topic} type="button"
+      id={picked ? conversationTopicAnchor : undefined} data-picked={picked || undefined}
+      data-topic={isSuggestion ? undefined : pack.key} data-review-suggestion={isSuggestion || undefined}
+      disabled={busy || (isSuggestion && !canStart)} onClick={() => openTopic(pack, source)}>
+      <span>
+        {picked ? <span className={styles.pickLabel}>{own?.submitted ? "Your pick" : "Current conversation"}</span> : null}
+        <strong>{pack.title}</strong>
+        <small>{pack.description || `${pack.questionCount} private prompts`}</small>
+      </span>
+      <span aria-hidden="true">›</span>
+    </button>;
+  }
+
   if (preview)
     return (
       <ConversationTopicPreview
@@ -64,23 +86,20 @@ export default function ConversationLibrary({
       className={styles.library}
       aria-label="Conversation topics"
     >
-      <h2>Pick a topic</h2>
+      <h2 id={focusHeading ? conversationTopicAnchor : undefined} tabIndex={focusHeading ? -1 : undefined}>Pick a topic</h2>
       <p>Suggest a topic to {partner?.name ?? "your partner"}. You’ll each answer privately once you agree.</p>
       {partner?.submitted ? (
         <aside className={styles.suggestion}>
           <span className={styles.kicker}>{partner.name} suggested</span>
-          {suggested ? <button className={styles.topic} type="button" data-review-suggestion
-            disabled={busy || !canStart} onClick={() => openTopic(suggested, "suggestion")}>
-            <span><strong>{suggested.title}</strong><small>{suggested.description}</small></span>
-            <span aria-hidden="true">›</span>
-          </button> : <>
+          {suggested ? topicButton(suggested, "suggestion") : <>
             <h3>{name(partner.packKey)}</h3>
             {partner.packKey === null ? <p>They’re happy for you to choose a topic.</p> : null}
           </>}
         </aside>
       ) : null}
       {own?.submitted ? (
-        <div className={styles.own}>
+        <div className={styles.own} id={hasPickedTopic ? undefined : conversationTopicAnchor}
+          tabIndex={hasPickedTopic ? undefined : -1} data-picked={own.packKey === null || undefined}>
           <span>
             Your choice: <strong>{name(own.packKey)}</strong>
           </span>
@@ -109,22 +128,7 @@ export default function ConversationLibrary({
       ) : null}
       {topics.length ? <><h3>Explore topics</h3>
       <div className={styles.topics}>
-        {topics.map((pack) => (
-          <button
-            className={styles.topic}
-            key={pack.key}
-            data-topic={pack.key}
-            type="button"
-            disabled={busy}
-            onClick={() => openTopic(pack, "list")}
-          >
-            <span>
-              <strong>{pack.title}</strong>
-              <small>{pack.description || `${pack.questionCount} private prompts`}</small>
-            </span>
-            <span aria-hidden>›</span>
-          </button>
-        ))}
+        {topics.map(pack => topicButton(pack, "list"))}
       </div></> : null}
       <button
         type="button"

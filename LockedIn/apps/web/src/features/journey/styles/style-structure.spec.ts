@@ -11,7 +11,7 @@ describe("Journey Sass extraction", () => {
   it("compiles the editorial cascade, including mobile and reduced-motion rules", () => {
     const result = compile(entrypoint);
     expect(createHash("sha256").update(result.css).digest("hex")).toBe(
-      "584e0326947d8fd02a70ba1d84f3dfddc098051fd02cd9b9d81a4a16f55a18db",
+      "abcac5850293d4b284fb1706a797558c0e00a041f4d5c8ba0e8ac8b7760271f3",
     );
     expect([...result.css.matchAll(/@media[^\{]+/g)].map((match) => match[0].trim())).toEqual([
       "@media (max-width: 900px)", "@media (max-width: 640px)",

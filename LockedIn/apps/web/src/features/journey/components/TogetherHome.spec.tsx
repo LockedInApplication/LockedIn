@@ -98,8 +98,11 @@ it("offers Behind the Photo only in a mutually locked-in workspace", () => {
   expect(open).toContain('href="/journey?view=memories">Behind the Photo</a>');
 });
 
-it("renders the illustrated map without any clickable milestones", () => {
-  const html = renderToStaticMarkup(<SharedJourneyPath session={null} historyCount={0} partnerName="Jordan" />);
+it("links Shared progress to the chosen conversation without making the milestones interactive", () => {
+  const html = renderToStaticMarkup(<SharedJourneyPath session={null} historyCount={0} partnerName="Jordan" onViewConversations={() => {}} />);
+  expect(html).toContain('href="/journey?view=conversations#your-topic"');
+  expect(html).toContain('aria-labelledby="journey-map-title"');
+  expect(html.match(/<a\b/g)).toHaveLength(1);
   expect(html).toContain('viewBox="0 0 600 760" aria-hidden="true"');
   const paths = [...html.matchAll(/<path[^>]+d="([^"]+)"/g)].map(match => match[1]);
   expect(paths).toHaveLength(2);
@@ -108,7 +111,7 @@ it("renders the illustrated map without any clickable milestones", () => {
   expect(html.match(/<li\b/g)).toHaveLength(6);
   expect(html.match(/aria-current="step"/g)).toHaveLength(1);
   expect(html).toContain("Reflect privately");
-  expect(html).not.toMatch(/<(a|button|input)\b/);
+  expect(html).not.toMatch(/<(button|input)\b/);
 });
 
 it("only offers the check-in handoff after mutual reveal", () => {

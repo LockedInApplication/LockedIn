@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getWorkspaceView, workspaceViewUrl } from "./journey.navigation";
+import { conversationTopicHref, getWorkspaceView, workspaceViewUrl } from "./journey.navigation";
 
 describe("workspace section URLs", () => {
   it.each(["home", "conversations", "atlas", "roadmap", "chapters", "memories"] as const)(
@@ -23,5 +23,10 @@ describe("workspace section URLs", () => {
     expect(workspaceViewUrl("/journey?view=atlas&invite=abc", "home"))
       .toBe("/journey?invite=abc");
     expect(workspaceViewUrl("/journey?view=atlas", "home")).toBe("/journey");
+  });
+
+  it("drops the topic anchor on the way back from Conversations", () => {
+    expect(workspaceViewUrl(conversationTopicHref, "home")).toBe("/journey");
+    expect(workspaceViewUrl(conversationTopicHref, "roadmap")).toBe("/journey?view=roadmap");
   });
 });

@@ -36,7 +36,7 @@ import { TogetherHomeHeading, TogetherPlan, TogetherWelcome } from "./components
 import togetherStyles from "./components/together-home.module.scss";
 import { getUpcomingTogetherPlan } from "./together-home";
 import DirectLockIn from "@/features/messaging/DirectLockIn";
-import { currentCheckInHref } from "./journey.navigation";
+import { conversationTopicAnchor, conversationTopicHref, currentCheckInHref } from "./journey.navigation";
 import TinyLantern from "./components/TinyLantern";
 import BehindThePhoto from "@/features/memories/BehindThePhoto";
 
@@ -89,11 +89,11 @@ export default function JourneyWorkspace() {
   useEffect(()=>{
     if(!hasOverview)return;
     const hash=new URL(workspaceLocation,"http://localhost").hash.slice(1);
-    if(hash !== "current-action" && !hash.startsWith("step-"))return;
+    if(hash !== "current-action" && hash !== conversationTopicAnchor && !hash.startsWith("step-"))return;
     const element=document.getElementById(hash);
     const details=element?.closest("details");
     if(details)details.open=true;
-    element?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+    element?.scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth",block:"center"});
     element?.focus({preventScroll:true});
   },[workspaceLocation,hasOverview,hasSession]);
 
@@ -416,6 +416,7 @@ export default function JourneyWorkspace() {
               session={overview.session}
               historyCount={overview.checkInHistory.length}
               partnerName={overview.relationship.partner.name}
+              onViewConversations={() => { if (!busy && confirmDiscard()) navigateWorkspaceUrl(conversationTopicHref); }}
             />
           </>
         )}

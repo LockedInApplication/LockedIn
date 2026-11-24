@@ -45,12 +45,38 @@ describe("compact conversation browser", () => {
     expect(html).toContain("A longer description.");
     expect(html).toContain("How choosing together works");
     expect(html).toContain("Either works for me");
+    expect(html).toContain('<h2 id="your-topic" tabindex="-1">Pick a topic</h2>');
+    expect(html).not.toContain("data-picked");
   });
+
+  it("highlights the viewer’s pending pick instead of the partner’s suggestion or previous check-in", () => {
+    const html = renderToStaticMarkup(createElement(ConversationLibrary, {
+      ...props,
+      currentPackKey: "direction",
+      selection: { ...props.selection!, ownChoice: { submitted: true, packKey: "support" } },
+    }));
+    expect(html).toMatch(/id="your-topic"[^>]*data-picked="true"[^>]*data-topic="support"/);
+    expect(html).toContain("Your pick");
+    expect(html.match(/data-picked="true"/g)).toHaveLength(1);
+  });
+
+  it("highlights the matched topic when there is no pending choice", () => {
+    const html = renderToStaticMarkup(createElement(ConversationLibrary, {
+      ...props,
+      currentPackKey: "direction",
+      canStart: false,
+    }));
+    expect(html).toMatch(/id="your-topic"[^>]*data-picked="true"[^>]*data-topic="direction"/);
+    expect(html).toContain("Current conversation");
+    expect(html.match(/id="your-topic"/g)).toHaveLength(1);
+  });
+
   it("retains withdrawal and disables choices during an active check-in", () => {
     const html = renderToStaticMarkup(
       createElement(ConversationLibrary, {
         ...props,
         canStart: false,
+        currentPackKey: "direction",
         selection: {
           ...props.selection!,
           ownChoice: { submitted: true, packKey: null },
@@ -60,5 +86,7 @@ describe("compact conversation browser", () => {
     expect(html).toContain("Withdraw");
     expect(html).toContain("Either conversation");
     expect(html).toContain("Finish your current");
+    expect(html).toMatch(/<div[^>]*id="your-topic"[^>]*tabindex="-1"[^>]*>.*Either conversation/);
+    expect(html.match(/data-picked="true"/g)).toHaveLength(1);
   });
 });

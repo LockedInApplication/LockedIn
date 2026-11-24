@@ -32,8 +32,8 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("Room to Talk", ()
   const postMessage = (person: Person, path: string, body: string, kind = "REPLY", replyToId: string | null = null) =>
     write(person, "POST", `${path}/messages`, { id: randomUUID(), kind, body, replyToId });
   const state = (person: Person, path: string, action: string, extra?: object) => write(person, "POST", `${path}/state`, { action, ...extra });
-  async function openTopic(a: Person, b: Person, url: string, question: string) {
-    const input = topicInput(question);
+  async function openTopic(a: Person, b: Person, url: string, question: string, shelf?: string) {
+    const input = topicInput(question, shelf);
     expect((await write(a, "POST", url + "/topics", input)).statusCode).toBe(201);
     const path = `${url}/topics/${input.id}`;
     expect((await state(a, path, "suggest")).statusCode).toBe(200);
@@ -116,6 +116,61 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("Room to Talk", ()
     expect((await get(a, path + "/messages")).json().messages).toHaveLength(3);
   });
 
+  it("removes a shared custom shelf without deleting its topics, replies, or takeaways", async () => {
+    const { a, b, url, space } = await pair();
+    const other = await pair();
+    const shelf = { id: randomUUID(), name: "Traditions" };
+    expect((await write(a, "POST", url + "/shelves", shelf)).statusCode).toBe(201);
+    const { id, path } = await openTopic(a, b, url, "What traditions should we start?", shelf.id);
+    const message = await postMessage(a, path, "Pancakes on the first Sunday.");
+    expect(message.statusCode).toBe(201);
+    const takeaway = "Make the first Sunday our own.";
+    expect((await state(b, path, "discuss", { takeaway })).statusCode).toBe(200);
+
+    const shelfPath = url + "/shelves/" + shelf.id;
+    expect((await write(other.a, "DELETE", shelfPath)).statusCode).toBe(404);
+    expect((await write(other.a, "DELETE", other.url + "/shelves/" + shelf.id)).statusCode).toBe(404);
+    expect((await write(a, "DELETE", shelfPath, undefined, { "x-together-owner": b.id })).statusCode).toBe(409);
+    expect((await write(b, "DELETE", shelfPath)).json()).toEqual({ movedTopicCount: 1 });
+    expect(await db.roomTalkShelf.findUnique({ where: { id: shelf.id } })).toBeNull();
+
+    for (const person of [a, b]) {
+      const room = (await get(person, url)).json();
+      expect(room.shelves).not.toContainEqual(shelf);
+      expect(room.topics).toEqual([expect.objectContaining({ id, shelf: "unsorted", phase: "DISCUSSED", takeaway, messageCount: 1 })]);
+      expect((await get(person, path + "/messages")).json().messages[0]).toMatchObject({ id: message.json().id, body: "Pancakes on the first Sunday." });
+    }
+    expect((await write(b, "DELETE", shelfPath)).statusCode).toBe(404);
+    expect(await db.notification.count({ where: { relationshipId: space.id } })).toBe(1);
+  });
+
+  it("lets each pair remove Marriage and Date ideas but keeps Unsorted available", async () => {
+    const { a, b, url } = await pair();
+    const other = await pair();
+    const marriage = topicInput("What helps us make decisions together?", "marriage");
+    const date = topicInput("Pick a new place for breakfast.", "date-ideas");
+    for (const input of [marriage, date]) expect((await write(a, "POST", url + "/topics", input)).statusCode).toBe(201);
+    expect((await state(a, `${url}/topics/${marriage.id}`, "suggest")).statusCode).toBe(200);
+    expect((await write(a, "POST", url + "/shelves", { id: randomUUID(), name: "Marriage" })).statusCode).toBe(409);
+    expect((await write(b, "DELETE", url + "/shelves/unsorted")).statusCode).toBe(404);
+    expect((await write(other.a, "DELETE", url + "/shelves/marriage")).statusCode).toBe(404);
+    expect((await write(a, "DELETE", url + "/shelves/marriage")).json()).toEqual({ movedTopicCount: 1 });
+    expect((await write(b, "DELETE", url + "/shelves/date-ideas")).json()).toEqual({ movedTopicCount: 1 });
+
+    const room = (await get(b, url)).json();
+    expect(room.shelves).toEqual([{ id: "unsorted", name: "Unsorted" }]);
+    expect(room.topics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: marriage.id, shelf: "unsorted", phase: "SUGGESTED", suggestedBy: "partner" }),
+      expect.objectContaining({ id: date.id, shelf: "unsorted", phase: "SAVED" }),
+    ]));
+    expect((await write(a, "POST", url + "/topics", topicInput("A topic for a deleted shelf.", "marriage"))).statusCode).toBe(404);
+    expect((await write(b, "PUT", `${url}/topics/${date.id}/shelf`, { shelf: "date-ideas" })).statusCode).toBe(404);
+    const replacement = { id: randomUUID(), name: "Marriage" };
+    expect((await write(b, "POST", url + "/shelves", replacement)).json()).toEqual(replacement);
+    expect((await get(a, url)).json().shelves).toEqual([replacement, { id: "unsorted", name: "Unsorted" }]);
+    expect((await get(other.a, other.url)).json().shelves.map((item: {id: string}) => item.id)).toEqual(["marriage", "date-ideas", "unsorted"]);
+  });
+
   it("keeps replies open and alerts only an away partner, including when they are on another topic", async () => {
     const { a, b, url, space } = await pair();
     const topic = await openTopic(a, b, url, "Trip together?");
@@ -179,10 +234,12 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("Room to Talk", ()
     const { id, path } = await openTopic(a, b, url, "Private topic");
     await postMessage(a, path, "A private reply");
     await state(b, path, "discuss", { takeaway: "Partner-authored takeaway" });
+    expect((await write(a, "DELETE", url + "/shelves/marriage")).statusCode).toBe(200);
     const { eraseAccountRows } = await import("../profile/account-deletion.data.js");
     await db.$transaction(tx => eraseAccountRows(tx, b.id, b.email));
     expect(await db.roomTalkTopic.findUnique({ where: { id } })).toBeNull();
     expect(await db.roomTalkMessage.count({ where: { topicId: id } })).toBe(0);
+    expect(await db.roomTalkRemovedStarterShelf.count({ where: { relationshipId: space.id } })).toBe(0);
     expect(await db.relationship.findUnique({ where: { id: space.id } })).toMatchObject({ status: "ENDED" });
     expect((await get(a, url)).statusCode).toBe(404);
   });

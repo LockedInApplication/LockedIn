@@ -32,7 +32,7 @@
 }
 .hero, .toolbar, .shelfHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .65rem 1.25rem; }
 .hero { align-items: flex-end; }
-.hero > div, .question { display: grid; gap: .65rem; min-width: 0; }
+.heroCopy, .question { display: grid; gap: .65rem; min-width: 0; }
 .hero p:not(.kicker), .hint, .empty { color: var(--rtt-muted); line-height: 1.5; }
 .hint { font-size: .9rem; }
 .private { justify-self: start; padding: .36rem .65rem; color: var(--rtt-muted); border: 1px solid var(--rtt-line); border-radius: 99rem; font-size: .78rem; }

@@ -12,6 +12,7 @@ export type RoomMessage = RoomQuote & { kind: "REPLY" | "QUESTION"; createdAt: s
 export type RoomPage = { messages: RoomMessage[]; before: string | null };
 
 export const roomPath = (space: string) => `/api/journey/relationships/${encodeURIComponent(space)}/room-to-talk`;
+export const shelfPath = (base: string, shelfId: string) => `${base}/shelves/${encodeURIComponent(shelfId)}`;
 export const topicPath = (base: string, topicId: string) => `${base}/topics/${encodeURIComponent(topicId)}`;
 
 export function writeRoom<T>(path: string, userId: string, method: "POST" | "PUT" | "DELETE", data?: object, keepalive = false) {

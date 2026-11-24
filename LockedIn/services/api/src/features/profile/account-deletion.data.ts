@@ -17,6 +17,7 @@ export async function eraseAccountRows(tx: Prisma.TransactionClient, userId: str
   const room = { relationship: { members: { some: { userId } } } };
   await tx.roomTalkTopic.deleteMany({ where: room });
   await tx.roomTalkShelf.deleteMany({ where: room });
+  await tx.roomTalkRemovedStarterShelf.deleteMany({ where: room });
   await tx.relationshipInvite.deleteMany({
     where: { inviteeId: null, inviteeEmail: { equals: email, mode: "insensitive" } },
   });

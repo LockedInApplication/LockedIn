@@ -83,20 +83,32 @@ async function requireTopic(tx: Tx, relationshipId: string, id: string) {
   return topic;
 }
 
+function removedStarter(tx: Tx, relationshipId: string, starterShelf: RoomTalkStarterShelf) {
+  return tx.roomTalkRemovedStarterShelf.findUnique({
+    where: { relationshipId_starterShelf: { relationshipId, starterShelf } },
+    select: { starterShelf: true },
+  });
+}
+
 async function shelfFields(tx: Tx, relationshipId: string, key: string): Promise<{ shelfId: string | null; starterShelf: RoomTalkStarterShelf | null }> {
   if (key === unsorted.id) return { shelfId: null, starterShelf: null };
   const starter = starterShelves.find(shelf => shelf.id === key);
-  if (starter) return { shelfId: null, starterShelf: starter.starter };
+  if (starter) {
+    if (await removedStarter(tx, relationshipId, starter.starter)) throw roomUnavailable();
+    return { shelfId: null, starterShelf: starter.starter };
+  }
   if (!await tx.roomTalkShelf.findFirst({ where: { relationshipId, id: key }, select: { id: true } })) throw roomUnavailable();
   return { shelfId: key, starterShelf: null };
 }
 
 export function listRoom(relationshipId: string, actorId: string) {
   return updateRoom(relationshipId, actorId, async tx => {
+    const removed = await tx.roomTalkRemovedStarterShelf.findMany({ where: { relationshipId }, select: { starterShelf: true } });
+    const visibleStarters = starterShelves.filter(shelf => !removed.some(row => row.starterShelf === shelf.starter));
     const shelves = await tx.roomTalkShelf.findMany({ where: { relationshipId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { id: true, name: true } });
     const topics = await tx.roomTalkTopic.findMany({ where: { relationshipId }, orderBy: [{ updatedAt: "desc" }, { id: "desc" }], select: topicSelect });
     return { data: {
-      shelves: [...starterShelves.map(({ id, name }) => ({ id, name })), ...shelves, unsorted],
+      shelves: [...visibleStarters.map(({ id, name }) => ({ id, name })), ...shelves, unsorted],
       topics: topics.map(topic => presentTopic(topic, actorId)),
     } };
   });
@@ -110,7 +122,10 @@ export function addRoomShelf(relationshipId: string, actorId: string, input: { i
       if (existing.name !== input.name) throw new RoomTalkError(409, "This shelf was already saved with a different name.");
       return { data: { id: existing.id, name: existing.name } };
     }
-    if ([...starterShelves, unsorted].some(shelf => shelf.name.toLowerCase() === input.name.toLowerCase()) ||
+    const name = input.name.toLowerCase();
+    const starter = starterShelves.find(shelf => shelf.name.toLowerCase() === name);
+    if (unsorted.name.toLowerCase() === name ||
+      (starter && !await removedStarter(tx, relationshipId, starter.starter)) ||
       await tx.roomTalkShelf.findFirst({ where: { relationshipId, name: { equals: input.name, mode: "insensitive" } }, select: { id: true } })) {
       throw new RoomTalkError(409, "You already have a shelf with that name.");
     }
@@ -118,6 +133,30 @@ export function addRoomShelf(relationshipId: string, actorId: string, input: { i
       throw new RoomTalkError(409, "This room can hold up to 24 custom shelves. Pick an existing shelf for your topic.");
     }
     return { data: await tx.roomTalkShelf.create({ data: { ...input, relationshipId, authorId: actorId }, select: { id: true, name: true } }), changed: true };
+  });
+}
+
+export function deleteRoomShelf(relationshipId: string, actorId: string, shelfId: string) {
+  return updateRoom(relationshipId, actorId, async tx => {
+    const starter = starterShelves.find(shelf => shelf.id === shelfId);
+    if (starter) {
+      // Starter shelves are virtual, so record the removal for this pair only.
+      const removal = await tx.roomTalkRemovedStarterShelf.createMany({
+        data: { relationshipId, starterShelf: starter.starter }, skipDuplicates: true,
+      });
+      if (!removal.count) throw roomUnavailable();
+      const topics = await tx.roomTalkTopic.updateMany({
+        where: { relationshipId, starterShelf: starter.starter }, data: { starterShelf: null },
+      });
+      return { data: { movedTopicCount: topics.count }, changed: true };
+    }
+
+    // The existing shelf foreign key sets shelfId to NULL (Unsorted) when the
+    // shelf is removed. No topic or thread is deleted here.
+    const movedTopicCount = await tx.roomTalkTopic.count({ where: { relationshipId, shelfId } });
+    const shelf = await tx.roomTalkShelf.deleteMany({ where: { relationshipId, id: shelfId } });
+    if (!shelf.count) throw roomUnavailable();
+    return { data: { movedTopicCount }, changed: true };
   });
 }
 

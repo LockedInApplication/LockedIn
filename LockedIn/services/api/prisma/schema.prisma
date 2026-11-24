@@ -266,6 +266,7 @@ model Relationship {
   togetherEnvelopes   TogetherEnvelope[]
   roomTalkShelves     RoomTalkShelf[]
   roomTalkTopics      RoomTalkTopic[]
+  roomTalkRemovedStarterShelves RoomTalkRemovedStarterShelf[]
 }
 
 enum RoomTalkStarterShelf {
@@ -283,6 +284,14 @@ enum RoomTalkPhase {
 enum RoomTalkMessageKind {
   REPLY
   QUESTION
+}
+
+model RoomTalkRemovedStarterShelf {
+  relationshipId String
+  starterShelf   RoomTalkStarterShelf
+  relationship   Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+
+  @@id([relationshipId, starterShelf])
 }
 
 model RoomTalkShelf {

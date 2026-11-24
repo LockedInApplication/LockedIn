@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAccountMutationIdentity } from "../../lib/account-mutation-http.js";
 import { requireUser, sendError } from "../../lib/journey-http.js";
 import {
-  addRoomMessage, addRoomShelf, addRoomTopic, fileRoomTopic, listRoom, roomConversation,
+  addRoomMessage, addRoomShelf, addRoomTopic, deleteRoomShelf, fileRoomTopic, listRoom, roomConversation,
   RoomTalkError, saveForInPerson, transitionRoomTopic, updateRoomPresence,
 } from "./room-to-talk.service.js";
 
@@ -15,7 +15,9 @@ const space = z.strictObject({ relationshipId: uuid });
 const topic = space.extend({ topicId: uuid });
 const presence = topic.extend({ viewerId: uuid });
 const text = (max: number) => z.string().trim().min(1).max(max).refine(value => !value.includes("\u0000"));
-const shelf = z.union([uuid, z.enum(["marriage", "date-ideas", "unsorted"])]);
+const removableShelf = z.union([uuid, z.enum(["marriage", "date-ideas"])]);
+const shelf = z.union([removableShelf, z.literal("unsorted")]);
+const shelfParams = space.extend({ shelfId: removableShelf });
 const shelfInput = z.strictObject({ id: uuid, name: text(48) });
 const topicInput = z.strictObject({ id: uuid, question: text(200), shelf });
 const transition = z.union([
@@ -58,6 +60,8 @@ export async function registerRoomTalkRoutes(server: FastifyInstance) {
   server.get(base, route(space, false, async ({ relationshipId }, actor) => listRoom(relationshipId, actor)));
   server.post(`${base}/shelves`, small, route(space, true, async ({ relationshipId }, actor, request, reply) =>
     reply.code(201).send(await addRoomShelf(relationshipId, actor, body(shelfInput, request, "Give the shelf a name of up to 48 characters.")))));
+  server.delete(`${base}/shelves/:shelfId`, route(shelfParams, true, async ({ relationshipId, shelfId }, actor) =>
+    deleteRoomShelf(relationshipId, actor, shelfId)));
   server.post(`${base}/topics`, small, route(space, true, async ({ relationshipId }, actor, request, reply) =>
     reply.code(201).send(await addRoomTopic(relationshipId, actor, body(topicInput, request, "Write a topic of up to 200 characters and choose its shelf.")))));
   server.put(`${topicPath}/shelf`, small, route(topic, true, async ({ relationshipId, topicId }, actor, request) =>

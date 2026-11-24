@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { JourneyApiError, journeyRequest } from "@/features/journey/journey.client";
 import { roomToTalkHref } from "@/features/journey/journey.navigation";
 import { useQuietRefresh } from "@/features/notifications/use-quiet-refresh";
 import RoomTalkEditor, { type RoomEdit, type RoomSubmission } from "./RoomTalkEditor";
 import RoomTopicThread from "./RoomTopicThread";
-import { roomPath, topicPath, writeRoom, roomPhases, unsortedShelf, type RoomLibrary, type RoomShelf, type RoomTopic } from "./room-to-talk-api";
+import { roomPath, shelfPath, topicPath, writeRoom, roomPhases, unsortedShelf, type RoomLibrary, type RoomShelf, type RoomTopic } from "./room-to-talk-api";
 import { useRoomRefresh } from "./use-room-sync";
 import styles from "./room-to-talk.module.scss";
 
@@ -52,27 +53,34 @@ export default function RoomToTalk(props: Props) {
       ...previous, shelves: [...previous.shelves.filter(item => item.id !== "unsorted" && item.id !== shelf.id), shelf, unsortedShelf],
     });
   }
+  function removeShelf(shelfId: string) {
+    setLibrary(previous => previous && {
+      shelves: previous.shelves.filter(shelf => shelf.id !== shelfId),
+      topics: previous.topics.map(topic => topic.shelf === shelfId ? { ...topic, shelf: unsortedShelf.id } : topic),
+    });
+  }
 
   return <div className={styles.room}>
     {loadError ? <div className={styles.notice} role="alert">{loadError} <button type="button" className={styles.textButton} onClick={invalidate}>Try again</button></div> : null}
     {library ? <RoomView key={topicId ? `topic:${topicId}` : `shelf:${shelfId ?? ""}`} {...props} base={base} library={library}
-      onBlockRefresh={setBlocked} onRefresh={invalidate} onSaveTopic={patchTopic} onSaveShelf={addShelf} />
+      onBlockRefresh={setBlocked} onRefresh={invalidate} onSaveTopic={patchTopic} onSaveShelf={addShelf} onRemoveShelf={removeShelf} />
       : !loadError ? <p className={styles.hint} role="status">Opening Room to Talk…</p> : null}
   </div>;
 }
 
 function RoomView({
   base, library, revision, shelfId, topicId, partnerName, userId, onNavigate, onDirty, onExpired,
-  onBlockRefresh, onRefresh, onSaveTopic, onSaveShelf,
+  onBlockRefresh, onRefresh, onSaveTopic, onSaveShelf, onRemoveShelf,
 }: Props & {
   base: string; library: RoomLibrary; onBlockRefresh: (value: boolean) => void; onRefresh: () => void;
-  onSaveTopic: (topic: RoomTopic) => void; onSaveShelf: (shelf: RoomShelf) => void;
+  onSaveTopic: (topic: RoomTopic) => void; onSaveShelf: (shelf: RoomShelf) => void; onRemoveShelf: (shelfId: string) => void;
 }) {
   const [edit, setEdit] = useState<RoomEdit | null>(null);
   const [editDirty, setEditDirty] = useState(false);
   const [replyDirty, setReplyDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ error: boolean; text: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const actionPending = useRef(false);
   const alive = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -159,6 +167,13 @@ function RoomView({
       setNotice({ error: false, text: saved ? "Saved for in person. You can still reply here." : "In-person label removed." });
     });
   }
+  function deleteShelf(shelf: RoomShelf) {
+    setConfirmDelete(false);
+    void run(() => writeRoom<{ movedTopicCount: number }>(shelfPath(base, shelf.id), userId, "DELETE"), result => {
+      onRemoveShelf(shelf.id);
+      onNavigate(roomToTalkHref(result.movedTopicCount ? { shelf: unsortedShelf.id } : undefined));
+    });
+  }
   const feedback = notice && <p className={styles.notice} role={notice.error ? "alert" : "status"}>{notice.text}</p>;
   const editor = edit && <RoomTalkEditor key={edit.kind} edit={edit} shelves={library.shelves} busy={busy}
     onCancel={closeEditor} onChange={setEditDirty} onSave={save} />;
@@ -208,25 +223,36 @@ function RoomView({
     </>;
   }
 
-  if (topicId || (shelfId && !shelf)) return <>
+  if (topicId) return <>
     <RoomLink href={roomToTalkHref()} onNavigate={browse}>← All shelves</RoomLink>
-    <h1 ref={heading} tabIndex={-1}>{topicId ? "This topic" : "This shelf"} isn’t available</h1>
+    <h1 ref={heading} tabIndex={-1}>This topic isn’t available</h1>
     <p className={styles.hint}>Go back to Room to Talk to see what’s on your shelves.</p>
   </>;
 
-  if (shelf) {
-    const items = library.topics.filter(item => item.shelf === shelf.id);
+  if (shelfId) {
+    const items = shelf ? library.topics.filter(item => item.shelf === shelf.id) : [];
     return <>
       <div className={styles.toolbar}><RoomLink href={roomToTalkHref()} onNavigate={browse}>← All shelves</RoomLink>{privacy}</div>
       <header className={styles.hero}>
-        <div><p className={styles.kicker}>Room to Talk / Shelf</p><h1 ref={heading} tabIndex={-1}>{shelf.name}</h1></div>
-        <button className={styles.primary} type="button" disabled={busy || !!edit} onClick={() => begin({ kind: "topic", shelf: shelf.id })}>Add a topic</button>
+        <div className={styles.heroCopy}><p className={styles.kicker}>Room to Talk / Shelf</p>
+          <h1 ref={heading} tabIndex={-1}>{shelf?.name ?? "This shelf isn’t available"}</h1></div>
+        {shelf ? <div className={styles.actions}>
+          <button className={styles.primary} type="button" disabled={busy || !!edit} onClick={() => begin({ kind: "topic", shelf: shelf.id })}>Add a topic</button>
+          {shelf.id !== unsortedShelf.id ? <button className={styles.textButton} type="button" disabled={busy || !!edit}
+            onClick={() => setConfirmDelete(true)}>Delete shelf</button> : null}
+        </div> : null}
       </header>
       {feedback}{editor}
-      <TopicGroup title="Talk next" topics={items.filter(item => item.phase === "TALK_NEXT")} onNavigate={browse} />
-      <TopicGroup title="To talk about" topics={items.filter(item => item.phase === "SAVED" || item.phase === "SUGGESTED")} onNavigate={browse} />
-      <TopicGroup title="Discussed" topics={items.filter(item => item.phase === "DISCUSSED")} onNavigate={browse} />
-      {!items.length ? <p className={styles.empty}>No topics on this shelf yet. Add a question you’d like to come back to together.</p> : null}
+      {shelf ? <>
+        <TopicGroup title="Talk next" topics={items.filter(item => item.phase === "TALK_NEXT")} onNavigate={browse} />
+        <TopicGroup title="To talk about" topics={items.filter(item => item.phase === "SAVED" || item.phase === "SUGGESTED")} onNavigate={browse} />
+        <TopicGroup title="Discussed" topics={items.filter(item => item.phase === "DISCUSSED")} onNavigate={browse} />
+        {!items.length ? <p className={styles.empty}>No topics on this shelf yet. Add a question you’d like to come back to together.</p> : null}
+        {shelf.id !== unsortedShelf.id ? <ConfirmDialog open={confirmDelete} title="Delete shelf?"
+          description={`“${shelf.name}” will be removed for both of you. Its topics will move to Unsorted with their replies and takeaways.`}
+          cancelLabel="Keep shelf" confirmLabel="Delete shelf"
+          onCancel={() => setConfirmDelete(false)} onConfirm={() => deleteShelf(shelf)} /> : null}
+      </> : !edit ? <p className={styles.hint}>Go back to Room to Talk to see your remaining shelves.</p> : null}
     </>;
   }
 
@@ -234,7 +260,7 @@ function RoomView({
   const next = library.topics.filter(item => item.phase === "TALK_NEXT");
   return <>
     <header className={styles.hero}>
-      <div><p className={styles.kicker}>Together / Conversations</p><h1 ref={heading} tabIndex={-1}>Room to <em>Talk.</em></h1>
+      <div className={styles.heroCopy}><p className={styles.kicker}>Together / Conversations</p><h1 ref={heading} tabIndex={-1}>Room to <em>Talk.</em></h1>
         <p>Questions for later. Conversations worth coming back to.</p></div>
       <button className={styles.primary} type="button" disabled={busy || !!edit} onClick={() => begin({ kind: "topic", shelf: "unsorted" })}>Add a topic</button>
     </header>

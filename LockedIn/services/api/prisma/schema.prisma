@@ -148,6 +148,8 @@ model User {
   dateSpotPreference         DateSpotPreference?
   dateSpotRequests           DateSpotRequest[]
   proposedDates              ChatDatePlan[]
+  togetherPhotos             TogetherPhoto[]
+  togetherPhotoNotes         TogetherPhotoNote[]
 
   @@map("user")
 }
@@ -253,6 +255,54 @@ model Relationship {
   notifications       Notification[]
   discoveryConnection DiscoveryConnection?
   chatConversation    ChatConversation?
+  togetherPhotos      TogetherPhoto[]
+}
+
+model TogetherPhoto {
+  id             String           @id @default(uuid())
+  relationshipId String
+  uploaderId     String
+  title          String           @db.VarChar(80)
+  width          Int
+  height         Int
+  jpeg           Bytes
+  createdAt      DateTime         @default(now())
+  relationship   Relationship     @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  uploader       User             @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  pins           TogetherPhotoPin[]
+
+  @@index([relationshipId, createdAt, id])
+  @@index([uploaderId])
+}
+
+model TogetherPhotoPin {
+  id        String              @id @default(uuid())
+  photoId   String
+  title     String              @db.VarChar(48)
+  // Basis points of the normalized image, independent of rendered size.
+  x         Int
+  y         Int
+  createdAt DateTime            @default(now())
+  photo     TogetherPhoto       @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  notes     TogetherPhotoNote[]
+
+  @@index([photoId, createdAt, id])
+}
+
+model TogetherPhotoNote {
+  id              String           @id @default(uuid())
+  pinId           String
+  authorId        String
+  text            String?          @db.VarChar(220)
+  voice           Bytes?
+  voiceDurationMs Int?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  pin             TogetherPhotoPin @relation(fields: [pinId], references: [id], onDelete: Cascade)
+  author          User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([pinId, authorId])
+  @@index([authorId])
 }
 
 model Notification {

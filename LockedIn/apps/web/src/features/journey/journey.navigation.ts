@@ -1,4 +1,4 @@
-export type WorkspaceView = "home" | "conversations" | "atlas" | "roadmap" | "chapters";
+export type WorkspaceView = "home" | "conversations" | "atlas" | "roadmap" | "chapters" | "memories";
 export const currentCheckInHref = "/journey#current-action";
 
 export function getWorkspaceView(search: string): WorkspaceView {
@@ -8,6 +8,7 @@ export function getWorkspaceView(search: string): WorkspaceView {
     case "atlas":
     case "roadmap":
     case "chapters":
+    case "memories":
       return view;
     default:
       return "home";

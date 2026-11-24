@@ -38,6 +38,7 @@ import { getUpcomingTogetherPlan } from "./together-home";
 import DirectLockIn from "@/features/messaging/DirectLockIn";
 import { currentCheckInHref } from "./journey.navigation";
 import TinyLantern from "./components/TinyLantern";
+import BehindThePhoto from "@/features/memories/BehindThePhoto";
 
 type Notice = { tone: "success" | "error"; message: string; reviewDiscovery?: boolean } | null;
 
@@ -99,7 +100,7 @@ export default function JourneyWorkspace() {
   const onInvitationUpdate=requestQuietRefresh;
 
   function confirmDiscard() {
-    if(dirty.current && !window.confirm("You have unsaved answers. Leave them and load the latest activity?"))return false;
+    if(dirty.current && !window.confirm("You have unsaved changes. Leave them and load the latest activity?"))return false;
     setDirty(false);return true;
   }
   function setActiveView(view:Parameters<typeof navigateView>[0]) {
@@ -209,6 +210,7 @@ export default function JourneyWorkspace() {
     return true;
   }
   const isHome = Boolean(overview.relationship && activeView === "home");
+  const memoriesAvailable = overview.relationship?.isMutuallyLockedIn === true;
   const chatId = isHome && overview.messaging?.enabled ? overview.messaging.conversationId : null;
   const comingUp = isHome ? getUpcomingTogetherPlan(overview.simplePlans ?? []) : undefined;
   const openCurrentCheckIn = () => {
@@ -280,13 +282,13 @@ export default function JourneyWorkspace() {
 
   return (
     <MemberChrome key={overview.user.id} {...chrome}>
-      <main className={`${styles.main} ${!overview.relationship && !suggestionReference ? togetherStyles.welcomeMain : ""} ${activeView==='conversations'?conversationStyles.compactMain:''} ${isHome?guidanceStyles.home:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={()=>setDirty(true)}>
+      <main className={`${styles.main} ${!overview.relationship && !suggestionReference ? togetherStyles.welcomeMain : ""} ${activeView==='conversations'?conversationStyles.compactMain:''} ${isHome?guidanceStyles.home:''} ${showAtlas ? styles.atlasMain : ""}`} onChangeCapture={activeView === "memories" ? undefined : ()=>setDirty(true)}>
         {overview.relationship && isHome ? <TogetherHomeHeading
           key={`${overview.user.id}:${overview.relationship.id}`}
           user={{ ...overview.user, name: overview.user.name || overview.user.email }} userId={overview.user.id}
           partner={overview.relationship.partner} locked={overview.relationship.isMutuallyLockedIn === true}
           lockedAt={overview.relationship.mutuallyLockedInAt}
-        /> : overview.relationship && activeView !== "conversations" && !showAtlas ? <section className={styles.intro}>
+        /> : overview.relationship && activeView !== "conversations" && activeView !== "memories" && !showAtlas ? <section className={styles.intro}>
           <div>
             <span className={styles.eyebrow}>YOUR SHARED ROADMAP</span>
             <h1>Build the relationship you both choose.</h1>
@@ -322,9 +324,9 @@ export default function JourneyWorkspace() {
           activeView === "conversations"
             ? <Link className={conversationStyles.backToTogether} href="/journey"
                 onNavigate={event => { event.preventDefault(); setActiveView("home"); }}>← Together</Link>
-            : <WorkspaceNav active={activeView} onChange={setActiveView} />
+            : <WorkspaceNav active={activeView} onChange={setActiveView} memoriesAvailable={memoriesAvailable} />
         ) : null}
-        {overview.relationship && !isHome && activeView !== "conversations"
+        {overview.relationship && !isHome && activeView !== "conversations" && activeView !== "memories"
           ? <RelationshipMessages messaging={overview.messaging} confirmLeave={() => !busy && confirmDiscard()}/>
           : null}
         {chatId && overview.lockIn && overview.lockIn.state !== "locked"
@@ -387,6 +389,11 @@ export default function JourneyWorkspace() {
             busy={busy}
             runAction={runAction}
           />
+        ) : activeView === "memories" ? (
+          memoriesAvailable ? <BehindThePhoto key={`${overview.user.id}:${overview.relationship.id}`}
+            relationshipId={overview.relationship.id} userId={overview.user.id} partnerName={overview.relationship.partner.name}
+            revision={quietRevision} onDirty={setDirty} onExpired={onExpired} />
+            : <section className={styles.intro}><div><h1>Behind the Photo</h1><p>This private photo book opens when you both choose to lock in.</p></div></section>
         ) : activeView === "roadmap" ? (
           <RoadmapView key={overview.relationship.id} relationshipId={overview.relationship.id} userId={overview.user.id} simplePlans={overview.simplePlans}
             session={overview.session} busy={busy} runAction={runAction} onDiscard={()=>setDirty(false)}

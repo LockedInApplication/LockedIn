@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getWorkspaceView, workspaceViewUrl } from "./journey.navigation";
 
 describe("workspace section URLs", () => {
-  it.each(["home", "conversations", "atlas", "roadmap", "chapters"] as const)(
+  it.each(["home", "conversations", "atlas", "roadmap", "chapters", "memories"] as const)(
     "restores the %s section from the URL", (view) => {
       expect(getWorkspaceView(`?view=${view}`)).toBe(view);
     },

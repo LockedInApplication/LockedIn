@@ -91,6 +91,13 @@ it("preserves the workspace navigation when viewing a destination", () => {
   expect(html).toContain('aria-current="page"');
 });
 
+it("offers Behind the Photo only in a mutually locked-in workspace", () => {
+  const closed = renderToStaticMarkup(<WorkspaceNav active="home" onChange={() => {}} />);
+  expect(closed).not.toContain("Behind the Photo");
+  const open = renderToStaticMarkup(<WorkspaceNav active="home" memoriesAvailable onChange={() => {}} />);
+  expect(open).toContain('href="/journey?view=memories">Behind the Photo</a>');
+});
+
 it("renders the illustrated map without any clickable milestones", () => {
   const html = renderToStaticMarkup(<SharedJourneyPath session={null} historyCount={0} partnerName="Jordan" />);
   expect(html).toContain('viewBox="0 0 600 760" aria-hidden="true"');

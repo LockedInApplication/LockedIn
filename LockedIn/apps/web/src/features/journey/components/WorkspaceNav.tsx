@@ -9,6 +9,7 @@ const links: Array<{ key: WorkspaceView; label: string; icon: string }> = [
   { key: "conversations", label: "Conversations", icon: "◎" },
   { key: "atlas", label: "Atlas", icon: "✦" },
   { key: "roadmap", label: "Our next steps", icon: "↗" },
+  { key: "memories", label: "Behind the Photo", icon: "▧" },
   { key: "chapters", label: "Past conversations", icon: "◌" },
 ];
 const secondaryLinks = links.filter(({ key }) => key !== "home" && key !== "conversations");
@@ -16,16 +17,19 @@ const secondaryLinks = links.filter(({ key }) => key !== "home" && key !== "conv
 export default function WorkspaceNav({
   active,
   onChange,
+  memoriesAvailable = false,
 }: {
   active: WorkspaceView;
   onChange: (view: WorkspaceView) => void;
+  memoriesAvailable?: boolean;
 }) {
   const home = active === "home";
 
   return (
     <nav className={home ? navStyles.homeLinks : `${navStyles.navigation} ${active === "conversations" ? navStyles.compact : ""}`}
+      data-memories={memoriesAvailable || undefined}
       aria-label={home ? "Together resources" : "Relationship workspace"}>
-      {(home ? secondaryLinks : links).map(({ key, label, icon }) => (
+      {(home ? secondaryLinks : links).filter(({ key }) => key !== "memories" || memoriesAvailable).map(({ key, label, icon }) => (
         <Link
           key={key}
           href={key === "home" ? "/journey" : `/journey?view=${key}`}

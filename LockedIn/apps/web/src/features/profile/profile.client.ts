@@ -7,6 +7,19 @@ import type {
 } from "./profile.types";
 export const loadProfile = (signal?: AbortSignal) =>
   journeyRequest<Profile>("/api/profile", { cache: "no-store", signal });
+export const loadTogetherReportingPreference = (userId: string, signal: AbortSignal) =>
+  journeyRequest<{ optedOut: boolean }>("/api/profile/together-reporting", {
+    headers: { "X-Profile-Owner": userId },
+    cache: "no-store",
+    signal,
+  });
+export const optOutOfTogetherReporting = (userId: string) =>
+  journeyRequest<{ optedOut: true }>("/api/profile/together-reporting/opt-out", {
+    method: "POST",
+    headers: { "X-Profile-Owner": userId },
+    body: "{}",
+    cache: "no-store",
+  });
 export const deleteProfileAccount = (password: string, userId: string) =>
   journeyRequest<(AccountDeletionRequest & { status: "processing" }) | null>("/api/profile/account/delete", {
     method: "POST",

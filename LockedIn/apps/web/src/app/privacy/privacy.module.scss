@@ -1,0 +1,56 @@
+.page {
+  min-height: 100dvh;
+  padding: clamp(1.1rem, 4vw, 2.6rem) clamp(1rem, 5vw, 2rem) clamp(2.25rem, 7vw, 5rem);
+  background: var(--cream);
+  color: var(--ink);
+}
+
+.back {
+  display: flex;
+  align-items: center;
+  min-block-size: 44px;
+  max-inline-size: 45rem;
+  margin-inline: auto;
+  color: var(--action);
+  font-weight: 650;
+  text-underline-offset: .22em;
+}
+
+.notice {
+  max-inline-size: 45rem;
+  margin: .65rem auto 0;
+  padding: clamp(1.25rem, 5vw, 3rem);
+  border: 1px solid var(--brand-rule);
+  border-radius: var(--r);
+  background: var(--paper);
+  line-height: 1.65;
+
+  h1, h2 { font-family: var(--font-serif); }
+  h1 { margin: .3rem 0 .85rem; font-size: clamp(2.15rem, 7vw, 3.35rem); font-weight: 550; line-height: 1.08; }
+  h2 { margin: 0 0 .55rem; font-size: clamp(1.42rem, 4vw, 1.7rem); font-weight: 550; line-height: 1.25; }
+  p { margin: .65rem 0 0; }
+  ul { margin: .55rem 0 0; padding-inline-start: 1.25rem; list-style: disc; }
+  li + li { margin-block-start: .35rem; }
+  section { margin-block-start: 1.6rem; padding-block-start: 1.25rem; border-block-start: 1px solid var(--brand-rule); }
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: .77rem;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  margin-block-start: .85rem;
+  padding: .42rem .85rem;
+  border-radius: var(--control-radius);
+  background: var(--action);
+  color: var(--on-action);
+  font-weight: 650;
+  text-decoration: none;
+}

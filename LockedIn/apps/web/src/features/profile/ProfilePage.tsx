@@ -10,11 +10,13 @@ import ProfileNotifications from "./ProfileNotifications";
 import ProfileMatchingSettings from "./ProfileMatchingSettings";
 import ProfileSettingRow from "./ProfileSettingRow";
 import ProfileDeletion from "./ProfileDeletion";
+import ProfileTogetherReporting from "./ProfileTogetherReporting";
 import InvitationBlocks from "@/features/invitations/InvitationBlocks";
 import styles from "./profile.module.scss";
 import { useProfileLeaveGuard } from "./use-profile-leave-guard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import MemberChrome from "@/features/journey/components/MemberChrome";
+import { togetherReportingProfileAnchor, togetherReportingProfileHref } from "@/features/journey/journey.navigation";
 import { notificationDestination } from "@/features/notifications";
 import { discoveryRequest } from "@/features/discovery/discovery.client";
 import type { DiscoveryMe } from "@/features/discovery/discovery.types";
@@ -27,13 +29,16 @@ const sections = [
   ["profile-notifications", "Notifications"],
   ["profile-privacy", "Privacy & safety"],
 ] as const;
+const profileSignInPath = () => `/login?returnTo=${encodeURIComponent(
+  window.location.hash === `#${togetherReportingProfileAnchor}` ? togetherReportingProfileHref : "/profile",
+)}`;
 
 export default function ProfilePage() {
   const session = authClient.useSession();
   const router = useRouter();
   useEffect(() => {
     if (!session.isPending && !session.data?.user)
-      router.replace("/login?returnTo=%2Fprofile");
+      router.replace(profileSignInPath());
   }, [session.isPending, session.data?.user, router]);
   if (session.isPending || !session.data?.user)
     return (
@@ -52,13 +57,13 @@ function AccountProfile({ userId, name }: { userId: string; name: string }) {
   useEffect(() => {
     if (!ready) return;
     const id = window.location.hash.slice(1);
-    if (!sections.some(([section]) => section === id)) return;
+    if (id !== togetherReportingProfileAnchor && !sections.some(([section]) => section === id)) return;
     document.getElementById(id)?.scrollIntoView();
   }, [ready]);
   const [dirty, setDirty] = useState<Record<string, boolean>>({}),
     [signOutError, setSignOutError] = useState("");
   const router = useRouter();
-  const expired = useCallback(() => router.replace("/login?returnTo=%2Fprofile"), [router]);
+  const expired = useCallback(() => router.replace(profileSignInPath()), [router]);
   const readAccess = useCallback((signal: AbortSignal) => discoveryRequest<DiscoveryMe>(userId, "/api/discovery/me", { signal }), [userId]);
   const access = useDiscoveryResource(userId, "profile-links", readAccess).value;
   const updateDirty = useCallback(
@@ -150,6 +155,7 @@ function AccountProfile({ userId, name }: { userId: string; name: string }) {
                 />
                 <section className={`${styles.card} ${styles.privacyCard}`} aria-labelledby="profile-privacy">
                   <h2 id="profile-privacy" tabIndex={-1}>Privacy &amp; safety</h2>
+                  <ProfileTogetherReporting userId={userId} onOpenNotice={() => void leave("/privacy")} />
                   <InvitationBlocks />
                   {access?.canModerate?<button type="button" className={styles.textButton} onClick={()=>void leave("/discovery/moderation")}>Moderation</button>:null}
                 </section>

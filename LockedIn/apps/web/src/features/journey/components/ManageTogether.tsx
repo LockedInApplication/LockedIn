@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef } from "react";
-import { discoveryVisibilityHref, togetherChatSafetyHref } from "../journey.navigation";
+import { discoveryVisibilityHref, togetherChatSafetyHref, togetherReportingProfileHref } from "../journey.navigation";
 import styles from "./manage-together.module.scss";
 
 export const leaveTogetherDescription = "Leaving ends Together for both of you. You’ll both lose access to this space, its plans and memories, and any chat linked to it. Your other chats stay open. Neither profile becomes visible in Discovery automatically.";
@@ -29,6 +29,12 @@ export default function ManageTogether({ conversationId, busy, onLeave, onNaviga
       title: "Discovery visibility",
       detail: "Check who can see your Discovery profile.",
       icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm3.5 5.5-2 5-5 2 2-5 5-2Z",
+    },
+    {
+      href: togetherReportingProfileHref,
+      title: "Together reporting",
+      detail: "See what we count or opt out privately.",
+      icon: "M12 3 5 6v5c0 4.6 3.3 7.8 7 10 3.7-2.2 7-5.4 7-10V6l-7-3ZM9 12l2 2 4-4",
     },
   ];
 

@@ -9,9 +9,11 @@ import {
 } from "./profile.schemas.js";
 import { ensureInvitationNotifications } from "../invitations/invitation-notifications.service.js";
 import { deleteOwnAccount, requestAccountDeletion } from "./account-deletion.service.js";
+import { getTogetherReportingPreference, optOutOfTogetherReporting } from "./together-reporting.service.js";
 
 const deletionSchema = z.strictObject({ password: z.string().min(1).max(128) });
 const deletionRequestSchema = z.strictObject({});
+const reportingOptOutSchema = z.strictObject({});
 
 export async function registerProfileRoutes(server: FastifyInstance, { wakeDeletionWorker }: { wakeDeletionWorker?: () => void } = {}) {
   const allowedOrigins = new Set([
@@ -21,7 +23,7 @@ export async function registerProfileRoutes(server: FastifyInstance, { wakeDelet
   async function requireAccountOwner(request: FastifyRequest, reply: FastifyReply) {
     reply.header("Cache-Control", "private, no-store");
     const origin = request.headers.origin;
-    if (!origin || !allowedOrigins.has(origin)) {
+    if (request.method !== "GET" && (!origin || !allowedOrigins.has(origin))) {
       sendError(reply, 403, "This request must come from LockedIn.");
       return null;
     }
@@ -33,6 +35,30 @@ export async function registerProfileRoutes(server: FastifyInstance, { wakeDelet
     }
     return user;
   }
+
+  server.get("/api/profile/together-reporting", { exposeHeadRoute: false }, async (request, reply) => {
+    const user = await requireAccountOwner(request, reply);
+    if (!user) return;
+    try {
+      return await getTogetherReportingPreference(user.id);
+    } catch {
+      return sendError(reply, 500, "We couldn’t load your Together reporting choice.");
+    }
+  });
+
+  server.post("/api/profile/together-reporting/opt-out", { bodyLimit: 1024 }, async (request, reply) => {
+    const user = await requireAccountOwner(request, reply);
+    if (!user) return;
+    if (!reportingOptOutSchema.safeParse(request.body).success) {
+      return sendError(reply, 400, "Invalid opt-out request.");
+    }
+    try {
+      return await optOutOfTogetherReporting(user.id);
+    } catch {
+      request.log.error("Together reporting opt-out could not be saved");
+      return sendError(reply, 500, "We couldn’t save your opt-out. Please try again.");
+    }
+  });
 
   server.post("/api/profile/account/deletion-request", { bodyLimit: 1024 }, async (request, reply) => {
     const user = await requireAccountOwner(request, reply);

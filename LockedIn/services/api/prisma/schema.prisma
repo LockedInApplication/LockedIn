@@ -98,6 +98,7 @@ model User {
   avatarPreset  String   @default("initials")
   activityEmails Boolean @default(true)
   inAppActivity Boolean  @default(true)
+  togetherReportingOptedOutAt DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

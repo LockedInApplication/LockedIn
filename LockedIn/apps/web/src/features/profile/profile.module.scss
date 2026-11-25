@@ -99,6 +99,22 @@
   margin: .9rem 0 0;
   padding: 0;
 }
+.reportingPreference {
+  margin-block: 1rem 1.5rem;
+  padding-block: .95rem 1.4rem;
+  border-block: 1px solid var(--member-divider, var(--brand-rule));
+
+  h3 {
+    margin: 0;
+    scroll-margin-block-start: 5.4rem;
+    font-size: 1.12rem;
+  }
+
+  p { margin: .55rem 0; }
+  p:not([role]) { color: var(--member-muted); }
+  a { color: var(--editorial-accent, var(--action)); font-weight: 650; text-underline-offset: .22em; }
+}
+.reportingActions { margin-block-start: .8rem; }
 .settingList > li + li {
   border-block-start: 1px solid var(--member-divider, var(--brand-rule));
 }

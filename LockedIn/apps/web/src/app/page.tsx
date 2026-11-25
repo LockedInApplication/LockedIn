@@ -106,6 +106,7 @@ export default function Home() {
         </div>
         <nav aria-label="More about LockedIn">
           <a href="#trust">Privacy &amp; choice</a>
+          <Link href="/privacy">Together privacy notice</Link>
           <Link href="/connections?compose=invite">Invite someone</Link>
           <Link href="/login">Sign in</Link>
           <Link href="/journey">Open LockedIn</Link>

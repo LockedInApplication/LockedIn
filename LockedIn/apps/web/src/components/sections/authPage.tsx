@@ -73,6 +73,7 @@ export default function AuthPage({ page, returnTo }: authPageType) {
                 <Signup onError={handleFormError} returnTo={returnTo} />
               )}
             </div>
+            <Link href="/privacy" className={styles.privacyLink}>Together privacy notice</Link>
           </div>
         </div>
       </main>

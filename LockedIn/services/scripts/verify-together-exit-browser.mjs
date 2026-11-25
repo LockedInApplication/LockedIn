@@ -286,6 +286,7 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
       assert(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       assert((await link(shortcuts,"Chat safety").boundingBox()).height >= 44);
       assert((await link(shortcuts,"Discovery visibility").boundingBox()).height >= 44);
+      assert((await link(shortcuts,"Together reporting").boundingBox()).height >= 44);
       if (width === 390 && artifacts) await a.screenshot({ path: path.join(artifacts, "manage-together-390.png") });
     }
     await a.setViewportSize({ width: 390, height: 844 });
@@ -305,6 +306,31 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
     assert(await button(visibility,"Resume visibility").isDisabled(), "The shortcut cannot bypass Lock In");
     await a.waitForFunction(() => document.activeElement?.id === "discovery-visibility");
     await a.goBack();
+    await manage.waitFor();
+
+    await prisma.$executeRaw`INSERT INTO lockedin_reporting.pilot_pair (relationship_id) VALUES (${space.relationshipId})`;
+    await link(shortcuts,"Together reporting").click();
+    await a.waitForURL(base + "/profile#together-reporting");
+    const reporting = a.getByRole("region", { name: "Together reporting", exact: true });
+    await link(reporting,"Read the Together privacy notice").click();
+    await a.waitForURL(base + "/privacy");
+    await a.getByRole("heading", { name: "Together privacy notice", exact: true }).waitFor();
+    await a.getByText(/Only couples who both agreed to the pilot are counted/).waitFor();
+    assert(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    if (artifacts) await a.screenshot({ path: path.join(artifacts, "together-privacy-390.png") });
+    await link(a,"Manage Together reporting").click();
+    await a.waitForURL(base + "/profile#together-reporting");
+    await button(reporting,"Opt out of Together reporting").click();
+    await reporting.getByRole("status").filter({ hasText: /You’ve opted out/ }).waitFor();
+    await a.reload();
+    await reporting.getByRole("status").filter({ hasText: /You’ve opted out/ }).waitFor();
+    assert.equal((await prisma.$queryRaw`SELECT 1 FROM lockedin_reporting.pilot_pair WHERE relationship_id = ${space.relationshipId}`).length, 0);
+    await b.goto(base + "/profile#together-reporting");
+    const partnerReporting = b.getByRole("region", { name: "Together reporting", exact: true });
+    await button(partnerReporting,"Opt out of Together reporting").waitFor();
+    assert.equal(await partnerReporting.getByText(/You’ve opted out/).count(), 0);
+    console.log("PASS public Together privacy notice and private opt-out; partner not opted out, pilot enrollment removed");
+    await a.goto(base + "/journey?view=options");
     await manage.waitFor();
 
     await button(a,"Leave Together").filter({ visible: true }).click();

@@ -4,13 +4,14 @@ import ManageTogether, { leaveTogetherDescription } from "./ManageTogether";
 
 const props = { busy: false, onLeave: () => {}, onNavigate: () => {} };
 
-it("keeps leaving separate from two accurately labeled navigation links", () => {
+it("keeps leaving separate from safety, visibility, and reporting navigation", () => {
   const html = renderToStaticMarkup(<ManageTogether {...props} conversationId="shared/chat" />);
   expect(html).toContain("Manage Together</h1>");
   expect(html.match(/<button\b/g)).toHaveLength(1);
   expect(html).toContain("Leave Together</button>");
   expect(html).toContain('href="/messages/shared%2Fchat?from=manage-together#chat-safety"');
   expect(html).toContain('href="/discover/profile#discovery-visibility"');
+  expect(html).toContain('href="/profile#together-reporting"');
   expect(html).not.toMatch(/Need a hand|only change|stay in your chat history/);
 });
 

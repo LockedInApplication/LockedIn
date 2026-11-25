@@ -4,6 +4,8 @@ After a shared plan is marked done, past plans opens to it. In a mutually locked
 
 Apply the additive `20261125020000_plan_memories` and `20261125030000_together_weekly_report` migrations and deploy the API before the web release. The normal API start command runs `npm run prisma -- migrate deploy`. There are no new reminder settings, push notifications, or prompt features in this phase.
 
+The public Together notice is at `/privacy`. Deploy the API with the additive `20261125040000_together_reporting_opt_out` migration before deploying the web control. Either partner can privately opt out from **Profile & settings → Privacy & safety → Together reporting**. Opting out is saved against that account and withdraws its existing pilot enrollments. There is no in-app enrollment or undo in this phase, and no notification goes to the partner. Opt-out does not alter their Together content or access.
+
 ## Ask for the report
 
 On the Mac with the report key, you can ask in the desktop Codex chat, “Show me last week’s Together report.” It runs only when requested; nothing is scheduled, published, or added to Moderation. From `LockedIn/services` the same command is:
@@ -56,6 +58,10 @@ INSERT INTO lockedin_reporting.pilot_pair (relationship_id)
 VALUES (:'approved_pair_id') ON CONFLICT DO NOTHING;
 ```
 
-If either partner withdraws, remove just that roster row; their app records stay untouched. The report login cannot insert, see, or remove roster rows. An empty roster is safe and displays no totals.
+Encourage members to use the private opt-out control to withdraw. Existing enrollments are removed, and the report rechecks that each enrolled space has two accounts and neither has opted out, so adding an old enrollment again cannot override a withdrawal. App content stays untouched. The report login cannot insert, see, or remove roster rows. An empty roster is safe and displays no totals.
+
+## Before broadening reporting
+
+Do not remove the pilot roster, expand the query, or backfill existing activity in this release. Publishing the notice is not consent or a direct user announcement. Separately send existing users a clear notice before any broader rollout, with the new scope, effective date, link to the notice, and their choices. Collect affirmative permission where required before including a pair; silence does not enroll them. Keep the same protected totals-only access and small-group threshold. This release does not send announcements or enroll anyone automatically.
 
 Next, ask pilot participants whether they missed notes their partner actually sent before adding a notification. Test one optional plan-based **Moment for Us** separately after that.

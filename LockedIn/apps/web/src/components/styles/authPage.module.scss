@@ -38,3 +38,13 @@
   .editorial { display: none; }
   .authToast { top: 16px; }
 }
+.privacyLink {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  margin-block-start: .4rem;
+  color: var(--action);
+  font-size: .875rem;
+  font-weight: 650;
+  text-underline-offset: .22em;
+}

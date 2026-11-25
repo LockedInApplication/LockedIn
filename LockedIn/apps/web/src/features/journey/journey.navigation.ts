@@ -5,6 +5,8 @@ export const manageTogetherSource = "manage-together";
 export const chatSafetyAnchor = "chat-safety";
 export const discoveryVisibilityAnchor = "discovery-visibility";
 export const discoveryVisibilityHref = `/discover/profile#${discoveryVisibilityAnchor}`;
+export const togetherReportingProfileAnchor = "together-reporting";
+export const togetherReportingProfileHref = `/profile#${togetherReportingProfileAnchor}`;
 export const togetherChatSafetyHref = (conversationId: string) =>
   `/messages/${encodeURIComponent(conversationId)}?from=${manageTogetherSource}#${chatSafetyAnchor}`;
 export const checkInsHref = workspaceHref("check-ins");

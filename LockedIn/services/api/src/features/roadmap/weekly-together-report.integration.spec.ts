@@ -32,7 +32,7 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("weekly Together r
       const { id } = await db.relationship.create({ data: {
         directLockedInAt: at(-12), members: { create: [{ userId: a.id }, { userId: b.id }] },
       } });
-      return { id, a: a.id, b: b.id };
+      return { id, a: a.id, b: b.id, cookieA: a.cookie, cookieB: b.cookie };
     };
     const enroll = (id: string, offset = -12) => db.$executeRaw`INSERT INTO lockedin_reporting.pilot_pair
       (relationship_id, enrolled_at) VALUES (${id}, ${at(offset)})`;
@@ -76,16 +76,57 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("weekly Together r
     const { publicKey, privateKey } = generateKeyPairSync("ed25519");
     const api = Fastify();
     await api.register(registerTogetherReport, { verificationKey: publicKey });
+    await api.register((await import("../profile/profile.routes.js")).registerProfileRoutes);
     try {
       const url = togetherReportPath + "?week=" + week;
-      const response = await api.inject({ url, headers: { authorization: signTogetherReport(privateKey, url) } });
+      const httpsReport = () => api.inject({ url, headers: { authorization: signTogetherReport(privateKey, url) } });
+      const response = await httpsReport();
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual(await report(week));
+
+      const preference = "/api/profile/together-reporting";
+      const optOutPath = preference + "/opt-out";
+      const partnerHeaders = { cookie: a.cookieA, "x-profile-owner": a.a };
+      const ownerHeaders = { cookie: a.cookieB, "x-profile-owner": a.b };
+      const origin = "http://localhost:3001";
+      const withdraw = () => api.inject({ method: "POST", url: optOutPath, headers: { ...ownerHeaders, origin }, payload: {} });
+      expect((await api.inject({ url: preference })).statusCode).toBe(401);
+      expect((await api.inject({ url: preference, headers: { ...ownerHeaders, "x-profile-owner": a.a } })).statusCode).toBe(409);
+      expect((await api.inject({ url: preference, headers: ownerHeaders })).json()).toEqual({ optedOut: false });
+      expect((await api.inject({ method: "POST", url: optOutPath, headers: ownerHeaders, payload: {} })).statusCode).toBe(403);
+      expect((await api.inject({ method: "POST", url: optOutPath, headers: { ...ownerHeaders, origin: "https://unrelated.test" }, payload: {} })).statusCode).toBe(403);
+      expect((await api.inject({ method: "POST", url: optOutPath, headers: { ...ownerHeaders, origin, "x-profile-owner": a.a }, payload: {} })).statusCode).toBe(409);
+      expect((await api.inject({ method: "POST", url: optOutPath, headers: { ...partnerHeaders, origin }, payload: { userId: a.b, optedOut: false } })).statusCode).toBe(400);
+      expect(await report(week)).toMatchObject({ enrolledPairs: 6, pairsWithSharedAction: 5 });
+
+      // An enrolled space and an earlier enrolled space both withdraw when one member opts out.
+      const oldSpace = await db.relationship.create({ data: {
+        status: "ENDED",
+        members: { create: [{ userId: a.b }, { userId: late.b }] },
+      } });
+      await enroll(oldSpace.id, 8);
+      const saved = await withdraw();
+      expect(saved.statusCode).toBe(200);
+      expect(saved.headers["cache-control"]).toContain("no-store");
+      expect(saved.json()).toEqual({ optedOut: true });
+      const state = await api.inject({ url: preference, headers: ownerHeaders });
+      expect(state.headers["cache-control"]).toContain("no-store");
+      expect(state.json()).toEqual({ optedOut: true });
+      expect((await api.inject({ url: preference, headers: partnerHeaders })).json()).toEqual({ optedOut: false });
+      expect(await db.$queryRaw`SELECT relationship_id FROM lockedin_reporting.pilot_pair
+        WHERE relationship_id IN (${a.id}, ${oldSpace.id})`).toEqual([]);
+      expect(await db.roadmapPlan.count({ where: { relationshipId: a.id } })).toBeGreaterThan(0);
+      expect(await db.togetherPhoto.count({ where: { relationshipId: a.id } })).toBeGreaterThan(0);
+
+      const filtered = await httpsReport();
+      expect(filtered.statusCode).toBe(200);
+      expect(filtered.json()).toMatchObject({ enrolledPairs: 5, pairsWithSharedAction: 4, repeatMemories: { status: "insufficient_follow_up" } });
+      await enroll(a.id); // A stale operator entry cannot override a partner's withdrawal.
+      expect((await httpsReport()).json()).toEqual(filtered.json());
+      expect((await withdraw()).json()).toEqual({ optedOut: true });
     } finally {
       await api.close();
     }
-    await db.$executeRaw`DELETE FROM lockedin_reporting.pilot_pair WHERE relationship_id = ${a.id}`;
-    expect(await report(week)).toMatchObject({ enrolledPairs: 5, pairsWithSharedAction: 4, repeatMemories: { status: "insufficient_follow_up" } });
   });
 
   it("provisions a login that can only get totals, rejects broad public grants, and runs the same CLI used on demand", async () => {

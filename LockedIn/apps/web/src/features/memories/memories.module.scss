@@ -88,6 +88,23 @@
   gap: .55rem 1rem;
 }
 .spread > .panel { grid-area: panel; }
+.recapCaptions {
+  display: grid;
+  gap: .65rem;
+  margin-top: 1rem;
+
+  h3 { margin: 0; font: 500 1.15rem/1.25 var(--font-serif); }
+  figure {
+    margin: 0;
+    padding-block-start: .6rem;
+    border-block-start: 1px solid var(--member-divider, var(--brand-rule));
+  }
+  blockquote {
+    margin: .28rem 0 0;
+    font: italic 1.04rem/1.45 var(--font-serif);
+    overflow-wrap: anywhere;
+  }
+}
 .photo { grid-area: photo; min-inline-size: 0; }
 .tools { grid-area: tools; display: grid; gap: .45rem; min-inline-size: 0; }
 .canvas {

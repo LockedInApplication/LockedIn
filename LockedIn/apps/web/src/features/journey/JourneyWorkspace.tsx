@@ -33,13 +33,14 @@ import { ManageTogetherLink, QuietTogetherHome, TogetherWelcome } from "./compon
 import ManageTogether, { leaveTogetherDescription } from "./components/ManageTogether";
 import togetherStyles from "./components/together-home.module.scss";
 import DirectLockIn from "@/features/messaging/DirectLockIn";
-import { conversationTopicAnchor, conversationTopicHref, currentCheckInHref, discoveryVisibilityHref, workspaceBack, workspaceHref } from "./journey.navigation";
+import { conversationTopicAnchor, conversationTopicHref, currentCheckInHref, discoveryVisibilityHref, ourWeekDetailHref, ourWeekSource, workspaceBack, workspaceHref } from "./journey.navigation";
 import BehindThePhoto from "@/features/memories/BehindThePhoto";
 import { memoryNoteTarget } from "@/features/memories/memory-note-preview";
 import { planMemoryHref, planMemoryTarget } from "@/features/memories/plan-memory";
 import { useTogetherMemories } from "@/features/memories/use-together-memories";
 import { useTogetherHomeNotes } from "@/features/together-notes/use-together-home-notes";
 import RoomToTalk from "@/features/room-to-talk/RoomToTalk";
+import OurWeekTogether from "./components/OurWeekTogether";
 import { togetherPlanHref } from "./together-home";
 
 type Notice = { tone: "success" | "error"; message: string; reviewDiscovery?: boolean } | null;
@@ -89,6 +90,7 @@ export default function JourneyWorkspace() {
   const invitationBy=targetQuery.has("invitation")?"id":"token";
   const invitationManagerOpen=targetQuery.get("invitations")==="manage";
   const lockedTogether = overview?.relationship?.isMutuallyLockedIn === true;
+  const fromOurWeek = lockedTogether && targetQuery.get("from") === ourWeekSource;
   const memoryHash = activeView === "memories" ? workspaceUrl.hash : "";
   const memoryPlanId = planMemoryTarget(memoryHash);
   const notes = useTogetherHomeNotes({
@@ -110,6 +112,8 @@ export default function JourneyWorkspace() {
 
   const hasOverview=overview!==null;
   const sessionId=overview?.session?.id;
+  const recapPlanExpected = fromOurWeek && activeView === "roadmap" && workspaceUrl.hash.startsWith("#step-");
+  const recapPlanFound = recapPlanExpected && overview?.simplePlans?.some(plan => `#step-${encodeURIComponent(plan.id)}` === workspaceUrl.hash);
   useEffect(()=>{
     if(!hasOverview)return;
     const hash=new URL(workspaceLocation,"http://localhost").hash.slice(1);
@@ -123,7 +127,7 @@ export default function JourneyWorkspace() {
       block: hash === "current-action" ? "start" : "center",
     });
     element?.focus({preventScroll:true});
-  },[workspaceLocation,hasOverview,sessionId]);
+  },[workspaceLocation,hasOverview,sessionId,recapPlanFound]);
 
   const onInvitationUpdate=requestQuietRefresh;
 
@@ -240,8 +244,9 @@ export default function JourneyWorkspace() {
   }
   const isHome = Boolean(overview.relationship && activeView === "home");
   const isRoom = activeView === "room-to-talk";
-  const compactView = ["talk", "check-ins", "conversations", "options", "room-to-talk"].includes(activeView);
-  const back = workspaceBack(activeView);
+  const compactView = ["talk", "check-ins", "conversations", "options", "room-to-talk", "our-week"].includes(activeView);
+  const back = workspaceBack(activeView, fromOurWeek ? ourWeekSource : undefined);
+  const keepWeekReturn = fromOurWeek ? ourWeekDetailHref : (href: string) => href;
   const chatId = overview.messaging?.enabled ? overview.messaging.conversationId : null;
   const openCurrentCheckIn = () => {
     if (confirmDiscard()) navigateWorkspaceUrl(currentCheckInHref);
@@ -400,21 +405,28 @@ export default function JourneyWorkspace() {
             busy={busy}
             runAction={runAction}
           />
+        ) : activeView === "our-week" ? (
+          lockedTogether ? <OurWeekTogether key={`${overview.user.id}:${overview.relationship.id}`}
+            relationshipId={overview.relationship.id} userId={overview.user.id} partnerName={overview.relationship.partner.name}
+            revision={quietRevision + roomRevision} onNavigate={openWorkspaceDestination} onExpired={onExpired} />
+            : <SectionHeading title="Our Week Together" detail="Your private recap opens when you both choose to lock in." />
         ) : activeView === "memories" ? (
           lockedTogether ? <BehindThePhoto key={`${overview.user.id}:${overview.relationship.id}:${memoryHash}`}
             relationshipId={overview.relationship.id} userId={overview.user.id} partnerName={overview.relationship.partner.name}
             memories={memories} initialTarget={memoryNoteTarget(memoryHash)} onDirty={setDirty} onExpired={onExpired}
+            showEnvelopeCaptions={fromOurWeek}
             planLink={memoryPlanId ? {
               id: memoryPlanId,
               plan: overview.simplePlans?.find(plan => plan.id === memoryPlanId),
-              onBack: () => openWorkspaceDestination(togetherPlanHref(memoryPlanId)),
+              onBack: () => openWorkspaceDestination(keepWeekReturn(togetherPlanHref(memoryPlanId))),
             } : undefined} onPlanMemoryChange={requestQuietRefresh} />
             : <section className={styles.intro}><div><h1>Behind the Photo</h1><p>This private photo book opens when you both choose to lock in.</p></div></section>
         ) : activeView === "roadmap" ? (<>
           <SectionHeading title="Plans" detail="Outings, ideas, and things you agree to do together." />
+          {recapPlanExpected && !recapPlanFound ? <p className={styles.notice} role="status">This plan couldn’t be opened. You can go back to the recap or see your other plans below.</p> : null}
           <RoadmapView key={overview.relationship.id} relationshipId={overview.relationship.id} userId={overview.user.id} simplePlans={overview.simplePlans}
             session={overview.session} busy={busy} runAction={runAction} onDiscard={()=>setDirty(false)}
-            onOpenPlanMemory={lockedTogether ? id => openWorkspaceDestination(planMemoryHref(id)) : undefined}
+            onOpenPlanMemory={lockedTogether ? id => openWorkspaceDestination(keepWeekReturn(planMemoryHref(id))) : undefined}
             onConflict={()=>{setDirty(false);requestQuietRefresh();}} />
         </>) : activeView === "chapters" ? (<>
           <SectionHeading title="Past check-ins" />

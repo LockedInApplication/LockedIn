@@ -2,6 +2,7 @@ import { workspaceHref } from "@/features/journey/journey.navigation";
 import type { Memories } from "./memory-api";
 
 export type MemoryNoteTarget = { kind: "caption"; envelopeId: string }
+  | { kind: "photo"; photoId: string }
   | { kind: "pin"; photoId: string; pinId: string };
 export type PartnerMemoryNote = { text: string; updatedAt: string | null; target: MemoryNoteTarget };
 
@@ -33,7 +34,7 @@ export function latestPartnerMemoryNote(memories: Memories): PartnerMemoryNote |
 
 export function memoryNoteHref(target: MemoryNoteTarget): string {
   const fragment = target.kind === "caption" ? `memory-envelope/${encodeURIComponent(target.envelopeId)}`
-    : `memory-photo/${encodeURIComponent(target.photoId)}/${encodeURIComponent(target.pinId)}`;
+    : `memory-photo/${encodeURIComponent(target.photoId)}${target.kind === "pin" ? "/" + encodeURIComponent(target.pinId) : ""}`;
   return `${workspaceHref("memories")}#${fragment}`;
 }
 
@@ -41,6 +42,7 @@ export function memoryNoteTarget(hash: string): MemoryNoteTarget | null {
   try {
     const [kind, id, pin, extra] = hash.replace(/^#/, "").split("/");
     if (kind === "memory-envelope" && id && pin === undefined) return { kind: "caption", envelopeId: decodeURIComponent(id) };
+    if (kind === "memory-photo" && id && pin === undefined) return { kind: "photo", photoId: decodeURIComponent(id) };
     if (kind === "memory-photo" && id && pin && extra === undefined) return { kind: "pin", photoId: decodeURIComponent(id), pinId: decodeURIComponent(pin) };
   } catch {
     // A malformed or outdated link can still open the Memories shelf.

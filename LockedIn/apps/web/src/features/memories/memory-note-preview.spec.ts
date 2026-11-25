@@ -28,6 +28,13 @@ it("uses an undated caption as the fallback and declines malformed or unrelated 
   const latest = latestPartnerMemoryNote(gallery([{ ...base, text: "   " }]));
   expect(latest).toEqual({ text: "A shared afternoon", updatedAt: null, target: { kind: "caption", envelopeId: "weekend" } });
   expect(memoryNoteTarget("#memory-envelope/weekend")).toEqual(latest!.target);
-  for (const hash of ["#other", "#memory-envelope/%0", "#memory-photo/photo", "#memory-photo/photo/pin/extra"]) expect(memoryNoteTarget(hash)).toBeNull();
+  for (const hash of ["#other", "#memory-envelope/%0", "#memory-photo/", "#memory-photo/photo/pin/extra"]) expect(memoryNoteTarget(hash)).toBeNull();
   expect(latestPartnerMemoryNote({ photos: [], envelopes: [] })).toBeNull();
+});
+
+it("opens a shared photo directly even when it has no pinned notes", () => {
+  const target = { kind: "photo", photoId: "photo/one" } as const;
+  const url = new URL(memoryNoteHref(target), "http://localhost");
+  expect(url.hash).toBe("#memory-photo/photo%2Fone");
+  expect(memoryNoteTarget(url.hash)).toEqual(target);
 });

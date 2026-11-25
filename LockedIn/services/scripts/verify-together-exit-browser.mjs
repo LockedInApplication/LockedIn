@@ -241,6 +241,72 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
     await b.getByRole("img", { name: outing, exact: true }).waitFor();
     assert.equal(await prisma.togetherPhoto.count({ where: { relationshipId:space.relationshipId } }),1);
     console.log("PASS completed plan prefilled a private photo draft, both guests opened the same memory, and undo kept it");
+
+    const { previousTogetherWeek } = await import("../api/src/features/journey/our-week.service.ts");
+    const { start: lastWeek } = previousTogetherWeek(new Date());
+    const lastSaturday = new Date(lastWeek.getTime() + 5 * 86_400_000 + 12 * 3_600_000);
+    const fixturePlan = await prisma.roadmapPlan.findFirstOrThrow({ where: { relationshipId: space.relationshipId, title: outing } });
+    const envelope = await prisma.togetherEnvelope.create({ data: {
+      relationshipId: space.relationshipId, title: "Garden day", tone: "LINEN",
+      captions: { create: [
+        { authorId: alex.id, text: "The sculptures caught the afternoon light." },
+        { authorId: sam.id, text: "I want to walk that path again." },
+      ] },
+    } });
+    await prisma.roadmapPlan.update({ where: { id: fixturePlan.id }, data: { status: "DONE", completedAt: lastSaturday } });
+    const photo = await prisma.togetherPhoto.update({ where: { sourcePlanId: fixturePlan.id }, data: {
+      title: "Light in the garden", envelopeId: envelope.id, createdAt: lastSaturday,
+    } });
+    await prisma.roomTalkTopic.create({ data: {
+      relationshipId: space.relationshipId, authorId: alex.id, question: "Places to see next",
+      phase: "DISCUSSED", discussedAt: lastSaturday,
+    } });
+
+    const weekPath = "/journey?view=our-week";
+    const weekApi = `/api/journey/relationships/${space.relationshipId}/our-week`;
+    let recapRequests = 0;
+    const countRecap = request => { if (new URL(request.url()).pathname === weekApi) recapRequests++; };
+    a.on("request",countRecap);
+    await a.goto(base + "/journey");
+    await link(a,"Our Week Together").waitFor();
+    assert.equal(recapRequests,0,"Recap is not fetched on Together home");
+    await link(a,"Our Week Together").click();
+    await a.waitForURL(base + weekPath);
+    const week = page => page.getByRole("region", { name: "Our Week Together", exact: true });
+    await week(a).getByText("Places to see next", { exact: true }).waitFor();
+    a.off("request",countRecap);
+    for (const width of [320,390]) {
+      await a.setViewportSize({ width, height:844 });
+      assert(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      if (width === 390 && artifacts) await a.screenshot({ path:path.join(artifacts,"our-week-recap-390.png") });
+    }
+    const planLink = page => week(page).getByRole("region", { name:"Plans", exact:true }).getByRole("link", { name:/^Visit the sculpture garden/ });
+    await planLink(a).press("Enter");
+    const fromWeekPlan = `/journey?view=roadmap&from=our-week#step-${fixturePlan.id}`;
+    await a.waitForURL(base + fromWeekPlan);
+    await button(outingCard(a),"Open memory").waitFor();
+    await a.waitForFunction(id => document.activeElement?.id === "step-" + id, fixturePlan.id);
+    await button(outingCard(a),"Open memory").click();
+    const captions = page => page.getByRole("region", { name:"Captions from Garden day", exact:true });
+    await captions(a).getByText(/sculptures caught/).waitFor();
+    await captions(a).getByText(/walk that path again/).waitFor();
+    await button(a,"← Back to plan").click();
+    await a.waitForURL(base + fromWeekPlan);
+    await link(a,"Our Week Together").click();
+    await a.waitForURL(base + weekPath);
+    const memoryLink = page => week(page).getByRole("region", { name:"Memories", exact:true }).getByRole("link", { name:/^Light in the garden/ });
+    await memoryLink(a).click();
+    await a.waitForURL(base + `/journey?view=memories&from=our-week#memory-photo/${photo.id}`);
+    await a.getByRole("img", { name:"Light in the garden", exact:true }).waitFor();
+    await captions(a).getByText(/walk that path again/).waitFor();
+    if (artifacts) await a.screenshot({ path:path.join(artifacts,"our-week-memory-390.png") });
+    await link(a,"Our Week Together").click();
+    await a.waitForURL(base + weekPath);
+    await b.goto(base + weekPath);
+    await planLink(b).waitFor();
+    await memoryLink(b).waitFor();
+    assert.equal(await week(b).getByText("Only you and Alex",{exact:true}).count(),1);
+    console.log("PASS opt-in-to-view recap for both partners, focus and back from the original plan and photo, both captions, mobile layout");
     await b.goto(base + "/journey");
 
     await link(b,"Message Alex").click();
@@ -351,8 +417,19 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
     await b.goto(chatUrl);
     assert.equal((await b.request.get(base + `/api/messaging/conversations/${conversationId}/messages`)).status(),404);
     assert.equal((await b.request.get(base + homeNotes, { headers: { "X-Together-Owner":sam.id } })).status(),404);
+    assert.equal((await a.request.get(base + weekApi, { headers: { "X-Together-Owner":alex.id } })).status(),404);
+    assert.equal((await b.request.get(base + weekApi, { headers: { "X-Together-Owner":sam.id } })).status(),404);
     for (const id of [alex.id,sam.id]) assert((await prisma.discoveryProfile.findUniqueOrThrow({ where: { ownerId:id } })).pausedAt);
     console.log("PASS Manage Together shortcuts, cancel and confirm exit, linked chat closure, and no automatic republication");
+    const savedPublication = await prisma.discoveryProfile.findUniqueOrThrow({ where: { ownerId:alex.id } });
+    await button(a,"Resume visibility").click();
+    await a.getByText("Discovery visibility resumed.", { exact:true }).waitFor();
+    const resumed = await prisma.discoveryProfile.findUniqueOrThrow({ where: { ownerId:alex.id } });
+    assert.equal(resumed.pausedAt,null);
+    assert.equal(resumed.publicationVersion,savedPublication.publicationVersion);
+    assert.deepEqual(resumed.publishedSnapshot,savedPublication.publishedSnapshot);
+    assert((await prisma.discoveryProfile.findUniqueOrThrow({ where: { ownerId:sam.id } })).pausedAt);
+    console.log("PASS Resume visibility returns the existing Discovery profile without rebuilding or republishing it; partner stays paused");
 
     await b.setViewportSize({ width:390, height:844 });
     await b.goto(base + "/profile");

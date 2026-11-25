@@ -51,9 +51,10 @@ const outingDate = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZ
 const outingDayLabel = (day: string) => outingDate.format(new Date(`${day}T12:00:00Z`));
 type PlanLink = { id: string; plan: SimplePlan | undefined; onBack: () => void };
 
-export default function BehindThePhoto({ relationshipId, userId, partnerName, memories, initialTarget, planLink, onPlanMemoryChange, onDirty, onExpired }: {
+export default function BehindThePhoto({ relationshipId, userId, partnerName, memories, initialTarget, planLink, onPlanMemoryChange, showEnvelopeCaptions = false, onDirty, onExpired }: {
   relationshipId: string; userId: string; partnerName: string; memories: TogetherMemories;
   initialTarget: MemoryNoteTarget | null;
+  showEnvelopeCaptions?: boolean;
   planLink?: PlanLink;
   onPlanMemoryChange?: () => void;
   onDirty: (value: boolean) => void; onExpired: () => void;
@@ -64,7 +65,8 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
   const [error, setError] = useState("");
   const [envelopeId, setEnvelopeId] = useState<string | null>(initialTarget?.kind === "caption" ? initialTarget.envelopeId : null);
   const [side, setSide] = useState<"front" | "back">(initialTarget?.kind === "caption" ? "back" : "front");
-  const [selectedPhotoId, setPhotoId] = useState<string | null>(initialTarget?.kind === "pin" ? initialTarget.photoId : null);
+  const directPhoto = initialTarget?.kind === "photo" ? initialTarget.photoId : null;
+  const [selectedPhotoId, setPhotoId] = useState<string | null>(initialTarget?.kind === "pin" ? initialTarget.photoId : directPhoto);
   const [pinId, setPinId] = useState<string | null>(initialTarget?.kind === "pin" ? initialTarget.pinId : null);
   const linkedPhoto = planLink ? gallery?.photos.find(item => item.sourcePlanId === planLink.id) : undefined;
   const [followPlan, setFollowPlan] = useState(Boolean(planLink));
@@ -84,7 +86,7 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
     setCheckedGallery(gallery);
     // An item may be removed by either person while we are looking at it.
     if (envelopeId && !gallery.envelopes.some(item => item.id === envelopeId)) setEnvelopeId(null);
-    if (selectedPhotoId && !gallery.photos.some(item => item.id === selectedPhotoId)) setPhotoId(null);
+    if (selectedPhotoId && selectedPhotoId !== directPhoto && !gallery.photos.some(item => item.id === selectedPhotoId)) setPhotoId(null);
   }
   useEffect(() => () => setBlocked(false), [setBlocked]);
 
@@ -360,7 +362,8 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
             onUpload={() => beginUpload(envelope.id)}
             onTuck={() => { setNotice(""); changeDraft({ type: "tuck", envelopeId: envelope.id }); }}
             onFlip={() => flip("back")} onPhoto={openPhoto} />
-        : !photo ? <p className={styles.small} role="status">{photoId ? "Opening photo…" : "Opening envelope…"}</p>
+        : !photo ? <p className={styles.small} role="status">{photoId === directPhoto && directPhoto
+          ? "This shared photo is no longer available." : photoId ? "Opening photo…" : "Opening envelope…"}</p>
         : <div className={styles.book}>
         <div className={styles.photoTitle}>
           <p className={styles.eyebrow}>{photo.sourcePlanId ? "Memory from Plans" : "Shared photo"}</p><h2>{photo.title}</h2>
@@ -421,6 +424,14 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
             </div> : null}
           </div>
         </div>
+        {showEnvelopeCaptions && !draft && envelope?.captions.length ? <section className={styles.recapCaptions}
+          aria-label={`Captions from ${envelope.title}`}>
+          <h3>From {envelope.title}</h3>
+          {[...envelope.captions].sort((a, b) => Number(b.yours) - Number(a.yours)).map(caption => <figure key={caption.yours ? "you" : "partner"}>
+            <figcaption className={styles.eyebrow}>{caption.yours ? "You" : partnerName}</figcaption>
+            <blockquote>“{caption.text}”</blockquote>
+          </figure>)}
+        </section> : null}
       </div>}
     </> : null}
     {error ? <p className={styles.error} role="alert">{error}</p> : null}

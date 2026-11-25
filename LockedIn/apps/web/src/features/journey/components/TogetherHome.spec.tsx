@@ -119,6 +119,16 @@ it("keeps Memories and Room to Talk gated by the mutual lock-in", () => {
   expect(talk).toContain("Check-ins");
 });
 
+it("places the optional recap outside the three main sections and only offers it after mutual Lock In", () => {
+  const home = (locked: boolean) => renderToStaticMarkup(<QuietTogetherHome
+    overview={{ ...overview, relationship: { ...overview.relationship!, isMutuallyLockedIn: locked } }} memories={emptyMemories} letter={letter}
+    onNavigate={() => {}} confirmLeave={() => true} />);
+  const locked = home(true);
+  expect(locked).toContain('href="/journey?view=our-week"');
+  expect(locked.indexOf("Your space")).toBeLessThan(locked.indexOf("Our Week Together"));
+  expect(home(false)).not.toContain("Our Week Together");
+});
+
 it("shows the note, Message, and one timely item in order, with neither progress nor chat prompts on the page", () => {
   const waitingOnMe = { ...session, bothRevealed: false, ownResponse: null };
   const gallery: Memories = { photos: [], envelopes: [{ id: "day-1", title: "Sunday", day: null, tone: "LINEN", coverPhotoId: null,

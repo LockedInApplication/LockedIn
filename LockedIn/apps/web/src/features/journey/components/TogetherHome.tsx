@@ -7,7 +7,7 @@ import type { TogetherMemories } from "@/features/memories/use-together-memories
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import type { SimplePlan } from "@/features/roadmap/roadmap.types";
 import { daysTogether, getTogetherNextUp, shouldCelebrateLockIn, togetherPlanHref } from "../together-home";
-import { manageTogetherHref } from "../journey.navigation";
+import { manageTogetherHref, ourWeekHref } from "../journey.navigation";
 import type { JourneyOverview } from "../journey.types";
 import TogetherChatActions from "./TogetherChatActions";
 import TogetherLetter, { type LetterControls } from "./TogetherLetter";
@@ -178,6 +178,13 @@ export function QuietTogetherHome({ overview, memories, letter, onNavigate, conf
     {nextUp?.kind === "check-in" ? <NextUpLink label="Your turn" href={nextUp.href} title={nextUp.title} detail={nextUp.detail} onOpen={onNavigate} />
       : nextUp?.kind === "plan" ? <TogetherPlan plan={nextUp.plan} onOpen={onNavigate} /> : null}
     <WorkspaceNav section="home" lockedTogether={lockedTogether} onNavigate={onNavigate} />
+    {lockedTogether ? <Link className={styles.weekLink} href={ourWeekHref} prefetch={false}
+      onNavigate={event => { event.preventDefault(); onNavigate(ourWeekHref); }}>
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 6h14v14H5zM8 4v4m8-4v4M5 10h14m-10 5h6" />
+      </svg>
+      <span>Our Week Together</span><span aria-hidden="true">›</span>
+    </Link> : null}
     {children}
   </div>;
 }

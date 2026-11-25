@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { currentCheckInHref, conversationTopicHref, getWorkspaceView, roomToTalkHref, workspaceBack, workspaceViewUrl } from "./journey.navigation";
+import { currentCheckInHref, conversationTopicHref, getWorkspaceView, ourWeekDetailHref, ourWeekHref, ourWeekSource, roomToTalkHref, workspaceBack, workspaceViewUrl } from "./journey.navigation";
 
 describe("workspace section URLs", () => {
-  it.each(["home", "talk", "check-ins", "conversations", "atlas", "roadmap", "chapters", "memories", "room-to-talk", "options"] as const)(
+  it.each(["home", "talk", "check-ins", "conversations", "atlas", "roadmap", "chapters", "memories", "room-to-talk", "our-week", "options"] as const)(
     "restores the %s section from the URL", (view) => {
       expect(getWorkspaceView(`?view=${view}`)).toBe(view);
     },
@@ -46,5 +46,19 @@ describe("workspace section URLs", () => {
     expect(workspaceBack("check-ins")).toEqual({ view: "talk", label: "Talk" });
     expect(workspaceBack("chapters")).toEqual({ view: "check-ins", label: "Check-ins" });
     expect(workspaceBack("roadmap")).toEqual({ view: "home", label: "Together" });
+  });
+
+  it("restores the recap parent from original details without making it the default parent", () => {
+    const plan = ourWeekDetailHref("/journey?view=roadmap#step-id");
+    const photo = ourWeekDetailHref("/journey?view=memories#memory-photo/id");
+    expect(plan).toBe("/journey?view=roadmap&from=our-week#step-id");
+    expect(photo).toBe("/journey?view=memories&from=our-week#memory-photo/id");
+    for (const view of ["roadmap", "memories"] as const) {
+      expect(workspaceBack(view, ourWeekSource)).toEqual({ view: "our-week", label: "Our Week Together" });
+      expect(workspaceBack(view)).toEqual({ view: "home", label: "Together" });
+    }
+    expect(workspaceViewUrl(plan, "our-week")).toBe(ourWeekHref);
+    expect(workspaceViewUrl(photo, "home")).toBe("/journey");
+    expect(workspaceBack("our-week")).toEqual({ view: "home", label: "Together" });
   });
 });

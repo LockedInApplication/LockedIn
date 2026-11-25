@@ -215,13 +215,13 @@ export function transitionRoomTopic(relationshipId: string, actorId: string, id:
       }
       case "discuss":
         if (topic.phase !== "TALK_NEXT" && topic.phase !== "SAVED") throw changed();
-        data = { phase: "DISCUSSED", inPersonById: null, takeaway: input.takeaway };
+        data = { phase: "DISCUSSED", inPersonById: null, takeaway: input.takeaway, discussedAt: new Date() };
         if (topic.inPersonById) notice = await resolveNotice(tx, relationshipId, id, topic.inPersonById === actorId ? partnerId : actorId, inPerson);
         await tx.roomTalkPresence.deleteMany({ where: { topicId: id } });
         break;
       case "reopen":
         if (topic.phase !== "DISCUSSED") throw changed();
-        data = { phase: "SAVED" };
+        data = { phase: "SAVED", discussedAt: null };
         break;
     }
     const row = await tx.roomTalkTopic.update({ where: { id }, data, select: topicSelect });

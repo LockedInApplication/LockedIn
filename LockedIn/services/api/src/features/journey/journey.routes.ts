@@ -13,6 +13,7 @@ import { registerNotificationRoutes } from "../notifications/notification.routes
 import { registerMemoryRoutes } from "../memories/memory.routes.js";
 import { registerRoomTalkRoutes } from "../room-to-talk/room-to-talk.routes.js";
 import { registerTogetherNoteRoutes } from "../together-notes/together-note.routes.js";
+import { registerOurWeekRoutes } from "./our-week.routes.js";
 
 export async function journeyRoutes(server: FastifyInstance) {
   await registerNotificationRoutes(server);
@@ -24,6 +25,7 @@ export async function journeyRoutes(server: FastifyInstance) {
   await server.register(registerMemoryRoutes);
   await registerRoomTalkRoutes(server);
   await registerTogetherNoteRoutes(server);
+  await registerOurWeekRoutes(server);
 
   server.get("/api/journey/overview", async (request, reply) => {
     const user = await requireUser(request, reply);

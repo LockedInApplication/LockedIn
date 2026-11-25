@@ -10,7 +10,7 @@ const calendar = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZon
 const dayLabel = (day: string) => calendar.format(new Date(day + "T12:00:00Z"));
 const countPhotos = (count: number) => count + (count === 1 ? " photo" : " photos");
 
-export function MemoryThumbnail({ base, photo, className, eager = false }: { base: string; photo: MemoryPhoto; className?: string; eager?: boolean }) {
+export function MemoryThumbnail({ base, photo, className, eager = false }: { base: string; photo: Pick<MemoryPhoto, "id">; className?: string; eager?: boolean }) {
   const element = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {

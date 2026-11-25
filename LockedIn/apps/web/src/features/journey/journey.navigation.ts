@@ -1,5 +1,7 @@
-export type WorkspaceView = "home" | "talk" | "check-ins" | "conversations" | "atlas" | "roadmap" | "chapters" | "memories" | "room-to-talk" | "options";
+export type WorkspaceView = "home" | "talk" | "check-ins" | "conversations" | "atlas" | "roadmap" | "chapters" | "memories" | "room-to-talk" | "our-week" | "options";
 export const workspaceHref = (view: WorkspaceView) => view === "home" ? "/journey" : `/journey?view=${view}`;
+export const ourWeekSource = "our-week";
+export const ourWeekHref = workspaceHref(ourWeekSource);
 export const manageTogetherHref = workspaceHref("options");
 export const manageTogetherSource = "manage-together";
 export const chatSafetyAnchor = "chat-safety";
@@ -13,6 +15,12 @@ export const checkInsHref = workspaceHref("check-ins");
 export const currentCheckInHref = `${checkInsHref}#current-action`;
 export const conversationTopicAnchor = "your-topic";
 export const conversationTopicHref = `/journey?view=conversations#${conversationTopicAnchor}`;
+
+export function ourWeekDetailHref(href: string) {
+  const url = new URL(href, "http://localhost");
+  url.searchParams.set("from", ourWeekSource);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
 
 export function roomToTalkHref(destination?: { shelf?: string; topic?: string }) {
   const query = new URLSearchParams({ view: "room-to-talk" });
@@ -32,6 +40,7 @@ export function getWorkspaceView(search: string, hash = ""): WorkspaceView {
     case "chapters":
     case "memories":
     case "room-to-talk":
+    case "our-week":
     case "options":
       return view;
     default:
@@ -41,7 +50,10 @@ export function getWorkspaceView(search: string, hash = ""): WorkspaceView {
   }
 }
 
-export function workspaceBack(view: WorkspaceView): { view: WorkspaceView; label: string } {
+export function workspaceBack(view: WorkspaceView, from?: string): { view: WorkspaceView; label: string } {
+  if (from === ourWeekSource && (view === "roadmap" || view === "memories")) {
+    return { view: "our-week", label: "Our Week Together" };
+  }
   switch (view) {
     case "conversations":
     case "chapters":
@@ -58,6 +70,7 @@ export function workspaceBack(view: WorkspaceView): { view: WorkspaceView; label
 export function workspaceViewUrl(currentUrl: string, view: WorkspaceView): string {
   const url = new URL(currentUrl, "http://localhost");
   url.searchParams.delete("suggestion");
+  if (url.searchParams.get("from") === ourWeekSource && url.searchParams.get("view") !== view) url.searchParams.delete("from");
   if (url.searchParams.get("view") === "room-to-talk" && view !== "room-to-talk") {
     for (const key of ["shelf", "topic"]) url.searchParams.delete(key);
   }
@@ -66,6 +79,6 @@ export function workspaceViewUrl(currentUrl: string, view: WorkspaceView): strin
   if (view !== "check-ins" && url.hash === "#current-action") url.hash = "";
   if (view !== "conversations" && url.hash === `#${conversationTopicAnchor}`) url.hash = "";
   if (view !== "roadmap" && url.hash.startsWith("#step-")) url.hash = "";
-  if (view !== "memories" && url.hash.startsWith("#memory-plan/")) url.hash = "";
+  if (view !== "memories" && /^#memory-(plan|photo|envelope)\//.test(url.hash)) url.hash = "";
   return `${url.pathname}${url.search}${url.hash}`;
 }

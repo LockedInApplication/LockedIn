@@ -142,6 +142,50 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
     await link(b,"Message Alex").waitFor();
     assert.equal(await b.getByText("Shared progress", { exact:true }).count(), 0);
     assert.equal(await button(b,"Try a prompt").count(), 0);
+    const space = await prisma.chatConversation.findUniqueOrThrow({ where: { id: conversationId } });
+    assert(space.relationshipId);
+    const homeNotes = `/api/journey/relationships/${space.relationshipId}/home-notes`;
+    const messagesBeforeNotes = await prisma.discoveryMessage.count({ where: { conversationId } });
+    await a.setViewportSize({ width:390, height:844 });
+    await a.goto(base + "/journey");
+    await button(b,"Write the first note").waitFor();
+    await button(a,"Write the first note").click();
+    const firstDraft = a.getByRole("textbox", { name: /^Note to Sam/ });
+    await firstDraft.waitFor();
+    assert.equal(a.url(), base + "/journey");
+    assert(await firstDraft.evaluate(el => document.activeElement === el));
+    assert(await button(a,"Share note").isDisabled());
+    await firstDraft.fill("A private draft that will be canceled");
+    assert.equal(await prisma.togetherHomeNote.count({ where: { relationshipId:space.relationshipId } }),0);
+    await button(a,"Cancel").click();
+    await button(a,"Write the first note").click();
+    assert.equal(await firstDraft.inputValue(), "");
+    const note = "I loved our walk today.";
+    await firstDraft.fill(note);
+    assert.equal(await b.getByText(note, { exact:false }).count(),0);
+    if (artifacts) await a.screenshot({ path: path.join(artifacts,"together-note-draft-390.png") });
+    await button(a,"Share note").click();
+    await a.getByText(/^Note shared with Sam/).waitFor();
+    const received = b.getByRole("region", { name:"A note from Alex", exact:true });
+    await received.getByText(`“${note}”`, { exact:true }).waitFor();
+    await b.reload();
+    await received.getByText(`“${note}”`, { exact:true }).waitFor();
+    if (artifacts) {
+      const size = b.viewportSize();
+      await b.setViewportSize({ width:390, height:844 });
+      await b.screenshot({ path: path.join(artifacts,"together-note-received-390.png") });
+      if (size) await b.setViewportSize(size);
+    }
+    await button(received,"Write one back").click();
+    const reply = "Let’s go again on Sunday.";
+    await b.getByRole("textbox", { name:"Note to Alex", exact:true }).fill(reply);
+    await button(b,"Share note").click();
+    await a.getByText(`“${reply}”`, { exact:true }).waitFor();
+    assert.equal(await prisma.discoveryMessage.count({ where: { conversationId } }),messagesBeforeNotes);
+    assert.equal(await prisma.togetherPhoto.count({ where: { relationshipId:space.relationshipId } }),0);
+    assert.equal(await prisma.togetherEnvelope.count({ where: { relationshipId:space.relationshipId } }),0);
+    console.log("PASS Together notes stay private while drafted, appear for the partner, and persist without photos, envelopes, or chat messages");
+
     await link(b,"Message Alex").click();
     const prompt = button(b,"Try a prompt");
     await prompt.waitFor();
@@ -170,8 +214,6 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
     await talk.getByRole("link", { name: /^Atlas/ }).click();
     const atlas = b.getByRole("region", { name: "The Atlas of Us", exact: true });
     await atlas.getByRole("button", { name: /Support.*Unexplored/ }).waitFor();
-    const space = await prisma.chatConversation.findUniqueOrThrow({ where: { id: conversationId } });
-    assert(space.relationshipId);
     await a.goto(base + "/discover");
     await a.getByRole("heading", { name: "Discovery is paused while you’re locked in.", exact: true }).waitFor();
     console.log("PASS Not now, mutual Lock In, Discovery pause, both maps and the private check-in");
@@ -224,6 +266,7 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
     await button(a,"Resume visibility").waitFor();
     await b.goto(chatUrl);
     assert.equal((await b.request.get(base + `/api/messaging/conversations/${conversationId}/messages`)).status(),404);
+    assert.equal((await b.request.get(base + homeNotes, { headers: { "X-Together-Owner":sam.id } })).status(),404);
     for (const id of [alex.id,sam.id]) assert((await prisma.discoveryProfile.findUniqueOrThrow({ where: { ownerId:id } })).pausedAt);
     console.log("PASS Manage Together shortcuts, cancel and confirm exit, linked chat closure, and no automatic republication");
 

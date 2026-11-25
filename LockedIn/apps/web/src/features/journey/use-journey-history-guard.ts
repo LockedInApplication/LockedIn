@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, type RefObject } from "react";
 const warning =
-  "You have unsaved answers. Leave them and load the latest activity?";
+  "You have unsaved changes. Leave them and load the latest activity?";
 /** Block history traversal before Next or workspace subscribers unmount a draft. */
 export function useJourneyHistoryGuard(dirty: RefObject<boolean>, setDirty: (value: boolean) => void) {
   useEffect(() => {

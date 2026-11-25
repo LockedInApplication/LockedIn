@@ -3,15 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BrandRings } from "@/components/brandLogo";
-import { latestPartnerMemoryNote, memoryNoteHref } from "@/features/memories/memory-note-preview";
 import type { TogetherMemories } from "@/features/memories/use-together-memories";
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import type { SimplePlan } from "@/features/roadmap/roadmap.types";
-import { daysTogether, getTogetherNextUp, noteAge, shouldCelebrateLockIn, togetherPlanHref } from "../together-home";
-import { manageTogetherHref, workspaceHref } from "../journey.navigation";
+import { daysTogether, getTogetherNextUp, shouldCelebrateLockIn, togetherPlanHref } from "../together-home";
+import { manageTogetherHref } from "../journey.navigation";
 import type { JourneyOverview } from "../journey.types";
 import TogetherChatActions from "./TogetherChatActions";
+import TogetherLetter, { type LetterControls } from "./TogetherLetter";
 import WorkspaceNav from "./WorkspaceNav";
 import photo from "../../../../public/together/two-coffees.webp";
 import styles from "./together-home.module.scss";
@@ -154,33 +153,10 @@ export function ManageTogetherLink({ onNavigate }: { onNavigate: (href: string) 
 
 type MemoryPreview = Pick<TogetherMemories, "gallery" | "error">;
 
-function TogetherLetter({ partnerName, memories, now, onNavigate }: {
-  partnerName: string; memories: MemoryPreview; now: number; onNavigate: (href: string) => void;
-}) {
-  const note = memories.gallery ? latestPartnerMemoryNote(memories.gallery) : null;
-  const age = note?.updatedAt ? noteAge(note.updatedAt, now) : null;
-  const href = note ? memoryNoteHref(note.target) : workspaceHref("memories");
-  const label = note ? `A note from ${partnerName}` : "Notes in Together";
-
-  return <section className={styles.letterCard} data-empty={!note || undefined} aria-label={label}>
-    {note ? <>
-      <span className={styles.letterSeal} aria-hidden="true"><BrandRings monochrome /></span>
-      <p className={styles.letterLabel}>{label}{age ? <> · <time dateTime={note.updatedAt ?? undefined}>{age}</time></> : null}</p>
-      <blockquote className={styles.letterQuote}>“{note.text}”</blockquote>
-    </> : memories.gallery ? <>
-      <h2>No notes yet.</h2>
-      <p>Leave {partnerName} something to find the next time they open the app.</p>
-    </> : <p role="status">{memories.error ? "Your notes couldn’t load." : "Opening your notes…"}</p>}
-    {note || memories.gallery || memories.error ? <Link className={styles.letterLink} href={href}
-      onNavigate={event => { event.preventDefault(); onNavigate(href); }}>
-      {note ? "Write one back" : memories.gallery ? "Write the first note" : "Open Memories"}<span aria-hidden="true">›</span>
-    </Link> : null}
-  </section>;
-}
-
-export function QuietTogetherHome({ overview, memories, onNavigate, confirmLeave, children }: {
+export function QuietTogetherHome({ overview, memories, letter, onNavigate, confirmLeave, children }: {
   overview: JourneyOverview;
   memories: MemoryPreview;
+  letter: LetterControls;
   onNavigate: (href: string) => void;
   confirmLeave: () => boolean;
   children?: ReactNode;
@@ -197,7 +173,7 @@ export function QuietTogetherHome({ overview, memories, onNavigate, confirmLeave
         partner={relationship.partner} locked={lockedTogether} lockedAt={relationship.mutuallyLockedInAt} now={now} />
       <ManageTogetherLink onNavigate={onNavigate} />
     </header>
-    {lockedTogether ? <TogetherLetter partnerName={relationship.partner.name} memories={memories} now={now} onNavigate={onNavigate} /> : null}
+    {lockedTogether ? <TogetherLetter {...letter} partnerName={relationship.partner.name} gallery={memories.gallery} now={now} onNavigate={onNavigate} /> : null}
     {chatId ? <TogetherChatActions conversationId={chatId} partnerName={relationship.partner.name} confirmLeave={confirmLeave} /> : null}
     {nextUp?.kind === "check-in" ? <NextUpLink label="Your turn" href={nextUp.href} title={nextUp.title} detail={nextUp.detail} onOpen={onNavigate} />
       : nextUp?.kind === "plan" ? <TogetherPlan plan={nextUp.plan} onOpen={onNavigate} /> : null}

@@ -151,6 +151,7 @@ model User {
   togetherPhotos             TogetherPhoto[]
   togetherPhotoNotes         TogetherPhotoNote[]
   togetherEnvelopeCaptions   TogetherEnvelopeCaption[]
+  togetherHomeNotes          TogetherHomeNote[]
   roomTalkShelves             RoomTalkShelf[]
   roomTalkTopics              RoomTalkTopic[] @relation("RoomTalkAuthor")
   roomTalkSuggestions         RoomTalkTopic[] @relation("RoomTalkProposer")
@@ -264,9 +265,22 @@ model Relationship {
   chatConversation    ChatConversation?
   togetherPhotos      TogetherPhoto[]
   togetherEnvelopes   TogetherEnvelope[]
+  togetherHomeNotes   TogetherHomeNote[]
   roomTalkShelves     RoomTalkShelf[]
   roomTalkTopics      RoomTalkTopic[]
   roomTalkRemovedStarterShelves RoomTalkRemovedStarterShelf[]
+}
+
+model TogetherHomeNote {
+  relationshipId String
+  authorId       String
+  text           String       @db.VarChar(280)
+  updatedAt      DateTime     @updatedAt
+  relationship   Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  author         User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@id([relationshipId, authorId])
+  @@index([authorId])
 }
 
 enum RoomTalkStarterShelf {

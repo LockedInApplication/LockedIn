@@ -12,6 +12,7 @@ import { leaveMessagingRelationship } from "../messaging/messaging-lifecycle.ser
 import { registerNotificationRoutes } from "../notifications/notification.routes.js";
 import { registerMemoryRoutes } from "../memories/memory.routes.js";
 import { registerRoomTalkRoutes } from "../room-to-talk/room-to-talk.routes.js";
+import { registerTogetherNoteRoutes } from "../together-notes/together-note.routes.js";
 
 export async function journeyRoutes(server: FastifyInstance) {
   await registerNotificationRoutes(server);
@@ -22,6 +23,7 @@ export async function journeyRoutes(server: FastifyInstance) {
   await registerInvitationRoutes(server);
   await server.register(registerMemoryRoutes);
   await registerRoomTalkRoutes(server);
+  await registerTogetherNoteRoutes(server);
 
   server.get("/api/journey/overview", async (request, reply) => {
     const user = await requireUser(request, reply);

@@ -321,6 +321,7 @@ main.welcomeMain {
   overflow: hidden;
   font: italic 500 clamp(1.18rem, 4.8vw, 1.32rem)/1.42 var(--font-serif);
   color: var(--love-ink);
+  &[data-full] { display: block; white-space: pre-wrap; overflow: visible; }
 }
 .letterLink {
   display: inline-flex;
@@ -334,6 +335,65 @@ main.welcomeMain {
   white-space: nowrap;
   &:hover { text-decoration: underline; text-underline-offset: .2em; }
 }
+button.letterLink {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  &:disabled { opacity: .65; cursor: default; text-decoration: none; }
+}
+.letterActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem 1.15rem;
+}
+.letterComposer {
+  display: grid;
+  gap: .6rem;
+  inline-size: 100%;
+  min-inline-size: 0;
+  margin-block-start: .4rem;
+  padding-block: .8rem .25rem;
+  border-block-start: 1px solid var(--love-rule);
+
+  label { font-weight: 650; }
+  textarea {
+    inline-size: 100%;
+    min-inline-size: 0;
+    padding: .7rem .8rem;
+    border: 1px solid var(--brand-outline);
+    border-radius: .65rem;
+    background: var(--love-paper);
+    color: var(--ink);
+    font: inherit;
+    resize: vertical;
+  }
+}
+.letterHelp {
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+  color: var(--love-muted);
+  font-size: .78rem;
+  line-height: 1.4;
+  span { white-space: nowrap; }
+}
+.shareLetter {
+  min-block-size: 44px;
+  padding: .55rem 1rem;
+  border: 1px solid var(--action);
+  border-radius: 999px;
+  background: var(--action);
+  color: var(--on-action);
+  font-size: .875rem;
+  font-weight: 700;
+  cursor: pointer;
+  &:hover:not(:disabled) { background: var(--brand-action-hover); }
+  &:disabled { opacity: .6; cursor: not-allowed; }
+}
+.letterCard > p.noteSuccess { color: var(--forest); }
+.noteError { color: var(--love-wine-deep); font-size: .875rem; }
 
 @media (prefers-reduced-motion: no-preference) {
   .pairAvatars[data-arrival="true"] {

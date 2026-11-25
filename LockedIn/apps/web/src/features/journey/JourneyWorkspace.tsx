@@ -37,6 +37,7 @@ import { conversationTopicAnchor, conversationTopicHref, currentCheckInHref, dis
 import BehindThePhoto from "@/features/memories/BehindThePhoto";
 import { memoryNoteTarget } from "@/features/memories/memory-note-preview";
 import { useTogetherMemories } from "@/features/memories/use-together-memories";
+import { useTogetherHomeNotes } from "@/features/together-notes/use-together-home-notes";
 import RoomToTalk from "@/features/room-to-talk/RoomToTalk";
 
 type Notice = { tone: "success" | "error"; message: string; reviewDiscovery?: boolean } | null;
@@ -87,10 +88,18 @@ export default function JourneyWorkspace() {
   const invitationManagerOpen=targetQuery.get("invitations")==="manage";
   const lockedTogether = overview?.relationship?.isMutuallyLockedIn === true;
   const memoryHash = activeView === "memories" ? workspaceUrl.hash : "";
+  const notes = useTogetherHomeNotes({
+    userId: overview?.user.id,
+    relationshipId: overview?.relationship?.id,
+    visible: lockedTogether && !invitationReference && !invitationManagerOpen && activeView === "home",
+    revision: quietRevision,
+    onExpired,
+  });
+  const showMemoryNote = activeView === "home" && !!notes.data && !notes.data.yours && !notes.data.partner;
   const memories = useTogetherMemories({
     userId: overview?.user.id,
     relationshipId: overview?.relationship?.id,
-    visible: lockedTogether && !invitationReference && !invitationManagerOpen && (activeView === "home" || activeView === "memories"),
+    visible: lockedTogether && !invitationReference && !invitationManagerOpen && (showMemoryNote || activeView === "memories"),
     polling: activeView === "memories",
     revision: quietRevision,
     onExpired,
@@ -326,7 +335,8 @@ export default function JourneyWorkspace() {
             hasInboxActivity={overview.hasInboxActivity ?? Boolean(overview.directChats?.length || overview.pendingInvites.length)} />
         ) : isHome ? (
           <QuietTogetherHome key={`${overview.user.id}:${overview.relationship.id}`} overview={overview}
-            memories={memories} onNavigate={openWorkspaceDestination} confirmLeave={() => !busy && confirmDiscard()}>
+            memories={memories} letter={{ notes, busy, onBusy: setBusy, onDirty: setDirty }}
+            onNavigate={openWorkspaceDestination} confirmLeave={() => !busy && confirmDiscard()}>
             {chatId && overview.lockIn && overview.lockIn.state !== "locked"
               ? <DirectLockIn userId={overview.user.id} conversationId={chatId} state={overview.lockIn} inTogether onRefresh={requestQuietRefresh}/>
               : null}

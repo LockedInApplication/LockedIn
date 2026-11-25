@@ -25,6 +25,8 @@ const overview: JourneyOverview = {
   simplePlans: [plan], checkInHistory: [], conversationPacks: [], conversationSelection: null, atlas: { words: [] },
 };
 const emptyMemories = { gallery: { photos: [], envelopes: [] }, error: "" };
+const emptyNotes = { data: { yours: null, partner: null }, error: "", retry: () => {}, share: async () => {} };
+const letter = { busy: false, notes: emptyNotes, onBusy: () => {}, onDirty: () => {} };
 
 it("prioritizes the right Inbox action and keeps Discover on the photo welcome", () => {
   const fresh = renderToStaticMarkup(<TogetherWelcome canInvite hasInboxActivity={false} />);
@@ -121,10 +123,11 @@ it("shows the note, Message, and one timely item in order, with neither progress
   const waitingOnMe = { ...session, bothRevealed: false, ownResponse: null };
   const gallery: Memories = { photos: [], envelopes: [{ id: "day-1", title: "Sunday", day: null, tone: "LINEN", coverPhotoId: null,
     captions: [{ yours: false, text: "Thanks for being there." }] }] };
-  const html = renderToStaticMarkup(<QuietTogetherHome overview={{ ...overview, session: waitingOnMe }} memories={{ gallery, error: "" }}
+  const html = renderToStaticMarkup(<QuietTogetherHome overview={{ ...overview, session: waitingOnMe }} memories={{ gallery, error: "" }} letter={letter}
     onNavigate={() => {}} confirmLeave={() => true} />);
   expect(html.match(/data-next-up\b/g)).toHaveLength(1);
   expect(html).toContain('href="/journey?view=memories#memory-envelope/day-1"');
+  expect(html).toContain("Open in Memories");
   expect(html).toContain("“Thanks for being there.”");
   expect(html.indexOf("A note from Maya")).toBeLessThan(html.indexOf("Message Maya"));
   expect(html.indexOf("Message Maya")).toBeLessThan(html.indexOf("Answer your private check-in"));
@@ -135,15 +138,37 @@ it("shows the note, Message, and one timely item in order, with neither progress
 });
 
 it("offers to write the first note only after a successful empty read in a locked space", () => {
-  const props = { onNavigate: () => {}, confirmLeave: () => true };
+  const props = { onNavigate: () => {}, confirmLeave: () => true, letter };
   const html = renderToStaticMarkup(<QuietTogetherHome {...props} overview={overview} memories={emptyMemories} />);
   expect(html).toContain("No notes yet.");
   expect(html).toContain("Leave Maya something to find the next time they open the app.");
-  expect(html).toContain("Write the first note");
-  const loading = renderToStaticMarkup(<QuietTogetherHome {...props} overview={overview} memories={{ gallery: null, error: "" }} />);
+  expect(html).toMatch(/<button[^>]*>Write the first note/);
+  expect(html).not.toMatch(/<a[^>]*>Write the first note/);
+  const loading = renderToStaticMarkup(<QuietTogetherHome {...props} overview={overview} memories={emptyMemories}
+    letter={{ ...letter, notes: { ...emptyNotes, data: null } }} />);
   expect(loading).not.toContain("No notes yet.");
   const unlocked = { ...overview, relationship: { ...overview.relationship!, isMutuallyLockedIn: false } };
   expect(renderToStaticMarkup(<QuietTogetherHome {...props} overview={unlocked} memories={emptyMemories} />)).not.toContain("Notes in Together");
+});
+
+it("shows a standalone incoming note in full above the sender’s own note or an older memory", () => {
+  const updatedAt = "2026-11-24T19:00:00Z";
+  const gallery: Memories = { photos: [], envelopes: [{ id: "old", title: "Old", day: null, tone: "LINEN", coverPhotoId: null,
+    captions: [{ yours: false, text: "Old memory caption" }] }] };
+  const props = { overview, memories: { gallery, error: "" }, onNavigate: () => {}, confirmLeave: () => true };
+  const yours = { text: "My own note", updatedAt };
+  const html = renderToStaticMarkup(<QuietTogetherHome {...props} letter={{ ...letter,
+    notes: { ...emptyNotes, data: { yours, partner: { text: "I loved our walk.", updatedAt } } },
+  }} />);
+  expect(html).toContain('aria-label="A note from Maya"');
+  expect(html).toContain('data-full="true">“I loved our walk.”');
+  expect(html).not.toContain("My own note");
+  expect(html).not.toContain("Old memory caption");
+  expect(html).toMatch(/<button[^>]*>Write one back/);
+  const sent = renderToStaticMarkup(<QuietTogetherHome {...props} letter={{ ...letter, notes: { ...emptyNotes, data: { yours, partner: null } } }} />);
+  expect(sent).toContain('aria-label="Your note to Maya"');
+  expect(sent).toContain("My own note");
+  expect(sent).toMatch(/<button[^>]*>Edit your note/);
 });
 
 it("falls back to the next accepted plan when a check-in is waiting and leaves the slot empty when there is nothing due", () => {

@@ -44,6 +44,18 @@ it("keeps direct chat independent of Discovery but omits a blocked or closed sha
   expect(inboxEntries([], { ...linked, canChat: false, unavailableReason: "UNAVAILABLE" }, [], false).chats).toEqual([]);
 });
 
+it("uses the partner name and Lock In status without labeling unverified or ordinary chats as locked", () => {
+  const placeholder = { ...linked, partner: { publicName: "Your partner", avatarPreset: "initials" } };
+  const pair = { lockedIn: true, partnerName: "Cindy" };
+  expect(inboxEntries([], placeholder, [], false, [], pair).chats[0]).toMatchObject({
+    partner: { publicName: "Cindy" }, status: "Locked in", detail: "Your private chat",
+  });
+  expect(inboxEntries([], linked, [], false, [], pair).chats[0].partner.publicName).toBe("Sam");
+  expect(inboxEntries([], linked, [], false, [], { lockedIn: false }).chats[0].status).toBe("Shared space");
+  const unverified = { ...placeholder, canChat: false, unavailableReason: "VERIFY_EMAIL" as const };
+  expect(inboxEntries([], unverified, [], false, [], pair).chats[0]).toMatchObject({ partner: placeholder.partner, status: "Verify email to chat" });
+});
+
 it("shows an accepted direct invite without Together and does not duplicate a reused Discovery chat", () => {
   const inbox = inboxEntries([connection("reused", "ACCEPTED", true)], null,
     [{ conversationId: "reused", discoveryConnectionId: null }], true,

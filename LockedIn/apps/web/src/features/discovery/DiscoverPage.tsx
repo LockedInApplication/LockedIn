@@ -1,5 +1,7 @@
 "use client";
 import {useCallback,useEffect,useRef,useState} from "react";
+import {journeyRequest, type JourneyOverview} from "@/lib/journey";
+import {knownPartnerName} from "@/features/journey/relationship-name";
 import DiscoveryShell,{useDiscovery} from "./DiscoveryShell";
 import {discoveryRequest} from "./discovery.client";
 import {useDiscoveryResource} from "./use-discovery-resource";
@@ -15,7 +17,15 @@ import DiscoveryMatchPreferences from "./DiscoveryMatchPreferences";
 import local from "./local-discovery.module.scss";
 export default function DiscoverPage(){return <DiscoveryShell><DiscoveryBrowse/></DiscoveryShell>;}
 function DiscoveryBrowse(){
-  const {userId,emailVerified,me,leave,installLocation,busy,setBusy}=useDiscovery(),[area,setArea]=useState(""),[selected,setSelected]=useState<string|null>(null);
+  const {userId,emailVerified,me,leave,installLocation,busy,setBusy,chatRevision}=useDiscovery(),[area,setArea]=useState(""),[selected,setSelected]=useState<string|null>(null);
+  const lockedRelationshipId=me.discoveryLockedIn ? me.currentRelationshipId : null;
+  const loadPartner=useCallback(async (signal:AbortSignal)=>{
+    const overview=await journeyRequest<JourneyOverview>("/api/journey/overview",{signal,cache:"no-store"});
+    const relationship=overview.relationship;
+    if (overview.user.id!==userId || !relationship?.isMutuallyLockedIn || relationship.id!==lockedRelationshipId) return null;
+    return knownPartnerName(relationship.partner.name,relationship.partner.email) ?? null;
+  },[lockedRelationshipId,userId]);
+  const partner=useDiscoveryResource(userId,lockedRelationshipId?`locked-in-partner:${lockedRelationshipId}`:"",loadPartner,chatRevision);
   const matchingScope=me.matching?.revision??"",setupRequired=!!me.matching&&!me.matching.complete;
   const location=me.location;
   const worldwide=location?.mode==="worldwide";
@@ -81,11 +91,14 @@ function DiscoveryBrowse(){
       if(!request.signal.aborted)setBusy(false);
     }
   };
-  if(!me.canDiscover)return <section className={styles.card}>
+  if(!me.canDiscover)return <section className={me.discoveryLockedIn ? styles.pausedDiscovery : styles.card}>
     <h1>{me.discoveryLockedIn?"Discovery is paused while you’re locked in.":"Discovery is not available."}</h1>
     {emailVerified===false&&!me.discoveryLockedIn?<><p>Verify your email to use Discovery. Availability also depends on account eligibility.</p><button className={styles.primary} onClick={()=>void leave("/verify-email?pending=1")}>Verify email</button></>:null}
-    <p>You can still access your existing conversations in Inbox.</p>
-    <div className={styles.actions}><button onClick={()=>void leave("/connections")}>Go to Inbox</button>{me.discoveryLockedIn?<button onClick={()=>void leave("/journey")}>Open Together</button>:null}</div>
+    <p>{partner.value ? `You’re off the market and on with ${partner.value}. Your existing chats are still in Inbox.` : "You can still access your existing conversations in Inbox."}</p>
+    <div className={`${styles.actions} ${styles.pausedActions}`}>
+      {me.discoveryLockedIn?<button className={styles.primary} onClick={()=>void leave("/journey")}>Open Together</button>:null}
+      <button onClick={()=>void leave("/connections")}>Go to Inbox</button>
+    </div>
   </section>;
   if(own.error)return <section role="alert"><p>{own.error}</p><button onClick={own.retry}>Try again</button></section>;
   if(!own.value)return <p role="status">Loading your profile…</p>;

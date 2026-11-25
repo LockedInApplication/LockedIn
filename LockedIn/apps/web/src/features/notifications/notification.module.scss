@@ -1,12 +1,12 @@
 .root { position: relative; z-index: 30; font-family: inherit; }
-.bell { position: relative; display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid var(--brand-rule); border-radius: 50%; color: var(--ink); background: var(--paper); cursor: pointer; transition: background-color .15s; }
-.bell:hover { background: var(--stone-50); }
+.bell { position: relative; display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid var(--love-rule); border-radius: 50%; color: var(--ink); background: var(--love-letter); cursor: pointer; transition: background-color .15s ease-out; }
+.bell:hover { background: var(--love-hover); }
 .bell:focus-visible, .panel button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
 .badge { position: absolute; top: -5px; right: -7px; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 20px; background: #fa6258; color: #231b33; font-size: 11px; font-weight: 800; display: grid; place-items: center; border: 2px solid var(--paper); }
 .panel { position: absolute; right: 0; top: 60px; width: min(420px, calc(100vw - 32px)); max-height: min(650px,75vh); overflow-y: auto; background: var(--paper); color: var(--ink); border: 1px solid var(--brand-rule); border-radius: var(--r); box-shadow: var(--shadow-md); font-size: 15px; line-height: 1.5; }
 .panelHeader { padding: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--brand-rule); background: var(--cream); }
 .panelHeader h2 { margin: 5px 0 0; font: 550 1.5rem / 1.2 var(--font-serif); }
-.kicker { font-size: 10px; font-weight: 800; letter-spacing: .14em; color: #71518d; }
+.kicker { font-size: 10px; font-weight: 800; letter-spacing: .14em; color: var(--love-wine); }
 .close { border: 1px solid var(--brand-outline); border-radius: 50%; width: 36px; height: 36px; background: var(--paper); color: inherit; font-size: 24px; cursor: pointer; }
 .list { padding: 0; margin: 0; list-style: none; }
 .item { display: grid; grid-template-columns: 30px 1fr; gap: 12px; padding: 20px; border-bottom: 1px solid var(--brand-rule); }
@@ -16,10 +16,10 @@
 .itemIcon { width: 30px; height: 30px; display: grid; place-items: center; background: #e1f1df; border-radius: 50%; }
 .unread { background: #fff9df; }
 .unread .itemIcon { background: #fbd45d; }
-.openActivity { display: inline-flex; align-items: center; gap: 10px; margin-top: 12px; border: 0; padding: 0; color: #4b335f; background: transparent; font-weight: 800; cursor: pointer; font-size: 14px; }
+.openActivity { display: inline-flex; align-items: center; gap: 10px; margin-top: 12px; border: 0; padding: 0; color: var(--love-wine); background: transparent; font-weight: 800; cursor: pointer; font-size: 14px; }
 .completed { display: block; margin-top: 8px; font-size: 12px; color: var(--brand-muted); }
-.connection { margin: 0; padding: 16px 20px; background: #f2edf8; font-size: 13px; }
-.connection button, .more { padding: 9px 15px; background: #4b335f; border: 0; border-radius: 12px; color: white; font-weight: 700; cursor: pointer; }
+.connection { margin: 0; padding: 16px 20px; background: var(--love-soft); font-size: 13px; }
+.connection button, .more { padding: 9px 15px; background: var(--action); border: 0; border-radius: 12px; color: var(--on-action); font-weight: 700; cursor: pointer; }
 .more { margin: 16px 20px; }
 .empty { padding: 30px 22px; text-align: center; color: var(--brand-muted); }
 .empty > span { font-size: 36px; color: #4b935f; }
@@ -27,6 +27,6 @@
 .empty p { font-size: 14px; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .activity { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 16px 22px; background: #e1f1df; border: 2px solid #4b335f; border-radius: 16px; margin-bottom: 22px; font-size: 14px; }
-.activity button { flex-shrink: 0; border: 0; border-radius: 12px; background: #4b335f; color: white; padding: 10px 16px; font-weight: 700; cursor: pointer; }
+.activity button { flex-shrink: 0; border: 0; border-radius: 12px; background: var(--action); color: var(--on-action); padding: 10px 16px; font-weight: 700; cursor: pointer; }
 @media(max-width:600px) { .panel { position: fixed; top: 85px; right: 16px; } .activity { align-items: flex-start; flex-direction: column; } }
 @media(prefers-reduced-motion:reduce) { .bell { transition: none; } }

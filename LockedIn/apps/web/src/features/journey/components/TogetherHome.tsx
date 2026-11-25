@@ -2,10 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { BrandRings } from "@/components/brandLogo";
+import { latestPartnerMemoryNote, memoryNoteHref } from "@/features/memories/memory-note-preview";
+import type { TogetherMemories } from "@/features/memories/use-together-memories";
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import type { SimplePlan } from "@/features/roadmap/roadmap.types";
-import { getTogetherNextUp, shouldCelebrateLockIn, togetherPlanHref } from "../together-home";
+import { daysTogether, getTogetherNextUp, noteAge, shouldCelebrateLockIn, togetherPlanHref } from "../together-home";
 import { workspaceHref } from "../journey.navigation";
 import type { JourneyOverview } from "../journey.types";
 import TogetherChatActions from "./TogetherChatActions";
@@ -28,6 +31,7 @@ const sampleLandmarks = [
   { title: "Space", icon: "◌", status: "In progress", prompt: "How can we ask for time alone and still feel connected?" },
   { title: "Quality time", icon: "☀", status: "Unexplored", prompt: "What’s a small moment together you’d like more of?" },
 ];
+const lockDate = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" });
 
 export function TogetherWelcome({ hasInboxActivity, canInvite, requiresLockIn = true }: {
   hasInboxActivity: boolean;
@@ -101,12 +105,13 @@ function TogetherPreview() {
 }
 
 type AvatarIdentity = { name: string; avatarPreset?: string };
-export function TogetherHomeHeading({ user, userId, partner, locked, lockedAt }: {
+export function TogetherHomeHeading({ user, userId, partner, locked, lockedAt, now }: {
   user: AvatarIdentity;
   userId: string;
   partner: AvatarIdentity;
   locked: boolean;
   lockedAt?: string;
+  now: number;
 }) {
   const pair = useRef<HTMLDivElement>(null);
   const shown = useRef<string | null>(null);
@@ -122,6 +127,7 @@ export function TogetherHomeHeading({ user, userId, partner, locked, lockedAt }:
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) element.dataset.arrival = "true";
   }, [userId, locked, lockedAt]);
 
+  const days = daysTogether(lockedAt, now);
   return <section className={styles.paired} aria-labelledby="together-pair">
     <div className={styles.pairAvatars} ref={pair} aria-hidden="true">
       <ProfileAvatar name={user.name} preset={user.avatarPreset} />
@@ -129,8 +135,10 @@ export function TogetherHomeHeading({ user, userId, partner, locked, lockedAt }:
     </div>
     <div className={styles.pairTitle}>
       <p className={styles.eyebrow}>Together</p>
-      <h1 id="together-pair">You &amp; {partner.name}</h1>
-      {locked ? <p className={styles.locked} role="status">You both chose to lock in.</p> : null}
+      <h1 id="together-pair">You <em>&amp;</em> {partner.name}</h1>
+      {locked ? <p className={styles.locked} role="status">{days === null || !lockedAt ? "Locked in together."
+        : days === 0 ? "You both chose to lock in today."
+        : <>Locked in since <time dateTime={lockedAt}>{lockDate.format(new Date(lockedAt))}</time>{" · "}<strong>{days} {days === 1 ? "day" : "days"}</strong></>}</p> : null}
     </div>
   </section>;
 }
@@ -145,12 +153,40 @@ export function TogetherOptionsLink({ onNavigate }: { onNavigate: (href: string)
   </Link>;
 }
 
-export function QuietTogetherHome({ overview, onNavigate, confirmLeave, children }: {
+type MemoryPreview = Pick<TogetherMemories, "gallery" | "error">;
+
+function TogetherLetter({ partnerName, memories, now, onNavigate }: {
+  partnerName: string; memories: MemoryPreview; now: number; onNavigate: (href: string) => void;
+}) {
+  const note = memories.gallery ? latestPartnerMemoryNote(memories.gallery) : null;
+  const age = note?.updatedAt ? noteAge(note.updatedAt, now) : null;
+  const href = note ? memoryNoteHref(note.target) : workspaceHref("memories");
+  const label = note ? `A note from ${partnerName}` : "Notes in Together";
+
+  return <section className={styles.letterCard} data-empty={!note || undefined} aria-label={label}>
+    {note ? <>
+      <span className={styles.letterSeal} aria-hidden="true"><BrandRings monochrome /></span>
+      <p className={styles.letterLabel}>{label}{age ? <> · <time dateTime={note.updatedAt ?? undefined}>{age}</time></> : null}</p>
+      <blockquote className={styles.letterQuote}>“{note.text}”</blockquote>
+    </> : memories.gallery ? <>
+      <h2>No notes yet.</h2>
+      <p>Leave {partnerName} something to find the next time they open the app.</p>
+    </> : <p role="status">{memories.error ? "Your notes couldn’t load." : "Opening your notes…"}</p>}
+    {note || memories.gallery || memories.error ? <Link className={styles.letterLink} href={href}
+      onNavigate={event => { event.preventDefault(); onNavigate(href); }}>
+      {note ? "Write one back" : memories.gallery ? "Write the first note" : "Open Memories"}<span aria-hidden="true">›</span>
+    </Link> : null}
+  </section>;
+}
+
+export function QuietTogetherHome({ overview, memories, onNavigate, confirmLeave, children }: {
   overview: JourneyOverview;
+  memories: MemoryPreview;
   onNavigate: (href: string) => void;
   confirmLeave: () => boolean;
   children?: ReactNode;
 }) {
+  const [now] = useState(Date.now);
   const relationship = overview.relationship;
   if (!relationship) return null;
   const lockedTogether = relationship.isMutuallyLockedIn === true;
@@ -159,9 +195,10 @@ export function QuietTogetherHome({ overview, onNavigate, confirmLeave, children
   return <div className={styles.quietHome}>
     <header className={styles.quietHeader}>
       <TogetherHomeHeading user={{ ...overview.user, name: overview.user.name || overview.user.email }} userId={overview.user.id}
-        partner={relationship.partner} locked={lockedTogether} lockedAt={relationship.mutuallyLockedInAt} />
+        partner={relationship.partner} locked={lockedTogether} lockedAt={relationship.mutuallyLockedInAt} now={now} />
       <TogetherOptionsLink onNavigate={onNavigate} />
     </header>
+    {lockedTogether ? <TogetherLetter partnerName={relationship.partner.name} memories={memories} now={now} onNavigate={onNavigate} /> : null}
     {chatId ? <TogetherChatActions conversationId={chatId} partnerName={relationship.partner.name} confirmLeave={confirmLeave} /> : null}
     {nextUp?.kind === "check-in" ? <NextUpLink label="Your turn" href={nextUp.href} title={nextUp.title} detail={nextUp.detail} onOpen={onNavigate} />
       : nextUp?.kind === "plan" ? <TogetherPlan plan={nextUp.plan} onOpen={onNavigate} /> : null}

@@ -22,11 +22,12 @@ const css = compile(fileURLToPath(new URL("./_globals.scss", import.meta.url))).
 const home = compile(fileURLToPath(new URL("../app/page.module.scss", import.meta.url))).css;
 const member = compile(fileURLToPath(new URL("../features/journey/workspace-header.module.scss", import.meta.url))).css;
 
-it("uses pure white for the public and signed-in light surfaces", () => {
-  expect(tokenColor(css, "paper")).toBe("#ffffff");
-  expect(tokenColor(css, "cream")).toBe("#ffffff");
-  expect(tokenColor(home + css, "home-frost")).toBe("#ffffff");
-  expect(tokenColor(member + css, "member-surface")).toBe("#ffffff");
+it("shares warm paper for page backgrounds and raises signed-in cards on lighter letter paper", () => {
+  expect(tokenColor(css, "paper")).toBe("#fbf4ee");
+  expect(tokenColor(css, "cream")).toBe(tokenColor(css, "love-paper"));
+  expect(tokenColor(home + css, "home-frost")).toBe(tokenColor(css, "love-paper"));
+  expect(tokenColor(member + css, "member-surface")).toBe("#fffaf6");
+  expect(tokenColor(member + css, "paper")).toBe(tokenColor(css, "love-letter"));
   expect(tokenColor(home + css, "home-ink")).not.toBe("#ffffff");
 });
 
@@ -40,8 +41,10 @@ it("uses the homepage neutrals throughout and preserves contrast for Courtyard a
   expect(contrast(tokenColor(css, "accent"), tokenColor(css, "cream"))).toBeGreaterThanOrEqual(4.5);
 });
 
-it("shares neutral grays for secondary text, dividers, and outlines", () => {
-  for (const name of ["brand-muted", "brand-muted-on-dark", "brand-rule", "brand-outline"]) {
+it("shares warm secondary text and hairlines while preserving neutral outlines", () => {
+  expect(tokenColor(css, "brand-muted")).toBe(tokenColor(css, "love-muted"));
+  expect(tokenColor(css, "brand-rule")).toBe(tokenColor(css, "love-rule"));
+  for (const name of ["brand-muted-on-dark", "brand-outline"]) {
     expect(tokenColor(css, name)).toMatch(/^#([0-9a-f]{2})\1\1$/);
   }
   for (const [stylesheet, name, shared] of [
@@ -55,7 +58,17 @@ it("shares neutral grays for secondary text, dividers, and outlines", () => {
   ]) {
     expect(tokenColor(stylesheet + css, name)).toBe(tokenColor(css, shared));
   }
-  expect(contrast(tokenColor(css, "brand-muted"), tokenColor(css, "paper"))).toBeGreaterThanOrEqual(4.5);
+});
+
+it("meets normal-text contrast with muted copy on paper and ink or wine on blush", () => {
+  for (const [foreground, surfaces] of [
+    ["love-ink", ["love-paper", "love-letter", "love-blush"]],
+    ["love-muted", ["love-paper", "love-letter"]],
+    ["love-wine", ["love-paper", "love-letter", "love-blush"]],
+    ["on-action", ["action", "brand-action-hover"]],
+  ] as const) {
+    for (const surface of surfaces) expect(contrast(tokenColor(css, foreground), tokenColor(css, surface))).toBeGreaterThanOrEqual(4.5);
+  }
 });
 
 it("keeps the homepage's local Instrument fonts separate from the app's typography", () => {

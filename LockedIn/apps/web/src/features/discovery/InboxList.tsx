@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useState } from "react";
 import { useInboxUnread } from "@/features/journey/components/MemberChrome";
+import { knownPartnerName } from "@/features/journey/relationship-name";
 import { journeyRequest, type JourneyOverview } from "@/lib/journey";
 import { messagingRequest } from "@/features/messaging/messaging.client";
 import type { ConversationMetadata } from "@/features/messaging/messaging.types";
@@ -26,14 +27,16 @@ export default function InboxList({ compose }: { compose: boolean }) {
     const data = await journeyRequest<JourneyOverview>("/api/journey/overview", { signal, cache: "no-store" });
     if (data.user.id !== userId) throw new Error("Your account changed. Reopen Inbox to continue.");
     return { pending: data.pendingInvites, canInvite: data.canInviteToChat ?? !data.relationship, chatFirst: data.canInviteToChat !== undefined,
-      directChats: data.directChats, chatId: data.messaging?.enabled ? data.messaging.conversationId : null };
+      directChats: data.directChats, chatId: data.messaging?.enabled ? data.messaging.conversationId : null,
+      together: data.relationship ? { lockedIn: data.relationship.isMutuallyLockedIn === true,
+        partnerName: knownPartnerName(data.relationship.partner.name, data.relationship.partner.email) } : undefined };
   }, [userId]);
   const direct = useDiscoveryResource(userId, "inbox-invites", readInvites, chatRevision);
   const directChatId = direct.value?.chatId;
   const readChat = useCallback((signal: AbortSignal) => messagingRequest<ConversationMetadata>(userId,
     `/api/messaging/conversations/${encodeURIComponent(directChatId ?? "")}`, { signal }), [userId, directChatId]);
   const linked = useDiscoveryResource(userId, !compose && directChatId ? `inbox-shared-chat:${directChatId}` : "", readChat, chatRevision);
-  const { chats, invitations, history, offPageUnread } = inboxEntries(connections.value?.items ?? [], linked.value, unread, !!me.chatEnabled && (me.canChat ?? me.canDiscover), direct.value?.directChats);
+  const { chats, invitations, history, offPageUnread } = inboxEntries(connections.value?.items ?? [], linked.value, unread, !!me.chatEnabled && (me.canChat ?? me.canDiscover), direct.value?.directChats, direct.value?.together);
   const settled = !!connections.value && !!direct.value && (!directChatId || !!linked.value);
   const pending = !connections.error && !direct.error && !linked.error && !settled;
   const empty = settled && !connections.error && !direct.error && !linked.error &&
@@ -53,7 +56,7 @@ export default function InboxList({ compose }: { compose: boolean }) {
       <div><h1>Inbox</h1><p>Chat with people you’ve connected with or invited.</p></div>
       <div className={styles.actions}>
         {direct.value?.canInvite ? <button className={styles.primary} onClick={() => void leave("/connections?compose=invite")}>Invite someone</button> : null}
-        <button onClick={() => void leave("/journey?invitations=manage")}>Sent invitations</button>
+        <button className={inboxStyles.sentInvitations} onClick={() => void leave("/journey?invitations=manage")}>Sent invitations</button>
       </div>
     </div>}
     {connections.error ? <p role="alert">Discovery conversations couldn’t load. <button onClick={connections.retry}>Try again</button></p> : null}
@@ -118,7 +121,7 @@ export function InboxRows({ rows, onOpen }: { rows: InboxRow[]; onOpen: (href: s
       <button type="button" className={`${inboxStyles.row}${unread ? ` ${inboxStyles.unread}` : ""}`} onClick={() => void onOpen(href)}>
         <ProfileAvatar name={partner.publicName} preset={partner.avatarPreset}/>
         <span className={inboxStyles.text}><strong>{partner.publicName}</strong><span>{detail}</span></span>
-        <span className={inboxStyles.status}>{unread ? "New message" : status}</span>
+        <span className={inboxStyles.status} data-locked={(!unread && status === "Locked in") || undefined}>{unread ? "New message" : status}</span>
       </button>
     </li>
   )}</ul>;

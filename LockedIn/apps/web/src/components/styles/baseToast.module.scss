@@ -15,7 +15,7 @@
   z-index: 1100;
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.28);
   transition: transform 180ms ease, opacity 180ms ease;
-  background-color: white;
+  background-color: var(--love-letter);
   opacity: 0;
   pointer-events: none;
   overflow: hidden;
@@ -55,7 +55,7 @@
   border-radius: 4px;
   padding: 3px 7px;
   font-size: 10px;
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
+  background: var(--love-soft);
+  color: var(--love-wine);
   cursor: pointer;
 }

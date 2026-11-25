@@ -17,17 +17,28 @@
 }
 
 :root {
-  // Shared editorial palette. Courtyard colors still mark states and landmarks.
-  --brand-paper: #ffffff;
+  // Love Letter surfaces. Courtyard colors still mark states and landmarks.
+  --love-paper: #fbf4ee;
+  --love-letter: #fffaf6;
+  --love-ink: #2a1a1c;
+  --love-muted: #7a6466;
+  --love-wine: #8a2f3e;
+  --love-wine-deep: #6e2231;
+  --love-blush: #f3dcd5;
+  --love-rule: #ead8cf;
+  --love-hover: color-mix(in srgb, var(--love-blush) 40%, var(--love-paper));
+  --love-soft: color-mix(in srgb, var(--love-blush) 50%, var(--love-paper));
+  --love-letter-shadow: 0 14px 30px -18px color-mix(in srgb, var(--love-wine) 33%, transparent);
+  --brand-paper: var(--love-paper);
   --brand-canvas: var(--brand-paper);
-  --brand-neutral: #f4f5f6;
-  --brand-ink: #1b1a1a;
-  --brand-muted: #5c5c5c;
+  --brand-neutral: var(--love-blush);
+  --brand-ink: var(--love-ink);
+  --brand-muted: var(--love-muted);
   --brand-muted-on-dark: #dedede;
-  --brand-rule: #d4d4d4;
+  --brand-rule: var(--love-rule);
   --brand-outline: #8a8a8a;
-  --brand-accent: #4b274b;
-  --brand-action-hover: #3b313b;
+  --brand-accent: var(--love-wine);
+  --brand-action-hover: var(--love-wine-deep);
   --cream: var(--brand-canvas);
   --warm-white: var(--brand-paper);
   --stone-50: #e9ece1;
@@ -36,12 +47,12 @@
   --stone-500: var(--brand-muted);
   --stone-700: #414141;
   --ink: var(--brand-ink);
-  --action: var(--brand-ink);
-  --on-action: var(--brand-paper);
+  --action: var(--love-wine);
+  --on-action: var(--love-letter);
   --focus-ring: var(--brand-accent);
   --forest: #365848;
   --terracotta: #ae653f;
-  --accent: #89472d;
+  --accent: var(--love-wine);
   --accent-light: #c78059;
   --accent-pale: #f8ece0;
   --blush: #e0b896;

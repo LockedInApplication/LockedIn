@@ -25,10 +25,7 @@
 .pathCanvas {
   position: relative;
   padding: 20px clamp(12px, 3.2vw, 28px) 24px;
-  background:
-    radial-gradient(ellipse at 12% 25%, #f1dfe780, transparent 55%),
-    radial-gradient(ellipse at 90% 82%, #d7e9dbb3, transparent 55%),
-    var(--paper);
+  background: var(--love-soft);
 }
 
 .pathSvg { display: none; }

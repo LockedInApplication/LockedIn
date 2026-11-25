@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import BrandLogo from "@/components/brandLogo";
+import { BrandRings } from "@/components/brandLogo";
 import type { ReactNode } from "react";
 import styles from "@/app/journey/journey.module.scss";
 import MobileAccountMenu from "./MobileAccountMenu";
@@ -27,8 +27,7 @@ export default function WorkspaceHeader({ onSignOut, onNavigate, active, notific
   return (
     <header className={`${styles.header} ${headerStyles.header}`}>
       <Link href="/journey" className={styles.brand} aria-label="LockedIn · Together" onClick={event => navigate(event, "/journey")}>
-        {editorial ? <><span className={headerStyles.rings} aria-hidden="true" /><span>Locked<em>In</em></span></>
-          : <><span className={styles.brandMark}><BrandLogo /></span><span>LockedIn</span></>}
+        <BrandRings /><span>Locked<em>In</em></span>
       </Link>
       <nav className={headerStyles.tabs} aria-label="Main navigation">
         {memberTabs.map(({ label, href, icon }) => {

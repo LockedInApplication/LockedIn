@@ -35,7 +35,7 @@
 }
 
 .workspaceNav .workspaceNavActive {
-  color: white;
+  color: var(--love-letter);
   background: #132238;
   box-shadow: 0 8px 20px rgba(19, 34, 56, 0.18);
 }
@@ -57,7 +57,7 @@
 }
 
 .dashboardLead {
-  color: white;
+  color: var(--love-letter);
   background: linear-gradient(135deg, #132238, #1d3d56);
 }
 
@@ -83,7 +83,7 @@
   flex-direction: column;
   align-items: flex-start;
   color: #24354a;
-  background: white;
+  background: var(--love-letter);
   font: inherit;
   cursor: pointer;
   transition: transform 160ms ease, box-shadow 160ms ease;

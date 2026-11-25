@@ -35,6 +35,8 @@ import DirectLockIn from "@/features/messaging/DirectLockIn";
 import { conversationTopicAnchor, conversationTopicHref, currentCheckInHref, workspaceBack, workspaceHref } from "./journey.navigation";
 import TinyLantern from "./components/TinyLantern";
 import BehindThePhoto from "@/features/memories/BehindThePhoto";
+import { memoryNoteTarget } from "@/features/memories/memory-note-preview";
+import { useTogetherMemories } from "@/features/memories/use-together-memories";
 import RoomToTalk from "@/features/room-to-talk/RoomToTalk";
 
 type Notice = { tone: "success" | "error"; message: string; reviewDiscovery?: boolean } | null;
@@ -75,13 +77,24 @@ export default function JourneyWorkspace() {
   const setDirty=useCallback((value:boolean)=>{if(value)editRevision.current++;dirty.current=value;blockQuietRefresh(value||busyRef.current);},[blockQuietRefresh]);
   const setBusy=useCallback((value:boolean)=>{busyRef.current=value;blockQuietRefresh(value||dirty.current);setBusyState(value);},[blockQuietRefresh]);
   useJourneyHistoryGuard(dirty,setDirty);
-  const targetQuery=new URL(workspaceLocation,"http://localhost").searchParams;
+  const workspaceUrl=new URL(workspaceLocation,"http://localhost");
+  const targetQuery=workspaceUrl.searchParams;
   const targetWord=targetQuery.get("word");
   const targetChapter=targetQuery.get("chapter");
   const suggestionReference=activeView==="conversations"?targetQuery.get("suggestion"):null;
   const invitationReference=targetQuery.get("invitation")??targetQuery.get("invite");
   const invitationBy=targetQuery.has("invitation")?"id":"token";
   const invitationManagerOpen=targetQuery.get("invitations")==="manage";
+  const lockedTogether = overview?.relationship?.isMutuallyLockedIn === true;
+  const memoryHash = activeView === "memories" ? workspaceUrl.hash : "";
+  const memories = useTogetherMemories({
+    userId: overview?.user.id,
+    relationshipId: overview?.relationship?.id,
+    visible: lockedTogether && !invitationReference && !invitationManagerOpen && (activeView === "home" || activeView === "memories"),
+    polling: activeView === "memories",
+    revision: quietRevision,
+    onExpired,
+  });
 
   const hasOverview=overview!==null;
   const sessionId=overview?.session?.id;
@@ -214,7 +227,6 @@ export default function JourneyWorkspace() {
     return true;
   }
   const isHome = Boolean(overview.relationship && activeView === "home");
-  const lockedTogether = overview.relationship?.isMutuallyLockedIn === true;
   const isRoom = activeView === "room-to-talk";
   const compactView = ["talk", "check-ins", "conversations", "options", "room-to-talk"].includes(activeView);
   const back = workspaceBack(activeView);
@@ -314,14 +326,14 @@ export default function JourneyWorkspace() {
             hasInboxActivity={overview.hasInboxActivity ?? Boolean(overview.directChats?.length || overview.pendingInvites.length)} />
         ) : isHome ? (
           <QuietTogetherHome key={`${overview.user.id}:${overview.relationship.id}`} overview={overview}
-            onNavigate={openWorkspaceDestination} confirmLeave={() => !busy && confirmDiscard()}>
+            memories={memories} onNavigate={openWorkspaceDestination} confirmLeave={() => !busy && confirmDiscard()}>
             {chatId && overview.lockIn && overview.lockIn.state !== "locked"
               ? <DirectLockIn userId={overview.user.id} conversationId={chatId} state={overview.lockIn} inTogether onRefresh={requestQuietRefresh}/>
               : null}
           </QuietTogetherHome>
         ) : activeView === "talk" ? (
           <div className={togetherStyles.talkHome}>
-            <SectionHeading title="Talk" detail="Find the right place for what you want to talk about." />
+            <SectionHeading title="Talk" detail="Find the right place for what you two want to talk about." />
             <WorkspaceNav section="talk" lockedTogether={lockedTogether} onNavigate={openWorkspaceDestination} />
           </div>
         ) : activeView === "check-ins" ? (
@@ -376,9 +388,9 @@ export default function JourneyWorkspace() {
             runAction={runAction}
           />
         ) : activeView === "memories" ? (
-          lockedTogether ? <BehindThePhoto key={`${overview.user.id}:${overview.relationship.id}`}
+          lockedTogether ? <BehindThePhoto key={`${overview.user.id}:${overview.relationship.id}:${memoryHash}`}
             relationshipId={overview.relationship.id} userId={overview.user.id} partnerName={overview.relationship.partner.name}
-            revision={quietRevision} onDirty={setDirty} onExpired={onExpired} />
+            memories={memories} initialTarget={memoryNoteTarget(memoryHash)} onDirty={setDirty} onExpired={onExpired} />
             : <section className={styles.intro}><div><h1>Behind the Photo</h1><p>This private photo book opens when you both choose to lock in.</p></div></section>
         ) : activeView === "roadmap" ? (<>
           <SectionHeading title="Plans" detail="Outings, ideas, and things you agree to do together." />

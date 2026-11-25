@@ -3,17 +3,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, expect, it, vi } from "vitest";
 import DiscoverPage from "./DiscoverPage";
 import type { DiscoveryLocation } from "./discovery.types";
-const state = vi.hoisted(() => ({ emailVerified: false as boolean | null, canDiscover: false, lockedIn: false, nextCursor: null as string | null, location: undefined as DiscoveryLocation | undefined, matching: undefined as {required:true;complete:boolean}|undefined, published: true, paused: false, resourceKeys: [] as string[] }));
-vi.mock("./DiscoveryShell", () => ({ default: ({ children }: { children: ReactNode }) => children, useDiscovery: () => ({ userId: "a", emailVerified: state.emailVerified, me: { canDiscover: state.canDiscover, discoveryLockedIn: state.lockedIn, hasHistory: false, location: state.location, matching: state.matching, areas: [{ id: "pilot-city", label: "Pilot city" }, { id: "new-york", label: "New York" }] }, leave: async () => true }) }));
+const state = vi.hoisted(() => ({ emailVerified: false as boolean | null, canDiscover: false, lockedIn: false, relationshipId: null as string | null, partnerName: null as string | null, nextCursor: null as string | null, location: undefined as DiscoveryLocation | undefined, matching: undefined as {required:true;complete:boolean}|undefined, published: true, paused: false, resourceKeys: [] as string[] }));
+vi.mock("./DiscoveryShell", () => ({ default: ({ children }: { children: ReactNode }) => children, useDiscovery: () => ({ userId: "a", emailVerified: state.emailVerified, me: { canDiscover: state.canDiscover, discoveryLockedIn: state.lockedIn, currentRelationshipId: state.relationshipId, hasHistory: false, location: state.location, matching: state.matching, areas: [{ id: "pilot-city", label: "Pilot city" }, { id: "new-york", label: "New York" }] }, leave: async () => true }) }));
 vi.mock("./use-discovery-resource", () => ({ useDiscoveryResource: (_userId: string, key: string) => {
   state.resourceKeys.push(key);
   return {
-  value: !state.canDiscover || !key ? undefined : key === "profile" ? { published: state.published ? { areaId: "pilot-city" } : null, paused: state.paused, suspended: false }
+  value: key.startsWith("locked-in-partner:") ? state.partnerName : !state.canDiscover || !key ? undefined : key === "profile" ? { published: state.published ? { areaId: "pilot-city" } : null, paused: state.paused, suspended: false }
     : key === "distance-preferences" ? { configured: true, preference: { maxDistanceMiles: 25, areaLabel: "Pilot city" } }
     : { items: [], nextCursor: state.nextCursor },
   retry: () => {}, error: null,
 }; } }));
-beforeEach(() => { state.emailVerified = false; state.canDiscover = false; state.lockedIn = false; state.nextCursor = null; state.location = undefined; state.matching = undefined; state.published = true; state.paused = false; state.resourceKeys.length = 0; });
+beforeEach(() => { state.emailVerified = false; state.canDiscover = false; state.lockedIn = false; state.relationshipId = null; state.partnerName = null; state.nextCursor = null; state.location = undefined; state.matching = undefined; state.published = true; state.paused = false; state.resourceKeys.length = 0; });
 it("explains email verification on unavailable Discovery without promising access or hiding history", () => {
   state.emailVerified = false;
   const html = renderToStaticMarkup(<DiscoverPage />);
@@ -24,10 +24,19 @@ it("explains email verification on unavailable Discovery without promising acces
 it("explains lock-in locally and keeps chats and the shared space reachable without a candidate request", () => {
   state.lockedIn = true;
   const html = renderToStaticMarkup(<DiscoverPage />);
-  expect(html).toContain("Discovery is paused");
+  expect(html).toContain("Discovery is paused while you’re locked in.");
   expect(html).toContain("Go to Inbox");
   expect(html).toContain("Open Together");
   expect(state.resourceKeys.filter(Boolean)).toEqual([]);
+});
+it("names the locked-in partner when known and keeps Open Together as the first action", () => {
+  state.lockedIn = true;
+  state.relationshipId = "current-space";
+  state.partnerName = "Cindy";
+  const html = renderToStaticMarkup(<DiscoverPage />);
+  expect(html).toContain("You’re off the market and on with Cindy. Your existing chats are still in Inbox.");
+  expect(html.indexOf("Open Together")).toBeLessThan(html.indexOf("Go to Inbox"));
+  expect(state.resourceKeys.filter(Boolean)).toEqual(["locked-in-partner:current-space"]);
 });
 it("does not prompt verified or unknown accounts to verify again", () => {
   for (const value of [true, null]) {

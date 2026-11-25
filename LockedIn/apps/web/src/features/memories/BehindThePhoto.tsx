@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { JourneyApiError, journeyRequest } from "@/features/journey/journey.client";
-import { useQuietRefresh } from "@/features/notifications/use-quiet-refresh";
+import { JourneyApiError } from "@/features/journey/journey.client";
 import { MemoryPhotoCanvas } from "./MemoryPhotoCanvas";
 import { MemoryVoiceDraft } from "./MemoryVoiceDraft";
 import { MemoryVoicePlayer } from "./PrivateMemoryMedia";
@@ -13,6 +12,8 @@ import {
   changeMemory, maxMemoryPhotoBytes, memoryEnvelopePath, memoryNotePath, memoryPath, memoryPhotoPath, memoryPhotoTypes, memoryVoicePath,
   type Memories, type MemoryEnvelopeFields, type MemoryPhoto, type MemoryPin, type PhotoPoint,
 } from "./memory-api";
+import type { MemoryNoteTarget } from "./memory-note-preview";
+import type { TogetherMemories } from "./use-together-memories";
 import styles from "./memories.module.scss";
 
 type Format = "voice" | "text";
@@ -45,19 +46,19 @@ function removalPrompt(removal: Removal | null) {
 
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 
-export default function BehindThePhoto({ relationshipId, userId, partnerName, revision, onDirty, onExpired }: {
-  relationshipId: string; userId: string; partnerName: string; revision: number;
+export default function BehindThePhoto({ relationshipId, userId, partnerName, memories, initialTarget, onDirty, onExpired }: {
+  relationshipId: string; userId: string; partnerName: string; memories: TogetherMemories;
+  initialTarget: MemoryNoteTarget | null;
   onDirty: (value: boolean) => void; onExpired: () => void;
 }) {
   const base = memoryPath(relationshipId);
-  const [gallery, setGallery] = useState<Memories | null>(null);
-  const [loadError, setLoadError] = useState("");
+  const { gallery, error: loadError, invalidate, setBlocked } = memories;
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [envelopeId, setEnvelopeId] = useState<string | null>(null);
-  const [side, setSide] = useState<"front" | "back">("front");
-  const [photoId, setPhotoId] = useState<string | null>(null);
-  const [pinId, setPinId] = useState<string | null>(null);
+  const [envelopeId, setEnvelopeId] = useState<string | null>(initialTarget?.kind === "caption" ? initialTarget.envelopeId : null);
+  const [side, setSide] = useState<"front" | "back">(initialTarget?.kind === "caption" ? "back" : "front");
+  const [photoId, setPhotoId] = useState<string | null>(initialTarget?.kind === "pin" ? initialTarget.photoId : null);
+  const [pinId, setPinId] = useState<string | null>(initialTarget?.kind === "pin" ? initialTarget.pinId : null);
   const [draft, setDraft] = useState<Draft>(null);
   const draftRef = useRef<Draft>(null);
   const [busy, setBusy] = useState(false);
@@ -65,36 +66,16 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
   const [recording, setRecording] = useState(false);
   const [removal, setRemoval] = useState<Removal | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const refocus = useRef(false);
+  const refocus = useRef(Boolean(initialTarget));
 
-  const read = useCallback((signal: AbortSignal) => journeyRequest<Memories>(base, { signal, cache: "no-store" }), [base]);
-  const apply = useCallback((data: Memories) => {
-    const envelopes = data.envelopes ?? [];
-    setGallery({ ...data, envelopes });
-    setEnvelopeId(id => id && envelopes.some(item => item.id === id) ? id : null);
-    setPhotoId(id => id && data.photos.some(item => item.id === id) ? id : null);
-    setLoadError("");
-  }, []);
-  const readFailed = useCallback((cause: unknown) => {
-    if (cause instanceof JourneyApiError && cause.status === 401) onExpired();
-    if (cause instanceof JourneyApiError && [401, 403, 404].includes(cause.status)) setGallery(null);
-    setLoadError(cause instanceof JourneyApiError && cause.status === 404
-      ? "Behind the Photo isn’t available in this space." : "Couldn’t load your photos.");
-  }, [onExpired]);
-  const { invalidate, setBlocked } = useQuietRefresh(read, apply, readFailed);
-  useEffect(() => { invalidate(); }, [invalidate, revision]);
-  useEffect(() => {
-    const refreshVisible = () => { if (document.visibilityState === "visible") invalidate(); };
-    window.addEventListener("focus", refreshVisible);
-    document.addEventListener("visibilitychange", refreshVisible);
-    // Also works when the two people are connected to different API instances.
-    const timer = window.setInterval(refreshVisible, 30_000);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refreshVisible);
-      document.removeEventListener("visibilitychange", refreshVisible);
-    };
-  }, [invalidate]);
+  const [checkedGallery, setCheckedGallery] = useState<Memories | null>(null);
+  if (gallery && gallery !== checkedGallery) {
+    setCheckedGallery(gallery);
+    // An item may be removed by either person while we are looking at it.
+    if (envelopeId && !gallery.envelopes.some(item => item.id === envelopeId)) setEnvelopeId(null);
+    if (photoId && !gallery.photos.some(item => item.id === photoId)) setPhotoId(null);
+  }
+  useEffect(() => () => setBlocked(false), [setBlocked]);
 
   const photo = gallery?.photos.find(item => item.id === photoId);
   const envelope = gallery?.envelopes.find(item => item.id === (photo ? photo.envelopeId : envelopeId));
@@ -109,11 +90,11 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, re
   const prompt = removalPrompt(removal);
 
   useEffect(() => {
-    if (!refocus.current) return;
+    if (!refocus.current || !gallery) return;
     refocus.current = false;
     heading.current?.focus({ preventScroll: true });
     heading.current?.scrollIntoView({ block: "nearest", behavior: "instant" });
-  }, [envelopeId, photoId, side]);
+  }, [envelopeId, gallery, photoId, side]);
 
   function openEnvelope(id: string | null) {
     refocus.current = true;

@@ -67,9 +67,9 @@
 .card {
   min-width: 0;
   padding: clamp(1.15rem, 3.4vw, 2.2rem);
-  border: 1px solid var(--member-divider, var(--brand-rule));
+  border: 1px solid var(--love-rule);
   border-radius: clamp(1.1rem, 2.5vw, 1.75rem);
-  background: var(--paper);
+  background: var(--love-letter);
   &:has(> h2:target) { border-color: var(--editorial-accent); }
   h2 {
     color: var(--editorial-ink, var(--ink));
@@ -117,7 +117,7 @@
   color: var(--ink);
   cursor: pointer;
   &:active { background: var(--member-hover, var(--brand-canvas)); }
-  svg { color: var(--editorial-accent, var(--brand-muted)); }
+  svg { color: var(--love-wine); }
 }
 @media (hover: hover) {
   .settingRow:hover { background: var(--member-hover, var(--brand-canvas)); }
@@ -137,7 +137,7 @@
     border-radius: .75rem;
     padding: .7rem .82rem;
     min-height: 48px;
-    background: var(--paper);
+    background: var(--love-letter);
     color: var(--ink);
     font: inherit;
   }
@@ -152,10 +152,10 @@
   font-weight: 650;
 }
 .primary {
-  background: var(--editorial-ink, var(--action));
-  color: #fffaf4;
+  background: var(--action);
+  color: var(--on-action);
   border: 1px solid transparent;
-  &:enabled:hover { background: #45342a; }
+  &:enabled:hover { background: var(--brand-action-hover); }
   &:disabled {
     cursor: default;
     opacity: 0.55;

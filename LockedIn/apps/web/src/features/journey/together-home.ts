@@ -3,9 +3,26 @@ import { conversationTopicHref, currentCheckInHref, workspaceHref } from "./jour
 import { getNextAction } from "./journey.next-action";
 import type { JourneyOverview } from "./journey.types";
 
+const dayMs = 24 * 60 * 60 * 1000;
+
+export function daysTogether(lockedAt: string | undefined, now: number): number | null {
+  const age = now - Date.parse(lockedAt ?? "");
+  return Number.isFinite(age) && age >= -60_000 ? Math.max(0, Math.floor(age / dayMs)) : null;
+}
+
+const relativeTime = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
+export function noteAge(updatedAt: string, now: number): string | null {
+  const age = now - Date.parse(updatedAt);
+  if (!Number.isFinite(age)) return null;
+  if (age < 60_000) return "just now";
+  if (age < 3_600_000) return relativeTime.format(-Math.floor(age / 60_000), "minute");
+  if (age < dayMs) return relativeTime.format(-Math.floor(age / 3_600_000), "hour");
+  return relativeTime.format(-Math.floor(age / dayMs), "day");
+}
+
 export function shouldCelebrateLockIn(lockedAt: string, seenLock: string | null, now: number) {
   const age = now - Date.parse(lockedAt);
-  return seenLock !== lockedAt && age >= -60_000 && age < 24 * 60 * 60 * 1000;
+  return seenLock !== lockedAt && age >= -60_000 && age < dayMs;
 }
 
 export function getUpcomingTogetherPlan(plans: SimplePlan[], today = localDay()) {

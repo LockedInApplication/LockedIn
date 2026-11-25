@@ -9,10 +9,10 @@
     color: inherit;
     &:enabled:hover { background: var(--member-hover); }
     &.primary {
-      border-color: var(--editorial-ink);
-      background: var(--editorial-ink);
-      color: #fffaf4;
-      &:enabled:hover { background: #45342a; }
+      border-color: var(--action);
+      background: var(--action);
+      color: var(--on-action);
+      &:enabled:hover { background: var(--brand-action-hover); }
     }
   }
 }
@@ -120,7 +120,7 @@
       inset: .16rem auto .16rem .16rem;
       aspect-ratio: 1;
       border-radius: 50%;
-      background: #fffaf4;
+      background: var(--love-letter);
     }
   }
   &[aria-checked="true"] .switchTrack {

@@ -4,7 +4,7 @@
 }
 
 .sectionHero {
-  background: linear-gradient(135deg, #f4fbf9, white);
+  background: var(--love-letter);
 }
 
 .sectionHero p {
@@ -40,11 +40,11 @@
 .alignmentNextPrompt {
   display: flex;
   justify-content: space-between;
-  background: linear-gradient(135deg, #f4fbf9, white);
+  background: var(--love-letter);
 }
 
 .alignmentNextPrompt h3 {
   margin: 7px 0;
-  color: #213249;
+  color: var(--ink);
   font-size: 1.35rem;
 }

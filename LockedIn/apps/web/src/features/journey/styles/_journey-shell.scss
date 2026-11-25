@@ -137,7 +137,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  color: white;
+  color: var(--love-letter);
   background: linear-gradient(145deg, #182d48, #16a394);
   font-size: 0.76rem;
   font-weight: 800;
@@ -182,7 +182,7 @@
   height: 31px;
   border: 1px solid var(--brand-rule);
   border-radius: 50%;
-  background: white;
+  background: var(--love-letter);
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -199,7 +199,7 @@
 
 .progressRail .progressDone > span {
   border-color: #16a394;
-  color: white;
+  color: var(--love-letter);
   background: #16a394;
 }
 

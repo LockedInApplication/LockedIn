@@ -6,8 +6,9 @@ import SharedJourneyPath from "./SharedJourneyPath";
 import WorkspaceNav from "./WorkspaceNav";
 import TogetherChatActions from "./TogetherChatActions";
 import { QuietTogetherHome, TogetherHomeHeading, TogetherPlan, TogetherWelcome } from "./TogetherHome";
-import { getTogetherNextUp, getUpcomingTogetherPlan, shouldCelebrateLockIn } from "../together-home";
+import { daysTogether, getTogetherNextUp, getUpcomingTogetherPlan, shouldCelebrateLockIn } from "../together-home";
 import type { SimplePlan } from "@/features/roadmap/roadmap.types";
+import type { Memories } from "@/features/memories/memory-api";
 
 const session: JourneySession = {
   id: "conversation", topic: "Feeling connected", packKey: "support", createdAt: "2026-11-20T12:00:00Z",
@@ -23,6 +24,7 @@ const overview: JourneyOverview = {
   messaging: { enabled: true, conversationId: "chat" }, pendingInvites: [], session: null,
   simplePlans: [plan], checkInHistory: [], conversationPacks: [], conversationSelection: null, atlas: { words: [] },
 };
+const emptyMemories = { gallery: { photos: [], envelopes: [] }, error: "" };
 
 it("prioritizes the right Inbox action and keeps Discover on the photo welcome", () => {
   const fresh = renderToStaticMarkup(<TogetherWelcome canInvite hasInboxActivity={false} />);
@@ -52,11 +54,19 @@ it("celebrates a recent server-confirmed choice only once", () => {
   expect(shouldCelebrateLockIn("2026-11-23T14:59:59.000Z", null, now)).toBe(false);
   expect(shouldCelebrateLockIn("invalid", null, now)).toBe(false);
   const props = { userId: "me", user: { name: "Devon", avatarPreset: "sun" }, partner: { name: "Maya", avatarPreset: "moon" } };
-  const shared = renderToStaticMarkup(<TogetherHomeHeading {...props} locked />);
-  expect(shared).toContain("You &amp; Maya");
-  expect(shared).toContain("You both chose to lock in.");
+  const shared = renderToStaticMarkup(<TogetherHomeHeading {...props} now={now} lockedAt={recent} locked />);
+  expect(shared).toContain("You <em>&amp;</em> Maya");
+  expect(shared).toContain("You both chose to lock in today.");
   expect(shared).toContain('data-preset="moon"');
-  expect(renderToStaticMarkup(<TogetherHomeHeading {...props} locked={false} />)).not.toContain("You both chose");
+  expect(renderToStaticMarkup(<TogetherHomeHeading {...props} now={now} lockedAt={recent} locked={false} />)).not.toContain('role="status"');
+  const earlier = new Date(2026, 2, 14, 12).toISOString();
+  const later = Date.parse(earlier) + 212 * 86_400_000 + 1_000;
+  const established = renderToStaticMarkup(<TogetherHomeHeading {...props} now={later} lockedAt={earlier} locked />);
+  expect(established).toContain('role="status">Locked in since');
+  expect(established).toContain("March 14</time> · <strong>212 days</strong>");
+  expect(daysTogether(earlier, Date.parse(earlier) + 86_399_999)).toBe(0);
+  expect(daysTogether(earlier, Date.parse(earlier) + 86_400_000)).toBe(1);
+  expect(daysTogether("invalid", later)).toBeNull();
 });
 
 it("shows only the next actual shared plan and links directly to it", () => {
@@ -107,16 +117,33 @@ it("keeps Memories and Room to Talk gated by the mutual lock-in", () => {
   expect(talk).toContain("Check-ins");
 });
 
-it("shows one timely item in Quiet home, with neither progress nor chat prompts on the page", () => {
+it("shows the note, Message, and one timely item in order, with neither progress nor chat prompts on the page", () => {
   const waitingOnMe = { ...session, bothRevealed: false, ownResponse: null };
-  const html = renderToStaticMarkup(<QuietTogetherHome overview={{ ...overview, session: waitingOnMe }}
+  const gallery: Memories = { photos: [], envelopes: [{ id: "day-1", title: "Sunday", day: null, tone: "LINEN", coverPhotoId: null,
+    captions: [{ yours: false, text: "Thanks for being there." }] }] };
+  const html = renderToStaticMarkup(<QuietTogetherHome overview={{ ...overview, session: waitingOnMe }} memories={{ gallery, error: "" }}
     onNavigate={() => {}} confirmLeave={() => true} />);
   expect(html.match(/data-next-up\b/g)).toHaveLength(1);
+  expect(html).toContain('href="/journey?view=memories#memory-envelope/day-1"');
+  expect(html).toContain("“Thanks for being there.”");
+  expect(html.indexOf("A note from Maya")).toBeLessThan(html.indexOf("Message Maya"));
   expect(html.indexOf("Message Maya")).toBeLessThan(html.indexOf("Answer your private check-in"));
   expect(html.indexOf("Answer your private check-in")).toBeLessThan(html.indexOf("Your space"));
   expect(html).toContain('href="/journey?view=check-ins#current-action"');
   expect(html).toContain('aria-label="Together options"');
   expect(html).not.toMatch(/Try a prompt|Shared progress|Try the café|Past check-ins/);
+});
+
+it("offers to write the first note only after a successful empty read in a locked space", () => {
+  const props = { onNavigate: () => {}, confirmLeave: () => true };
+  const html = renderToStaticMarkup(<QuietTogetherHome {...props} overview={overview} memories={emptyMemories} />);
+  expect(html).toContain("No notes yet.");
+  expect(html).toContain("Leave Maya something to find the next time they open the app.");
+  expect(html).toContain("Write the first note");
+  const loading = renderToStaticMarkup(<QuietTogetherHome {...props} overview={overview} memories={{ gallery: null, error: "" }} />);
+  expect(loading).not.toContain("No notes yet.");
+  const unlocked = { ...overview, relationship: { ...overview.relationship!, isMutuallyLockedIn: false } };
+  expect(renderToStaticMarkup(<QuietTogetherHome {...props} overview={unlocked} memories={emptyMemories} />)).not.toContain("Notes in Together");
 });
 
 it("falls back to the next accepted plan when a check-in is waiting and leaves the slot empty when there is nothing due", () => {

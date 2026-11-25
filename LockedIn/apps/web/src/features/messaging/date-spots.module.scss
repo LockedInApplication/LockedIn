@@ -13,7 +13,7 @@
 }
 .actions { display: flex; gap: .5rem .75rem; align-items: center; flex-wrap: wrap; }
 .actions a { display: inline-flex; align-items: center; min-height: 44px; }
-.planner button.primary { background: var(--action); color: #fff; border-color: var(--action); }
+.planner button.primary { background: var(--action); color: var(--on-action); border-color: var(--action); }
 .panel, .detail {
   border: 1px solid var(--stone-100); background: var(--stone-50); border-radius: .8rem; padding: .85rem;
   display: grid; gap: .65rem; min-width: 0; overflow-wrap: anywhere;

@@ -80,7 +80,7 @@
   transform: rotate(1.5deg);
 }
 .canvasLabel { position: absolute; top: 20px; left: 25px; color: var(--stone-500); font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.voiceCard { position: relative; width: 78%; padding: 20px 22px; border: 1px solid rgba(32, 24, 47, 0.13); background: white; box-shadow: 0 8px 22px rgba(32, 24, 47, 0.07); }
+.voiceCard { position: relative; width: 78%; padding: 20px 22px; border: 1px solid rgba(32, 24, 47, 0.13); background: var(--love-letter); box-shadow: 0 8px 22px rgba(32, 24, 47, 0.07); }
 .voiceCard span, .sharedStep span { font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
 .voiceCard p { margin: 10px 0 15px; color: var(--ink); font-family: var(--font-display); font-size: 1.12rem; font-weight: 600; line-height: 1.22; }
 .voiceCard small { color: var(--stone-500); font-size: 0.67rem; }
@@ -89,7 +89,7 @@
 .voiceTwo { margin: 25px 0 0 auto; border-left: 5px solid var(--plum); transform: rotate(2deg); }
 .voiceTwo span { color: var(--plum); }
 .sharedStep { display: flex; align-items: center; gap: 15px; width: 88%; margin: 34px auto 0; padding: 18px; color: var(--ink); background: var(--sage); transform: rotate(-1deg); }
-.sharedStep b { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: white; background: var(--ink); }
+.sharedStep b { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: var(--love-letter); background: var(--ink); }
 .sharedStep div { display: grid; gap: 3px; }
 .sharedStep strong { font-family: var(--font-display); font-size: 0.98rem; }
 .orbitOne, .orbitTwo { position: absolute; border-radius: 50%; pointer-events: none; }

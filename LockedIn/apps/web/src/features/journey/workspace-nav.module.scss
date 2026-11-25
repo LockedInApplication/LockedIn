@@ -18,7 +18,8 @@
   color: inherit;
   text-decoration: none;
   overflow-wrap: anywhere;
-  &:hover { background: var(--member-hover, var(--stone-50)); }
+  transition: background-color 150ms ease-out;
+  &:hover { background: var(--love-hover); }
   &:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 }
 .icon {
@@ -27,11 +28,12 @@
   align-self: start;
   inline-size: 2rem;
   block-size: 2rem;
-  border-radius: .55rem;
-  background: var(--brand-neutral, var(--stone-50));
-  color: var(--forest);
+  border-radius: 50%;
+  background: var(--love-blush);
+  color: var(--love-wine);
 }
 .copy { display: grid; gap: .1rem; }
 .copy strong { font-size: .95rem; line-height: 1.25; }
 .copy small { color: var(--member-muted, var(--brand-muted)); font-size: .8rem; line-height: 1.35; }
-.chevron { padding-inline: .22rem; color: var(--forest); font-size: 1.25rem; }
+.chevron { padding-inline: .22rem; color: var(--love-wine); font-size: 1.25rem; }
+@media (prefers-reduced-motion: reduce) { .row { transition: none; } }

@@ -1,9 +1,10 @@
 import type { ConversationMetadata, DirectInboxChat } from "@/features/messaging/messaging.types";
 import type { UnreadChat } from "@/features/notifications/notification.types";
+import { knownPartnerName } from "@/features/journey/relationship-name";
 import type { DiscoveryConnectionView } from "./discovery.types";
 import { connectionStatus } from "./connection-status";
 
-export function inboxEntries(connections: readonly DiscoveryConnectionView[], linked: ConversationMetadata | null, unread: readonly UnreadChat[], discoveryChatEnabled: boolean, direct: readonly DirectInboxChat[] = []) {
+export function inboxEntries(connections: readonly DiscoveryConnectionView[], linked: ConversationMetadata | null, unread: readonly UnreadChat[], discoveryChatEnabled: boolean, direct: readonly DirectInboxChat[] = [], together?: { lockedIn: boolean; partnerName?: string }) {
   const unreadLinks = unread.map(item => ({
     href: item.discoveryConnectionId ? `/connections/${item.discoveryConnectionId}` : `/messages/${item.conversationId}`,
     connectionId: item.discoveryConnectionId ?? (item.conversationId === linked?.id ? linked.opening?.connectionId : null),
@@ -24,9 +25,12 @@ export function inboxEntries(connections: readonly DiscoveryConnectionView[], li
   });
   if (linked && (linked.canChat || linked.unavailableReason === "VERIFY_EMAIL") &&
     !rows.some(row => (row.href === `/connections/${linked.opening?.connectionId}` || row.href === `/messages/${linked.id}`) && row.group === "chat")) {
+    const name = linked.canChat ? knownPartnerName(linked.partner.publicName) ?? together?.partnerName : undefined;
+    const locked = together?.lockedIn ?? (linked.lockIn?.state === "locked" || Boolean(linked.opening));
     rows.unshift({
-      href: `/messages/${linked.id}`, partner: linked.partner, status: linked.canChat ? (linked.opening ? "Locked in" : "Shared space") : "Verify email to chat",
-      detail: linked.opening ? linked.opening.questionText : "Your shared-space conversation", group: "chat",
+      href: `/messages/${linked.id}`, partner: name ? {...linked.partner,publicName:name} : linked.partner,
+      status: linked.canChat ? (locked ? "Locked in" : "Shared space") : "Verify email to chat",
+      detail: linked.opening ? linked.opening.questionText : "Your private chat", group: "chat",
       unread: unreadLinks.some(item => item.conversationId === linked.id),
     });
   }

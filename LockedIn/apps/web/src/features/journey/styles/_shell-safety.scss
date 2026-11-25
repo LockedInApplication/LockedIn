@@ -41,13 +41,13 @@
   gap: 14px;
   min-height: 100vh;
   color: var(--brand-muted);
-  background: #f7f9f8;
+  background: var(--love-paper);
 }
 
 .loadingPage button {
   padding: 10px 16px;
   border: 0;
   border-radius: 10px;
-  color: white;
-  background: #132238;
+  color: var(--on-action);
+  background: var(--action);
 }

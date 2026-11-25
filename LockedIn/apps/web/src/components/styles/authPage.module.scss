@@ -24,7 +24,7 @@
   align-items: end;
   height: 100dvh;
   padding: clamp(2rem, 5vw, 5rem);
-  color: white;
+  color: var(--love-letter);
   background: linear-gradient(180deg, transparent 40%, #090e16ed 100%),
     #16191c url("/home/blue-hour-1024.webp") 54% center / cover no-repeat;
 }

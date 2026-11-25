@@ -1,43 +1,28 @@
 .frame {
-  --member-surface: var(--brand-paper);
+  --member-surface: var(--love-letter);
   --member-divider: var(--brand-rule);
-  --member-hover: #f5f7f8;
+  --member-hover: var(--love-hover);
   --member-muted: var(--brand-muted);
-  --cream: var(--member-surface);
+  --cream: var(--brand-canvas);
   --paper: var(--member-surface);
+  --editorial-ink: var(--love-ink);
+  --editorial-accent: var(--love-wine);
+  --editorial-accent-hover: var(--love-wine-deep);
 }
 .frame.editorial {
-  --member-hover: var(--brand-neutral);
-  --editorial-ink: #1d1917;
-  --editorial-accent: #a54428;
-  --editorial-accent-hover: #87341d;
   --editorial-gutter: clamp(1rem, 8.9vw, 8rem);
 }
 .editorial header.header {
   padding-inline: max(var(--editorial-gutter), calc((100% - 86rem) / 2));
   min-height: 65px;
 }
-.editorial .header > a {
+.frame .header > a {
   gap: .6rem;
   color: var(--editorial-ink);
   font: 550 clamp(1.45rem, 2.2vw, 1.7rem)/1 var(--font-serif);
   letter-spacing: -.045em;
+  em { color: var(--love-wine); }
 }
-.rings { position: relative; inline-size: 23px; block-size: 16px; flex: none; }
-.rings::before, .rings::after {
-  content: "";
-  position: absolute;
-  inset: 1px auto auto 0;
-  inline-size: 14px;
-  block-size: 14px;
-  border: 2px solid currentColor;
-  border-radius: 50%;
-}
-.rings::after { inset-inline-start: 7px; border-color: #b75633; }
-.editorial .tabs a { border-radius: 999px; color: var(--member-muted); }
-.editorial .tabs a[aria-current] { background: var(--editorial-ink); color: #fffaf4; }
-.editorial .tabs a[aria-current]::after { content: none; }
-.editorial .tabs a[aria-current] .badge { background: var(--paper); color: var(--editorial-ink); }
 .editorial .tabs svg { flex: none; width: 19px; height: 19px; }
 .backToSite {
   display: inline-flex;
@@ -69,7 +54,7 @@
   padding-inline: max(16px, calc((100% - min(1280px, 91vw)) / 2));
 }
 header.header {
-  background: var(--paper);
+  background: var(--love-paper);
   border-color: var(--member-divider);
 }
 .header > a { flex-shrink: 0; min-height: 44px; }
@@ -83,22 +68,15 @@ header.header {
   gap: 6px;
   min-height: 44px;
   padding: 7px 12px;
-  border-radius: 10px;
-  color: var(--plum);
+  border-radius: 999px;
+  color: var(--member-muted);
   text-decoration: none;
   font-weight: 650;
   font-size: .9rem;
 }
-.tabs a:hover, .panel :is(a, button):hover { background: var(--member-hover); }
-.tabs a[aria-current] { color: var(--forest); font-weight: 750; }
-.tabs a[aria-current]::after {
-  content: "";
-  position: absolute;
-  inset: auto 25% 0;
-  height: 3px;
-  border-radius: 3px;
-  background: currentColor;
-}
+.tabs a:hover:not([aria-current]), .panel :is(a, button):hover { background: var(--member-hover); }
+.tabs a[aria-current] { background: var(--action); color: var(--on-action); font-weight: 750; }
+.tabs a[aria-current] .badge { background: var(--love-letter); color: var(--love-wine); }
 .badge {
   display: inline-grid;
   place-items: center;
@@ -169,7 +147,7 @@ header.header {
   header.header {
     min-height: 64px;
     padding: 8px 16px;
-    background: var(--paper);
+    background: var(--love-paper);
     // The legacy sticky header's blur makes fixed children anchor to the
     // header instead of the viewport. Win even if its CSS is loaded last.
     backdrop-filter: none;
@@ -186,7 +164,8 @@ header.header {
     gap: 4px;
     padding: 4px max(8px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
     border-top: 1px solid var(--member-divider);
-    background: var(--paper);
+    background: color-mix(in srgb, var(--love-paper) 95%, transparent);
+    backdrop-filter: blur(10px);
   }
   .tabs a { flex-direction: column; gap: 2px; padding: 4px 0; min-height: 50px; font-size: .75rem; }
   .badge { position: absolute; top: 0; left: calc(50% + 7px); }

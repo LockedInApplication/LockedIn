@@ -4,10 +4,22 @@ import Security
 
 typealias SigningKey = Curve25519.Signing.PrivateKey
 
+#if LOCKEDIN_WEEKLY_REPORT
+let keyService = "LockedIn Weekly Report Signing"
+let keyAccount = "lockedin_weekly_report"
+let reportAudience = "lockedin.weekly-app-report.v1"
+let reportTarget = #"^/internal/lockedin-report(?:\?week=[0-9]{4}-[0-9]{2}-[0-9]{2})?$"#
+#else
+let keyService = "LockedIn Together Report Signing"
+let keyAccount = "lockedin_together_report"
+let reportAudience = "lockedin.together-report.v1"
+let reportTarget = #"^/internal/together-report(?:\?week=[0-9]{4}-[0-9]{2}-[0-9]{2})?$"#
+#endif
+
 let item = [
     kSecClass as String: kSecClassGenericPassword,
-    kSecAttrService as String: "LockedIn Together Report Signing",
-    kSecAttrAccount as String: "lockedin_together_report"
+    kSecAttrService as String: keyService,
+    kSecAttrAccount as String: keyAccount
 ] as [String: Any]
 
 func keyFromKeychain() throws -> SigningKey {
@@ -30,9 +42,9 @@ func printPublicKey(_ key: SigningKey) {
 func isReportRequest(_ request: Data) -> Bool {
     guard let text = String(data: request, encoding: .utf8) else { return false }
     let parts = text.components(separatedBy: "\n")
-    guard parts.count == 6, parts[0] == "lockedin.together-report.v1",
+    guard parts.count == 6, parts[0] == reportAudience,
           parts[1] == "https://lockedin-9yon.onrender.com", parts[2] == "GET",
-          parts[3].range(of: #"^/internal/together-report(?:\?week=[0-9]{4}-[0-9]{2}-[0-9]{2})?$"#, options: .regularExpression) != nil,
+          parts[3].range(of: reportTarget, options: .regularExpression) != nil,
           parts[4].range(of: #"^[1-9][0-9]{9}$"#, options: .regularExpression) != nil,
           parts[5].range(of: #"^[A-Za-z0-9_-]{22}$"#, options: .regularExpression) != nil,
           let time = Double(parts[4]), abs(Date().timeIntervalSince1970 - time) < 60 else {

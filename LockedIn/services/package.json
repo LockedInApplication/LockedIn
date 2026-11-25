@@ -28,7 +28,11 @@
 
           "report:together:key": "tsx scripts/create-together-report-key.ts",
 
-          "report:together:db": "node scripts/report-together.mjs"
+          "report:together:db": "node scripts/report-together.mjs",
+
+          "report:lockedin": "tsx scripts/report-lockedin-https.ts",
+
+          "report:lockedin:key": "tsx scripts/create-together-report-key.ts --lockedin-weekly"
 
      },
 

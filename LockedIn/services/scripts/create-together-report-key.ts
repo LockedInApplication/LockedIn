@@ -3,22 +3,27 @@ import { chmodSync, constants, copyFileSync, existsSync, mkdirSync, mkdtempSync,
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { togetherReportKeyHelper, useTogetherReportKey } from "./together-report-keychain.js";
+import { lockedInReportKeyHelper, togetherReportKeyHelper, useLockedInReportKey, useTogetherReportKey } from "./together-report-keychain.js";
 
-const [option, ...extra] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const lockedIn = args[0] === "--lockedin-weekly";
+const [option, ...extra] = lockedIn ? args.slice(1) : args;
+const helper = lockedIn ? lockedInReportKeyHelper : togetherReportKeyHelper;
+const useKey = lockedIn ? useLockedInReportKey : useTogetherReportKey;
 let temp: string | undefined;
 try {
   if (process.platform !== "darwin" || extra.length || (option !== undefined && option !== "--show-public")) throw new Error();
-  if (option !== "--show-public" && !existsSync(togetherReportKeyHelper)) {
-    temp = mkdtempSync(path.join(tmpdir(), "lockedin-together-report-key-"));
+  if (option !== "--show-public" && !existsSync(helper)) {
+    temp = mkdtempSync(path.join(tmpdir(), "lockedin-report-key-"));
     const binary = path.join(temp, "report-sign");
     const source = fileURLToPath(new URL("./together-report-key-helper.swift", import.meta.url));
-    if (spawnSync("/usr/bin/swiftc", ["-module-cache-path", path.join(temp, "cache"), source, "-o", binary], { stdio: "ignore", timeout: 45000 }).status !== 0) throw new Error();
-    mkdirSync(path.dirname(togetherReportKeyHelper), { mode: 0o700, recursive: true });
-    copyFileSync(binary, togetherReportKeyHelper, constants.COPYFILE_EXCL);
-    chmodSync(togetherReportKeyHelper, 0o700);
+    const audience = lockedIn ? ["-D", "LOCKEDIN_WEEKLY_REPORT"] : [];
+    if (spawnSync("/usr/bin/swiftc", ["-module-cache-path", path.join(temp, "cache"), ...audience, source, "-o", binary], { stdio: "ignore", timeout: 45000 }).status !== 0) throw new Error();
+    mkdirSync(path.dirname(helper), { mode: 0o700, recursive: true });
+    copyFileSync(binary, helper, constants.COPYFILE_EXCL);
+    chmodSync(helper, 0o700);
   }
-  const key = useTogetherReportKey(option === "--show-public" ? "public" : "create");
+  const key = useKey(option === "--show-public" ? "public" : "create");
   if (!key) throw new Error();
   console.log(key);
 } catch {

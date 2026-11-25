@@ -123,6 +123,60 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("Behind the Photo"
     expect((await get(b, path)).statusCode).toBe(404);
   });
 
+  it("shares one private memory per completed plan, preserves its outing day, and keeps it after undo", async () => {
+    const a = await createPerson(), b = await createPerson(), stranger = await createPerson();
+    const space = await db.relationship.create({ data: {
+      directLockedInAt: new Date(), members: { create: [{ userId: a.id }, { userId: b.id }] },
+    } });
+    const other = await db.relationship.create({ data: { directLockedInAt: new Date() } });
+    const day = new Date("2026-11-15T00:00:00Z");
+    const create = (relationshipId: string, status: "ACCEPTED" | "DONE") => db.roadmapPlan.create({
+      data: { relationshipId, proposerId: a.id, title: "Go to the garden", day, status },
+    });
+    const pending = await create(space.id, "ACCEPTED"), foreign = await create(other.id, "DONE");
+    const plan = await create(space.id, "DONE");
+    const path = `/api/journey/relationships/${space.id}/memories`;
+    const bytes = await sharp({ create: { width: 120, height: 90, channels: 3, background: "#875752" } }).png().toBuffer();
+    const file: [string, Blob] = ["file", new Blob([new Uint8Array(bytes)], { type: "image/png" })];
+    const upload = (person: Person, sourcePlanId: string, id = randomUUID()) =>
+      send(person, "POST", path, { id, title: "Our garden walk", sourcePlanId }, file);
+    expect((await upload(stranger, plan.id)).statusCode).toBe(404);
+    expect((await upload(a, foreign.id)).statusCode).toBe(404);
+    expect((await upload(a, pending.id)).statusCode).toBe(409);
+    expect(await db.togetherPhoto.count({ where: { relationshipId: space.id } })).toBe(0);
+
+    const saved = await Promise.all([upload(a, plan.id), upload(b, plan.id)]);
+    expect(saved.map(reply => reply.statusCode).sort()).toEqual([200, 201]);
+    const id = saved[0]!.json().id;
+    expect(saved[1]!.json().id).toBe(id);
+    expect(saved.find(reply => reply.statusCode === 200)?.json()).toEqual({ id, existing: true });
+    expect((await get(b, path)).json().photos).toEqual([expect.objectContaining({
+      id, sourcePlanId: plan.id, day: "2026-11-15", title: "Our garden walk", envelopeId: null,
+    })]);
+    const memoryStatus = async (person: Person) => (await get(person, "/api/journey/overview")).json().simplePlans
+      .find((item: { id: string }) => item.id === plan.id);
+    expect(await memoryStatus(a)).toMatchObject({ hasMemory: true, status: "DONE" });
+    expect(await memoryStatus(b)).toMatchObject({ hasMemory: true, status: "DONE" });
+    const original = await db.togetherPhoto.findUniqueOrThrow({ where: { id }, select: { uploaderId: true } });
+    const otherPerson = original.uploaderId === a.id ? b : a;
+    const author = original.uploaderId === a.id ? a : b;
+    const pin = { id: randomUUID(), title: "First look", x: "5000", y: "5000", text: "We stopped at the same spot." };
+    expect((await send(otherPerson, "POST", `${path}/${id}/pins`, pin)).statusCode).toBe(201);
+    expect((await send(author, "PUT", `${path}/${id}/pins/${pin.id}/note`, {}, ["voice", voice(16000)])).statusCode).toBe(200);
+
+    const undo = await app.inject({
+      method: "POST", url: `/api/journey/relationships/${space.id}/plans/${plan.id}`,
+      headers: { cookie: b.cookie, origin, "x-roadmap-owner": b.id },
+      payload: { action: "undo-done", requestId: randomUUID(), version: plan.version },
+    });
+    expect(undo.statusCode).toBe(200);
+    expect(await memoryStatus(a)).toMatchObject({ hasMemory: true, status: "ACCEPTED" });
+    expect((await get(b, `${path}/${id}/media`)).statusCode).toBe(200);
+    expect((await remove(author, `${path}/${id}`)).statusCode).toBe(200);
+    expect(await memoryStatus(b)).not.toHaveProperty("hasMemory");
+    expect((await upload(b, plan.id)).statusCode).toBe(409);
+  });
+
   it("files private photos without recreating them and gives each caption its own author", async () => {
     const a = await createPerson(), b = await createPerson(), c = await createPerson(), d = await createPerson();
     const makeSpace = (first: Person, second: Person, locked = true) => db.relationship.create({ data: {

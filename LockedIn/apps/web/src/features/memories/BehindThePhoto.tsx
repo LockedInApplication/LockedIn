@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { JourneyApiError } from "@/features/journey/journey.client";
+import type { SimplePlan } from "@/features/roadmap/roadmap.types";
 import { MemoryPhotoCanvas } from "./MemoryPhotoCanvas";
 import { MemoryVoiceDraft } from "./MemoryVoiceDraft";
 import { MemoryVoicePlayer } from "./PrivateMemoryMedia";
@@ -13,6 +14,7 @@ import {
   type Memories, type MemoryEnvelopeFields, type MemoryPhoto, type MemoryPin, type PhotoPoint,
 } from "./memory-api";
 import type { MemoryNoteTarget } from "./memory-note-preview";
+import { planMemoryTitle } from "./plan-memory";
 import type { TogetherMemories } from "./use-together-memories";
 import styles from "./memories.module.scss";
 
@@ -21,7 +23,7 @@ type NoteDraft = {
   type: "note"; photoId: string; format: Format; text: string; clip: Blob | null; title: string;
   target: { pinId: string } | { id: string; point: PhotoPoint };
 };
-type Draft = { type: "photo"; id: string; title: string; file: File | null; envelopeId: string | null }
+type Draft = { type: "photo"; id: string; title: string; file: File | null; envelopeId: string | null; sourcePlanId?: string }
   | { type: "envelope"; id: string; creating: boolean }
   | { type: "tuck"; envelopeId: string | null; initialPhotoId?: string }
   | { type: "caption"; envelopeId: string }
@@ -45,10 +47,15 @@ function removalPrompt(removal: Removal | null) {
 }
 
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
+const outingDate = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
+const outingDayLabel = (day: string) => outingDate.format(new Date(`${day}T12:00:00Z`));
+type PlanLink = { id: string; plan: SimplePlan | undefined; onBack: () => void };
 
-export default function BehindThePhoto({ relationshipId, userId, partnerName, memories, initialTarget, onDirty, onExpired }: {
+export default function BehindThePhoto({ relationshipId, userId, partnerName, memories, initialTarget, planLink, onPlanMemoryChange, onDirty, onExpired }: {
   relationshipId: string; userId: string; partnerName: string; memories: TogetherMemories;
   initialTarget: MemoryNoteTarget | null;
+  planLink?: PlanLink;
+  onPlanMemoryChange?: () => void;
   onDirty: (value: boolean) => void; onExpired: () => void;
 }) {
   const base = memoryPath(relationshipId);
@@ -57,27 +64,34 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
   const [error, setError] = useState("");
   const [envelopeId, setEnvelopeId] = useState<string | null>(initialTarget?.kind === "caption" ? initialTarget.envelopeId : null);
   const [side, setSide] = useState<"front" | "back">(initialTarget?.kind === "caption" ? "back" : "front");
-  const [photoId, setPhotoId] = useState<string | null>(initialTarget?.kind === "pin" ? initialTarget.photoId : null);
+  const [selectedPhotoId, setPhotoId] = useState<string | null>(initialTarget?.kind === "pin" ? initialTarget.photoId : null);
   const [pinId, setPinId] = useState<string | null>(initialTarget?.kind === "pin" ? initialTarget.pinId : null);
-  const [draft, setDraft] = useState<Draft>(null);
-  const draftRef = useRef<Draft>(null);
+  const linkedPhoto = planLink ? gallery?.photos.find(item => item.sourcePlanId === planLink.id) : undefined;
+  const [followPlan, setFollowPlan] = useState(Boolean(planLink));
+  const [draft, setDraft] = useState<Draft>(() => planLink?.plan?.status === "DONE" && !planLink.plan.hasMemory && !linkedPhoto
+    ? { type: "photo", id: crypto.randomUUID(), title: planMemoryTitle(planLink.plan.title), file: null, envelopeId: null, sourcePlanId: planLink.id }
+    : null);
+  const draftRef = useRef<Draft>(draft);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const [recording, setRecording] = useState(false);
   const [removal, setRemoval] = useState<Removal | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const refocus = useRef(Boolean(initialTarget));
+  const refocus = useRef(Boolean(initialTarget || planLink));
 
   const [checkedGallery, setCheckedGallery] = useState<Memories | null>(null);
   if (gallery && gallery !== checkedGallery) {
     setCheckedGallery(gallery);
     // An item may be removed by either person while we are looking at it.
     if (envelopeId && !gallery.envelopes.some(item => item.id === envelopeId)) setEnvelopeId(null);
-    if (photoId && !gallery.photos.some(item => item.id === photoId)) setPhotoId(null);
+    if (selectedPhotoId && !gallery.photos.some(item => item.id === selectedPhotoId)) setPhotoId(null);
   }
   useEffect(() => () => setBlocked(false), [setBlocked]);
 
+  const photoId = selectedPhotoId ?? (followPlan ? linkedPhoto?.id ?? null : null);
   const photo = gallery?.photos.find(item => item.id === photoId);
+  const fromPlan = draft?.type === "photo" && draft.sourcePlanId ? planLink?.plan : null;
+  const unresolvedPlanLink = followPlan && !draft && !photoId;
   const envelope = gallery?.envelopes.find(item => item.id === (photo ? photo.envelopeId : envelopeId));
   const contents = gallery?.photos.filter(item => envelope && item.envelopeId === envelope.id) ?? [];
   const loose = gallery?.photos.filter(item => !item.envelopeId) ?? [];
@@ -98,6 +112,7 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
 
   function openEnvelope(id: string | null) {
     refocus.current = true;
+    setFollowPlan(false);
     setEnvelopeId(id);
     setPhotoId(null);
     setPinId(null);
@@ -107,6 +122,7 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
   }
   function openPhoto(photo: MemoryPhoto) {
     refocus.current = true;
+    setFollowPlan(false);
     setEnvelopeId(photo.envelopeId ?? null);
     setPhotoId(photo.id);
     setPinId(null);
@@ -148,7 +164,7 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
     setNotice("");
     setError("");
   }
-  async function run(operation: () => Promise<void>, success: string) {
+  async function run(operation: () => Promise<void | string>, success: string) {
     if (pending.current) return;
     pending.current = true;
     setBusy(true);
@@ -156,9 +172,9 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
     setError("");
     setNotice("");
     try {
-      await operation();
+      const feedback = await operation();
       changeDraft(null);
-      setNotice(success);
+      setNotice(feedback ?? success);
     } catch (cause) {
       if (cause instanceof JourneyApiError && cause.status === 401) onExpired();
       setError(message(cause, "Couldn’t save this change. Try again."));
@@ -178,11 +194,14 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
     body.set("title", draft.title.trim());
     body.set("file", draft.file);
     if (draft.envelopeId) body.set("envelopeId", draft.envelopeId);
+    if (draft.sourcePlanId) body.set("sourcePlanId", draft.sourcePlanId);
     void run(async () => {
-      const added = await changeMemory<{ id: string }>(base, "POST", userId, body);
+      const added = await changeMemory<{ id: string; existing?: boolean }>(base, "POST", userId, body);
       refocus.current = true;
       setPhotoId(added.id);
       setPinId(null);
+      if (draft.sourcePlanId) onPlanMemoryChange?.();
+      if (added.existing) return "This plan already has a memory. Your photo wasn’t added.";
     }, `Photo shared with ${partnerName}.`);
   }
 
@@ -231,6 +250,7 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
       void run(async () => {
         await changeMemory(memoryPhotoPath(base, target.photoId), "DELETE", userId);
         openEnvelope(photo?.envelopeId ?? null);
+        if (photo?.sourcePlanId) onPlanMemoryChange?.();
       }, "Photo removed from Together.");
     }
   }
@@ -274,14 +294,19 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
     <header className={styles.heading}>
       <div>
         <p className={styles.eyebrow}>Together / Memories</p>
-        <h1 id="behind-the-photo-heading" tabIndex={-1} ref={heading}>{photoId ? <>Behind the <em>Photo.</em></> : <>Memory <em>envelopes.</em></>}</h1>
-        <p>{photoId ? "Tap a detail and leave the part of the story you remember." : "Keep the photos that belong to the same story together."}</p>
+        <h1 id="behind-the-photo-heading" tabIndex={-1} ref={heading}>{photoId || followPlan ? <>Behind the <em>Photo.</em></> : <>Memory <em>envelopes.</em></>}</h1>
+        <p>{fromPlan ? "Choose a photo to remember what you did together."
+          : photoId ? "Tap a detail and leave the part of the story you remember."
+          : followPlan ? "A place to keep the little things you remember." : "Keep the photos that belong to the same story together."}</p>
       </div>
       <span className={styles.private}>Only you and {partnerName}</span>
     </header>
     {notice ? <p className={styles.status} role="status">{notice}</p> : null}
     {loadError ? <p className={styles.error} role="alert">{loadError} <button type="button" className={styles.link} onClick={invalidate}>Try again</button></p> : null}
     {!gallery && !loadError ? <p className={styles.small} role="status">Opening your photos…</p> : null}
+    {planLink && !draft ? <div className={styles.actions}>
+      <button type="button" className={styles.link} disabled={busy} onClick={planLink.onBack}>← Back to plan</button>
+    </div> : null}
     {gallery ? <>
       {(envelope || photoId) && !draft ? <nav className={styles.toolbar} aria-label="Memory navigation">
         <div className={styles.actions}>
@@ -293,8 +318,9 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
           setNotice(""); changeDraft({ type: "envelope", id: envelope.id, creating: false });
         }}>Customize envelope</button> : null}
       </nav> : null}
-      {draft?.type === "photo" ? <form className={styles.panel} onSubmit={submitPhoto} aria-label="Share a photo">
-        <h2>Share a photo</h2>
+      {draft?.type === "photo" ? <form className={styles.panel} onSubmit={submitPhoto} aria-labelledby="memory-photo-form-heading">
+        <h2 id="memory-photo-form-heading">{draft.sourcePlanId ? "Save a memory" : "Share a photo"}</h2>
+        {fromPlan?.day ? <p className={styles.small}>Plan date · <time dateTime={fromPlan.day}>{outingDayLabel(fromPlan.day)}</time></p> : null}
         {draft.envelopeId && envelope ? <p className={styles.small}>Saving into {envelope.title}</p> : null}
         <label className={styles.field}>Name this memory<input maxLength={80} value={draft.title} placeholder="Saturday at four" disabled={busy} onChange={event => changeDraft({ ...draft, title: event.target.value })} /></label>
         <label className={styles.field}>Photo<input type="file" disabled={busy} accept={memoryPhotoTypes.join(",")} onChange={event => {
@@ -308,7 +334,10 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
         <p className={styles.small}>JPEG, PNG, or WebP up to 5 MB. This photo is shared only in Together.</p>
         <div className={styles.actions}>
           <button type="submit" className={styles.primary} disabled={busy}>{busy ? "Sharing…" : "Share photo"}</button>
-          <button type="button" className={styles.link} disabled={busy} onClick={() => changeDraft(null)}>Cancel</button>
+          <button type="button" className={styles.link} disabled={busy} onClick={() => {
+            changeDraft(null);
+            if (draft.sourcePlanId) planLink?.onBack();
+          }}>Cancel</button>
         </div>
       </form> : draft?.type === "envelope" ? <EnvelopeSettingsForm key={draft.id}
         envelope={draft.creating ? undefined : envelope} photos={draft.creating ? [] : contents} busy={busy}
@@ -318,6 +347,8 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
           busy={busy} onCancel={() => changeDraft(null)} onSave={tuckPhotos} />
         : draft?.type === "caption" && envelope ? <EnvelopeCaptionForm envelope={envelope} busy={busy}
           onCancel={() => changeDraft(null)} onSave={saveCaption} />
+        : unresolvedPlanLink ? <p className={styles.small} role="status">{planLink?.plan?.hasMemory
+          ? "Opening this plan’s memory…" : "There isn’t a memory at this link. Return to Plans to see what’s available."}</p>
         : !photoId && !envelopeId ? <MemoryEnvelopeShelf base={base} envelopes={gallery.envelopes} photos={gallery.photos} busy={busy}
           onCreate={() => { setNotice(""); changeDraft({ type: "envelope", id: crypto.randomUUID(), creating: true }); }}
           onUpload={() => beginUpload(null)} onOpen={openEnvelope} onPhoto={openPhoto} />
@@ -331,7 +362,10 @@ export default function BehindThePhoto({ relationshipId, userId, partnerName, me
             onFlip={() => flip("back")} onPhoto={openPhoto} />
         : !photo ? <p className={styles.small} role="status">{photoId ? "Opening photo…" : "Opening envelope…"}</p>
         : <div className={styles.book}>
-        <div className={styles.photoTitle}><p className={styles.eyebrow}>Shared photo</p><h2>{photo.title}</h2></div>
+        <div className={styles.photoTitle}>
+          <p className={styles.eyebrow}>{photo.sourcePlanId ? "Memory from Plans" : "Shared photo"}</p><h2>{photo.title}</h2>
+          {photo.day ? <p className={styles.small}><time dateTime={photo.day}>{outingDayLabel(photo.day)}</time></p> : null}
+        </div>
         <div className={styles.spread}>
           <MemoryPhotoCanvas key={photo.id} photo={photo} path={url} selected={targetPinId ?? pin?.id ?? null}
             placing={isPlacing} draftPoint={draftPoint} disabled={busy || !!draft} partnerName={partnerName}

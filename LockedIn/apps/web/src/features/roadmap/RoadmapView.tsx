@@ -20,6 +20,7 @@ export default function RoadmapView({
   runAction,
   onDiscard,
   onConflict,
+  onOpenPlanMemory,
 }: {
   session: JourneySession | null;
   relationshipId: string;
@@ -29,6 +30,7 @@ export default function RoadmapView({
   runAction: (action: () => Promise<unknown>, successMessage?: string) => Promise<void>;
   onDiscard: () => void;
   onConflict: () => void;
+  onOpenPlanMemory?: (id: string) => void;
 }) {
   const [simpleEditing, setSimpleEditing] = useState(false);
   const [legacyDirty, setLegacyDirty] = useState(false);
@@ -40,7 +42,7 @@ export default function RoadmapView({
   }
   return (
     <div className={styles.roadmapPage}>
-      {simplePlans ? <SimplePlans plans={simplePlans} relationshipId={relationshipId} userId={userId} busy={busy || legacyDirty} runAction={runAction} onDiscard={onDiscard} onConflict={onConflict} onEditing={setSimpleEditing} /> : null}
+      {simplePlans ? <SimplePlans plans={simplePlans} relationshipId={relationshipId} userId={userId} busy={busy || legacyDirty} runAction={runAction} onDiscard={onDiscard} onConflict={onConflict} onEditing={setSimpleEditing} onOpenPlanMemory={onOpenPlanMemory} /> : null}
       {legacyDirty ? <p>Finish the check-in form before changing a separate plan.</p> : null}
       {session ? <fieldset className={localStyles.legacy} aria-label="Guided check-in next steps" disabled={busy || simpleEditing} onChangeCapture={() => setLegacyDirty(true)}>
         {session.nextSteps.length ? <RoadmapSteps session={session} busy={busy} runAction={runLegacyAction} /> : null}

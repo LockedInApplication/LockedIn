@@ -28,7 +28,7 @@ export function listMemories(relationshipId: string, actorId: string) {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: photoLimit,
       select: {
-        id: true, title: true, width: true, height: true, createdAt: true, uploaderId: true, envelopeId: true,
+        id: true, title: true, day: true, sourcePlanId: true, width: true, height: true, createdAt: true, uploaderId: true, envelopeId: true,
         pins: {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           select: {
@@ -51,8 +51,10 @@ export function listMemories(relationshipId: string, actorId: string) {
       },
     });
     return {
-      photos: photos.map(({ uploaderId, pins, ...photo }) => ({
+      photos: photos.map(({ uploaderId, pins, day, sourcePlanId, ...photo }) => ({
         ...photo, yours: uploaderId === actorId,
+        ...(day ? { day: day.toISOString().slice(0, 10) } : {}),
+        ...(sourcePlanId ? { sourcePlanId } : {}),
         pins: pins.map(({ notes, ...pin }) => ({
           ...pin,
           notes: notes.map(({ authorId, ...note }) => ({ ...note, yours: authorId === actorId })),
@@ -72,18 +74,37 @@ export async function requireMemoryEnvelope(tx: Prisma.TransactionClient, relati
   return envelope;
 }
 
-export function addMemoryPhoto(relationshipId: string, actorId: string, input: { id: string; title: string; envelopeId?: string }, image: Awaited<ReturnType<typeof normalizeMemoryPhoto>>) {
+export function addMemoryPhoto(relationshipId: string, actorId: string, input: {
+  id: string; title: string; envelopeId?: string; sourcePlanId?: string;
+}, image: Awaited<ReturnType<typeof normalizeMemoryPhoto>>) {
   return withSpace(relationshipId, actorId, async tx => {
-    const prior = await tx.togetherPhoto.findUnique({ where: { id: input.id }, select: { relationshipId: true, uploaderId: true } });
+    const prior = await tx.togetherPhoto.findUnique({
+      where: { id: input.id }, select: { relationshipId: true, uploaderId: true, sourcePlanId: true },
+    });
     if (prior) {
       if (prior.relationshipId !== relationshipId || prior.uploaderId !== actorId) throw unavailable();
+      if (prior.sourcePlanId !== (input.sourcePlanId ?? null)) {
+        throw new MemoryError(409, "This photo is already saved. Open it from Memories.");
+      }
       return { id: input.id };
+    }
+    let day: Date | null = null;
+    if (input.sourcePlanId) {
+      // Plan edits and memory writes take the same pair and relationship locks.
+      const plan = await tx.roadmapPlan.findFirst({
+        where: { id: input.sourcePlanId, relationshipId },
+        select: { status: true, day: true, memoryPhoto: { select: { id: true } } },
+      });
+      if (!plan) throw unavailable();
+      if (plan.memoryPhoto) return { id: plan.memoryPhoto.id, existing: true };
+      if (plan.status !== "DONE") throw new MemoryError(409, "This plan isn’t marked done. Return to Plans to check its status.");
+      day = plan.day;
     }
     if (input.envelopeId) await requireMemoryEnvelope(tx, relationshipId, input.envelopeId);
     if (await tx.togetherPhoto.count({ where: { relationshipId } }) >= photoLimit) {
       throw new MemoryError(409, "This space can hold 24 photos. Remove a photo you added before adding another.");
     }
-    return tx.togetherPhoto.create({ data: { ...input, ...image, relationshipId, uploaderId: actorId }, select: { id: true } });
+    return tx.togetherPhoto.create({ data: { ...input, ...image, day, relationshipId, uploaderId: actorId }, select: { id: true } });
   }, true);
 }
 

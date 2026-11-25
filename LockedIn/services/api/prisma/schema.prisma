@@ -419,7 +419,9 @@ model TogetherPhoto {
   relationshipId String
   uploaderId     String
   envelopeId     String?
+  sourcePlanId   String?          @unique
   title          String           @db.VarChar(80)
+  day            DateTime?        @db.Date
   width          Int
   height         Int
   jpeg           Bytes
@@ -427,6 +429,7 @@ model TogetherPhoto {
   relationship   Relationship     @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
   uploader       User             @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
   envelope       TogetherEnvelope? @relation(fields: [envelopeId], references: [id], onDelete: SetNull)
+  sourcePlan     RoadmapPlan?      @relation(fields: [sourcePlanId], references: [id], onDelete: SetNull)
   coverFor       TogetherEnvelope? @relation("TogetherEnvelopeCover")
   pins           TogetherPhotoPin[]
 
@@ -1121,6 +1124,8 @@ model RoadmapPlan {
   note           String?
   day            DateTime?         @db.Date
   completionOpensAt DateTime?
+  acceptedAt     DateTime?
+  completedAt    DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -1128,6 +1133,7 @@ model RoadmapPlan {
   proposer     User                 @relation("RoadmapPlanProposer", fields: [proposerId], references: [id], onDelete: Cascade)
   resolvedBy   User?                @relation("RoadmapPlanResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
   requests     RoadmapPlanRequest[]
+  memoryPhoto  TogetherPhoto?
 
   @@index([relationshipId, updatedAt, id])
   @@index([proposerId])

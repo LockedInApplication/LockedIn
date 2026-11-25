@@ -8,10 +8,12 @@ const plan: SimplePlan = {
   status: "ACCEPTED", version: 2, yours: true, proposerName: "Sam", resolvedBy: null,
 };
 
-function render(...plans: SimplePlan[]) {
+function renderPlans(plans: SimplePlan[], lockedIn = false) {
   return renderToStaticMarkup(<SimplePlans relationshipId="together" userId="sam" plans={plans} busy={false}
-    onConflict={() => {}} onDiscard={() => {}} onEditing={() => {}} runAction={async () => {}} />);
+    onConflict={() => {}} onDiscard={() => {}} onEditing={() => {}} runAction={async () => {}}
+    onOpenPlanMemory={lockedIn ? () => {} : undefined} />);
 }
+const render = (...plans: SimplePlan[]) => renderPlans(plans);
 
 afterEach(() => vi.useRealTimers());
 
@@ -35,4 +37,16 @@ it("offers undo in Past plans only for completed plans", () => {
   expect(done).toContain("Past plans");
   expect(done).toContain('<button type="button">Undo done</button>');
   expect(render({ ...plan, status: "CANCELED" })).not.toContain("Undo done");
+});
+
+it("starts a memory only after completion in a locked-in space; a saved one can still be opened after undo", () => {
+  const done = { ...plan, status: "DONE" } as const;
+  expect(render(done)).not.toContain("Save a memory");
+  expect(renderPlans([plan], true)).not.toContain("Save a memory");
+  expect(renderPlans([{ ...plan, status: "CANCELED" }], true)).not.toContain("Save a memory");
+  expect(renderPlans([done], true)).toContain("Save a memory");
+  expect(renderPlans([{ ...done, hasMemory: true }], true)).toContain("Open memory");
+  const reopened = renderPlans([{ ...plan, hasMemory: true }], true);
+  expect(reopened).toContain("Open memory");
+  expect(reopened).not.toContain("Save a memory");
 });

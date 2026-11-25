@@ -64,5 +64,6 @@ export function workspaceViewUrl(currentUrl: string, view: WorkspaceView): strin
   if (view !== "check-ins" && url.hash === "#current-action") url.hash = "";
   if (view !== "conversations" && url.hash === `#${conversationTopicAnchor}`) url.hash = "";
   if (view !== "roadmap" && url.hash.startsWith("#step-")) url.hash = "";
+  if (view !== "memories" && url.hash.startsWith("#memory-plan/")) url.hash = "";
   return `${url.pathname}${url.search}${url.hash}`;
 }

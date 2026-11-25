@@ -167,7 +167,7 @@ export async function buildJourneyOverview(userId: string, authenticatedUser?: O
           }
         : null,
       session,
-      simplePlans: relationship ? await listSimplePlans(relationship.id, userId) : [],
+      simplePlans: relationship ? await listSimplePlans(relationship.id, userId, !!mutuallyLockedInAt) : [],
       checkInHistory,
       conversationSelection,
       conversationPacks: conversationPacks.map(({ questions, ...pack }) => ({

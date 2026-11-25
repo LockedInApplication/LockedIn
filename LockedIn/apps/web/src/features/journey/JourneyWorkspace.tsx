@@ -36,9 +36,11 @@ import DirectLockIn from "@/features/messaging/DirectLockIn";
 import { conversationTopicAnchor, conversationTopicHref, currentCheckInHref, discoveryVisibilityHref, workspaceBack, workspaceHref } from "./journey.navigation";
 import BehindThePhoto from "@/features/memories/BehindThePhoto";
 import { memoryNoteTarget } from "@/features/memories/memory-note-preview";
+import { planMemoryHref, planMemoryTarget } from "@/features/memories/plan-memory";
 import { useTogetherMemories } from "@/features/memories/use-together-memories";
 import { useTogetherHomeNotes } from "@/features/together-notes/use-together-home-notes";
 import RoomToTalk from "@/features/room-to-talk/RoomToTalk";
+import { togetherPlanHref } from "./together-home";
 
 type Notice = { tone: "success" | "error"; message: string; reviewDiscovery?: boolean } | null;
 
@@ -88,6 +90,7 @@ export default function JourneyWorkspace() {
   const invitationManagerOpen=targetQuery.get("invitations")==="manage";
   const lockedTogether = overview?.relationship?.isMutuallyLockedIn === true;
   const memoryHash = activeView === "memories" ? workspaceUrl.hash : "";
+  const memoryPlanId = planMemoryTarget(memoryHash);
   const notes = useTogetherHomeNotes({
     userId: overview?.user.id,
     relationshipId: overview?.relationship?.id,
@@ -400,12 +403,18 @@ export default function JourneyWorkspace() {
         ) : activeView === "memories" ? (
           lockedTogether ? <BehindThePhoto key={`${overview.user.id}:${overview.relationship.id}:${memoryHash}`}
             relationshipId={overview.relationship.id} userId={overview.user.id} partnerName={overview.relationship.partner.name}
-            memories={memories} initialTarget={memoryNoteTarget(memoryHash)} onDirty={setDirty} onExpired={onExpired} />
+            memories={memories} initialTarget={memoryNoteTarget(memoryHash)} onDirty={setDirty} onExpired={onExpired}
+            planLink={memoryPlanId ? {
+              id: memoryPlanId,
+              plan: overview.simplePlans?.find(plan => plan.id === memoryPlanId),
+              onBack: () => openWorkspaceDestination(togetherPlanHref(memoryPlanId)),
+            } : undefined} onPlanMemoryChange={requestQuietRefresh} />
             : <section className={styles.intro}><div><h1>Behind the Photo</h1><p>This private photo book opens when you both choose to lock in.</p></div></section>
         ) : activeView === "roadmap" ? (<>
           <SectionHeading title="Plans" detail="Outings, ideas, and things you agree to do together." />
           <RoadmapView key={overview.relationship.id} relationshipId={overview.relationship.id} userId={overview.user.id} simplePlans={overview.simplePlans}
             session={overview.session} busy={busy} runAction={runAction} onDiscard={()=>setDirty(false)}
+            onOpenPlanMemory={lockedTogether ? id => openWorkspaceDestination(planMemoryHref(id)) : undefined}
             onConflict={()=>{setDirty(false);requestQuietRefresh();}} />
         </>) : activeView === "chapters" ? (<>
           <SectionHeading title="Past check-ins" />

@@ -3,7 +3,7 @@ import { API_URL, JourneyApiError, journeyRequest } from "@/features/journey/jou
 export type PhotoPoint = { x: number; y: number };
 export type MemoryNote = { id: string; yours: boolean; text: string | null; voiceDurationMs: number | null; updatedAt: string };
 export type MemoryPin = PhotoPoint & { id: string; title: string; notes: MemoryNote[] };
-export type MemoryPhoto = { id: string; title: string; envelopeId: string | null; width: number; height: number; yours: boolean; createdAt: string; pins: MemoryPin[] };
+export type MemoryPhoto = { id: string; title: string; day?: string; sourcePlanId?: string; envelopeId: string | null; width: number; height: number; yours: boolean; createdAt: string; pins: MemoryPin[] };
 export const memoryEnvelopeTones = { CLAY: "Terracotta", OLIVE: "Olive", LINEN: "Linen", SLATE: "Blue hour" } as const;
 export type MemoryEnvelopeTone = keyof typeof memoryEnvelopeTones;
 export type MemoryEnvelopeFields = { title: string; day: string | null; tone: MemoryEnvelopeTone };

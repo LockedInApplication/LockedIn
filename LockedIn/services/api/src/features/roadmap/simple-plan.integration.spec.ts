@@ -84,11 +84,15 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("day-one roadmap a
       const plan = { title: "Get dessert", day: "2030-11-24", timeZone: "America/Los_Angeles" };
       const create = await post(a.cookie, list, { requestId: randomUUID(), plan });
       expect(create.statusCode).toBe(201);
-      const path = `${list}/${create.json().id}`;
+      const id = create.json().id as string;
+      const path = `${list}/${id}`;
       const command = (action: string, version: number) => ({ requestId: randomUUID(), action, version });
       const current = async (cookie: string) => (await overview(cookie)).json().simplePlans[0];
+      const dates = () => db.roadmapPlan.findUniqueOrThrow({ where: { id }, select: { acceptedAt: true, completedAt: true } });
+      expect(await dates()).toEqual({ acceptedAt: null, completedAt: null });
       expect((await post(b.cookie, path, { ...command("counter", 1), plan: { ...plan, timeZone: "Asia/Tokyo", note: "Try the pie" } })).statusCode).toBe(200);
       expect((await post(a.cookie, path, command("accept", 2))).statusCode).toBe(200);
+      const acceptedAt = new Date(Date.parse(opensAt) - 1);
       const markDone = command("done", 3);
       const early = await post(b.cookie, path, markDone);
       expect(early.statusCode).toBe(409);
@@ -98,21 +102,27 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("day-one roadmap a
         expect(await current(person.cookie)).toMatchObject({ status: "ACCEPTED", version: 3, completionOpensAt: opensAt });
       }
 
+      expect(await dates()).toEqual({ acceptedAt, completedAt: null });
       vi.setSystemTime(new Date(opensAt));
       expect((await post(b.cookie, path, markDone)).statusCode).toBe(200);
+      expect(await dates()).toEqual({ acceptedAt, completedAt: new Date(opensAt) });
       expect(await current(b.cookie)).toMatchObject({ status: "DONE", version: 4, resolvedBy: "You" });
       const undo = command("undo-done", 4);
       expect((await post(outsider.cookie, path, undo)).statusCode).toBe(404);
       expect((await post(a.cookie, path, undo)).statusCode).toBe(200);
       expect((await post(a.cookie, path, undo)).statusCode).toBe(200);
       expect((await post(b.cookie, path, command("undo-done", 4))).statusCode).toBe(409);
+      expect(await dates()).toEqual({ acceptedAt, completedAt: null });
       for (const person of [a, b]) {
         expect(await current(person.cookie)).toMatchObject({
           status: "ACCEPTED", version: 5, resolvedBy: null, day: plan.day, completionOpensAt: opensAt, title: plan.title, note: "Try the pie",
         });
       }
       expect(await db.notification.count({ where: { relationshipId: space.id, resolvedAt: null } })).toBe(0);
+      const completedAt = new Date(Date.parse(opensAt) + 60_000);
+      vi.setSystemTime(completedAt);
       expect((await post(a.cookie, path, command("done", 5))).statusCode).toBe(200);
+      expect(await dates()).toEqual({ acceptedAt, completedAt });
     } finally {
       vi.useRealTimers();
     }

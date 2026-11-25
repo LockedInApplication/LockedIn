@@ -35,14 +35,17 @@ type Props = {
   onDiscard: () => void;
   onEditing: (editing: boolean) => void;
   onConflict: () => void;
+  onOpenPlanMemory?: (id: string) => void;
   runAction: (action: () => Promise<unknown>, successMessage?: string) => Promise<void>;
 };
 
-export default function SimplePlans({ relationshipId, userId, plans, busy, onConflict, onDiscard, onEditing, runAction }: Props) {
+export default function SimplePlans({ relationshipId, userId, plans, busy, onConflict, onDiscard, onEditing, onOpenPlanMemory, runAction }: Props) {
   const [edit, setEdit] = useState<Edit | null>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => () => onEditing(false), [onEditing]);
   const retry = useRef<{ signature: string; requestId: string } | null>(null);
+  const completed = useRef<string | null>(null);
+  const pastDetails = useRef<HTMLDetailsElement>(null);
   const pending = plans.filter(plan => plan.status === "PENDING");
   const inbox = pending.filter(plan => !plan.yours);
   const outgoing = pending.filter(plan => plan.yours);
@@ -75,6 +78,17 @@ export default function SimplePlans({ relationshipId, userId, plans, busy, onCon
     };
   }, [nextOpening]);
 
+  useEffect(() => {
+    if (!completed.current) return;
+    const plan = plans.find(item => item.id === completed.current);
+    if (plan?.status !== "DONE") return;
+    completed.current = null;
+    if (pastDetails.current) pastDetails.current.open = true;
+    const card = document.getElementById(`step-${encodeURIComponent(plan.id)}`);
+    card?.focus({ preventScroll: true });
+    card?.scrollIntoView({ block: "nearest", behavior: "instant" });
+  }, [plans]);
+
   function updateEdit(value: Edit | null) {
     setEdit(value);
     onEditing(value !== null);
@@ -90,6 +104,7 @@ export default function SimplePlans({ relationshipId, userId, plans, busy, onCon
     void runAction(async () => {
       try {
         await journeyRequest(path, { method: "POST", headers: { "x-roadmap-owner": userId }, body: JSON.stringify({ ...payload, requestId }) });
+        if (action === "done" && plan) completed.current = plan.id;
         retry.current = null;
         updateEdit(null);
       } catch (error) {
@@ -123,6 +138,10 @@ export default function SimplePlans({ relationshipId, userId, plans, busy, onCon
     const id = `step-${encodeURIComponent(plan.id)}`;
     const opening = completionOpening(plan);
     const lockedUntil = opening && Date.parse(opening) > now ? opening : null;
+    const memoryAction = onOpenPlanMemory && (plan.status === "DONE" || plan.hasMemory)
+      ? <button type="button" disabled={disableCardActions} onClick={() => onOpenPlanMemory(plan.id)}>
+        {plan.hasMemory ? "Open memory" : "Save a memory"}
+      </button> : null;
     return <article className={styles.plan} key={plan.id} id={id} tabIndex={-1}>
       <h4>{plan.title}</h4>
       <p className={styles.meta}>{plan.day ? calendar.format(new Date(`${plan.day}T12:00:00Z`)) : "No day picked yet"}</p>
@@ -141,11 +160,13 @@ export default function SimplePlans({ relationshipId, userId, plans, busy, onCon
         <div className={styles.actions}>
           <button type="button" disabled={disableCardActions || Boolean(lockedUntil)} aria-describedby={lockedUntil ? `${id}-completion` : undefined} onClick={() => submitCommand(plan, "done")}>Mark done</button>
           <button type="button" disabled={disableCardActions} onClick={() => submitCommand(plan, "cancel")}>Cancel plan</button>
+          {memoryAction}
         </div>
       </> : <>
         <p className={styles.meta}>{labels[plan.status]}{plan.resolvedBy ? ` · ${plan.resolvedBy}` : ""}</p>
-        {plan.status === "DONE" ? <div className={styles.actions}>
-          <button type="button" disabled={disableCardActions} onClick={() => submitCommand(plan, "undo-done")}>Undo done</button>
+        {plan.status === "DONE" || memoryAction ? <div className={styles.actions}>
+          {memoryAction}
+          {plan.status === "DONE" ? <button type="button" disabled={disableCardActions} onClick={() => submitCommand(plan, "undo-done")}>Undo done</button> : null}
         </div> : null}
       </>}
     </article>;
@@ -173,6 +194,6 @@ export default function SimplePlans({ relationshipId, userId, plans, busy, onCon
     {inbox.length ? <section className={styles.group}><h3>Needs a reply</h3>{inbox.map(card)}</section> : null}
     {outgoing.length ? <section className={styles.group}><h3>Waiting for a reply</h3>{outgoing.map(card)}</section> : null}
     {upcoming.length ? <section className={styles.group}><h3>Coming up</h3>{upcoming.map(card)}</section> : null}
-    {past.length ? <details className={styles.group}><summary>Past plans</summary>{past.map(card)}</details> : null}
+    {past.length ? <details ref={pastDetails} className={styles.group}><summary>Past plans</summary>{past.map(card)}</details> : null}
   </section>;
 }

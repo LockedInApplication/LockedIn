@@ -32,4 +32,5 @@ export type SimplePlan = {
   yours: boolean;
   proposerName: string;
   resolvedBy: string | null;
+  hasMemory?: boolean;
 };

@@ -25,20 +25,25 @@ async function activePair(tx: Prisma.TransactionClient, relationshipId: string, 
   return space.members.map(member => member.userId);
 }
 
-export async function listSimplePlans(relationshipId: string, actorId: string) {
+export async function listSimplePlans(relationshipId: string, actorId: string, includeMemory = false) {
   try {
     const pair = await activePair(prisma, relationshipId, actorId);
     if (await pairClosure(prisma, pair[0]!, pair[1]!)) return null;
     const rows = await prisma.roadmapPlan.findMany({
       where: { relationshipId, relationship: { status: "ACTIVE", members: { some: { userId: actorId } } } },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      include: { proposer: { select: { displayName: true, name: true } }, resolvedBy: { select: { displayName: true, name: true } } },
+      include: {
+        proposer: { select: { displayName: true, name: true } },
+        resolvedBy: { select: { displayName: true, name: true } },
+        memoryPhoto: includeMemory ? { select: { id: true } } : false,
+      },
     });
     return rows.map(plan => ({
       id: plan.id, title: plan.title, note: plan.note, day: plan.day?.toISOString().slice(0, 10) ?? null,
       completionOpensAt: simplePlanCompletionOpensAt(plan)?.toISOString() ?? null,
       status: plan.status, version: plan.version, yours: plan.proposerId === actorId,
       proposerName: name(plan.proposer), resolvedBy: plan.resolvedById === actorId ? "You" : plan.resolvedBy ? name(plan.resolvedBy) : null,
+      ...(plan.memoryPhoto ? { hasMemory: true } : {}),
     }));
   } catch (error) {
     if (error instanceof SimplePlanError && error.status === 404) return null;
@@ -83,6 +88,9 @@ export async function changeSimplePlan(relationshipId: string, actorId: string, 
       plan = await tx.roadmapPlan.update({ where: { id: existing.id }, data: {
         version: { increment: 1 }, status: state,
         ...(command.input.action === "counter" ? { ...fields(command.input.plan, existing), proposerId: actorId } : {}),
+        ...(command.input.action === "accept" ? { acceptedAt: new Date() } : {}),
+        ...(command.input.action === "done" ? { completedAt: new Date() } : {}),
+        ...(command.input.action === "undo-done" ? { completedAt: null } : {}),
         resolvedById: state === "PENDING" || state === "ACCEPTED" ? null : actorId,
       } });
       await tx.notification.updateMany({ where: { relationshipId, entityId: plan.id, kind: roadmapReplyKind, resolvedAt: null }, data: { resolvedAt: new Date() } });

@@ -17,7 +17,7 @@ const voice = pin.extend({ noteId: id });
 const part = pin.extend({ part: z.enum(["text", "voice"]) });
 const plain = (max: number) => z.string().trim().min(1).max(max).refine(value => !value.includes("\u0000"));
 const position = z.string().regex(/^\d{1,5}$/).transform(Number).pipe(z.int().min(0).max(10000));
-const photoFields = z.strictObject({ id, title: plain(80), envelopeId: id.optional() });
+const photoFields = z.strictObject({ id, title: plain(80), envelopeId: id.optional(), sourcePlanId: id.optional() });
 const noteFields = z.strictObject({ text: plain(220).optional() });
 const pinFields = noteFields.extend({ id, title: plain(48), x: position, y: position });
 const envelopeFields = z.strictObject({
@@ -114,7 +114,8 @@ export async function registerMemoryRoutes(server: FastifyInstance) {
     const parsed = photoFields.safeParse(fields);
     if (!parsed.success || !file) return sendError(reply, 400, "Give the photo a short name and choose an image.");
     const image = await normalizeMemoryPhoto(file.bytes, file.mime);
-    return reply.code(201).send(await addMemoryPhoto(relationshipId, actor, parsed.data, image));
+    const added = await addMemoryPhoto(relationshipId, actor, parsed.data, image);
+    return reply.code("existing" in added ? 200 : 201).send(added);
   }));
   server.get(`${base}/:photoId/media`, route(photo, false, async ({ relationshipId, photoId }, actor, _request, reply) => {
     const bytes = await readMemoryPhoto(relationshipId, actor, photoId);

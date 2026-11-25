@@ -22,7 +22,9 @@
 
           "test:watch": "vitest",
 
-          "discovery:photo-worker": "tsx api/src/features/discovery/photos/photo-worker.ts"
+          "discovery:photo-worker": "tsx api/src/features/discovery/photos/photo-worker.ts",
+
+          "report:together": "node scripts/report-together.mjs"
 
      },
 

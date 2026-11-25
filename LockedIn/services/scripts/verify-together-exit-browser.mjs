@@ -315,6 +315,7 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
     await link(reporting,"Read the Together privacy notice").click();
     await a.waitForURL(base + "/privacy");
     await a.getByRole("heading", { name: "Together privacy notice", exact: true }).waitFor();
+    await a.waitForFunction(() => window.scrollY === 0);
     await a.getByText(/Only couples who both agreed to the pilot are counted/).waitFor();
     assert(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     if (artifacts) await a.screenshot({ path: path.join(artifacts, "together-privacy-390.png") });

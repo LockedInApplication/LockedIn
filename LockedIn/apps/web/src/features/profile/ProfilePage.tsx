@@ -81,6 +81,11 @@ function AccountProfile({ userId, name }: { userId: string; name: string }) {
     router.push(path);
     return true;
   };
+  const openReportingNotice = async () => {
+    if (!await confirmLeave()) return;
+    // Open the public notice at the top rather than reusing Profile’s scroll position.
+    window.location.assign("/privacy");
+  };
   const signOut = async () => {
     if (!(await confirmLeave())) return;
     setSignOutError("");
@@ -155,7 +160,7 @@ function AccountProfile({ userId, name }: { userId: string; name: string }) {
                 />
                 <section className={`${styles.card} ${styles.privacyCard}`} aria-labelledby="profile-privacy">
                   <h2 id="profile-privacy" tabIndex={-1}>Privacy &amp; safety</h2>
-                  <ProfileTogetherReporting userId={userId} onOpenNotice={() => void leave("/privacy")} />
+                  <ProfileTogetherReporting userId={userId} onOpenNotice={openReportingNotice} />
                   <InvitationBlocks />
                   {access?.canModerate?<button type="button" className={styles.textButton} onClick={()=>void leave("/discovery/moderation")}>Moderation</button>:null}
                 </section>

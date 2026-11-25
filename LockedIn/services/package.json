@@ -24,7 +24,11 @@
 
           "discovery:photo-worker": "tsx api/src/features/discovery/photos/photo-worker.ts",
 
-          "report:together": "node scripts/report-together.mjs"
+          "report:together": "tsx scripts/report-together-https.ts",
+
+          "report:together:key": "tsx scripts/create-together-report-key.ts",
+
+          "report:together:db": "node scripts/report-together.mjs"
 
      },
 

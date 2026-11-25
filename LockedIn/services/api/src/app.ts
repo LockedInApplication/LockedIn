@@ -14,6 +14,8 @@ import type { DiscoveryGeocoder } from "./features/discovery/discovery-geocoding
 import { registerDateSpotRoutes } from "./features/date-spots/date-spots.routes.js";
 import { registerDatePlanRoutes } from "./features/date-plans/date-plan-routes.js";
 import type { PlaceProvider } from "./features/date-spots/date-spots-provider.js";
+import { togetherReportPath } from "./features/reporting/together-report-protocol.js";
+import { registerTogetherReport } from "./features/reporting/together-report.routes.js";
 
 function serializeRequestForLog(request: FastifyRequest) {
   const path = request.url.split("?", 1)[0] ?? request.url;
@@ -26,7 +28,7 @@ function serializeRequestForLog(request: FastifyRequest) {
     // Verification tokens are in the query; password reset tokens are in the path.
     url: authPath
       ? path.replace(/^\/api\/auth\/reset-password\/.*/, "/api/auth/reset-password/:token")
-      : matchPreferencesPath || path === cleanupTriggerPath ? path : request.url,
+      : matchPreferencesPath || path === cleanupTriggerPath || path === togetherReportPath ? path : request.url,
     ...(typeof version === "string" ? { version } : version?.[0] ? { version: version[0] } : {}),
     host: request.host,
     remoteAddress: request.ip,
@@ -72,6 +74,7 @@ export async function buildServer({
   server.register(registerMessagingRoutes);
   server.register(async scope => registerDateSpotRoutes(scope,dateSpotProvider));
   server.register(registerDatePlanRoutes);
+  server.register(registerTogetherReport);
 
   return server;
 }

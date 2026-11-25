@@ -3,8 +3,12 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { Client } from "pg";
+import Fastify from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPerson } from "../discovery/test/discovery.fixtures.js";
+import { generateKeyPairSync } from "node:crypto";
+import { registerTogetherReport } from "../reporting/together-report.routes.js";
+import { signTogetherReport, togetherReportPath } from "../reporting/together-report-protocol.js";
 
 describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("weekly Together reporting", () => {
   let db: typeof import("../../lib/prisma.js").prisma;
@@ -68,6 +72,18 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("weekly Together r
     });
     expect(await report(day(1))).toBeNull();
     expect(await report(null)).toMatchObject({ status: "ok", repeatMemories: { status: "insufficient_follow_up" } });
+    // Read the very same aggregate through the read-only HTTPS handler.
+    const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+    const api = Fastify();
+    await api.register(registerTogetherReport, { verificationKey: publicKey });
+    try {
+      const url = togetherReportPath + "?week=" + week;
+      const response = await api.inject({ url, headers: { authorization: signTogetherReport(privateKey, url) } });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual(await report(week));
+    } finally {
+      await api.close();
+    }
     await db.$executeRaw`DELETE FROM lockedin_reporting.pilot_pair WHERE relationship_id = ${a.id}`;
     expect(await report(week)).toMatchObject({ enrolledPairs: 5, pairsWithSharedAction: 4, repeatMemories: { status: "insufficient_follow_up" } });
   });

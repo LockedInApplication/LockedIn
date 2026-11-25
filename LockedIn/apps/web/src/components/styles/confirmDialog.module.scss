@@ -79,6 +79,30 @@
   color: #633c62;
   border: 1px solid var(--brand-outline);
 }
+.dialog[data-variant="together"] {
+  width: min(33rem, calc(100vw - 32px));
+  border: 1px solid var(--love-rule);
+  border-radius: 1rem;
+  background: var(--love-letter);
+  color: var(--love-ink);
+  box-shadow: var(--love-letter-shadow);
+  &::backdrop { background: color-mix(in srgb, var(--love-ink) 48%, transparent); backdrop-filter: none; }
+  h2 { margin-block-start: 0; font: 550 clamp(1.6rem, 4.8vw, 2rem)/1.15 var(--font-serif); }
+  .description { color: var(--love-muted); }
+  button { min-block-size: 44px; }
+  button:focus-visible { outline-color: var(--focus-ring); }
+  .keep { border: 1px solid var(--brand-outline); background: var(--love-letter); color: var(--love-ink); box-shadow: none; }
+  .keep:hover { background: var(--love-hover); }
+  .leave { border: 1px solid var(--love-wine); background: var(--love-wine); color: var(--on-action); }
+  .leave:hover { background: var(--love-wine-deep); }
+}
+@media (max-width: 600px) {
+  .dialog[data-variant="together"] {
+    inset: auto 0 0;
+    margin: 0 auto max(16px, env(safe-area-inset-bottom, 0px));
+    .actions { display: grid; }
+  }
+}
 @keyframes arrive {
   from {
     opacity: 0;

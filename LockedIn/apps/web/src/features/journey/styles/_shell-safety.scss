@@ -1,39 +1,3 @@
-.safetyBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-top: 28px;
-  padding: 18px 22px;
-  border: 1px solid rgba(19, 34, 56, 0.08);
-  border-radius: 17px;
-  background: rgba(255, 255, 255, 0.68);
-}
-
-.safetyBar > div {
-  display: flex;
-  flex-direction: column;
-}
-
-.safetyBar strong {
-  font-size: 0.82rem;
-}
-
-.safetyBar span {
-  color: var(--brand-muted);
-  font-size: 0.74rem;
-}
-
-.safetyBar button {
-  border: 0;
-  color: #9b4b4b;
-  background: transparent;
-  font: inherit;
-  font-size: 0.74rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .loadingPage {
   display: grid;
   place-items: center;

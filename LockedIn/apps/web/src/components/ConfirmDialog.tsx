@@ -6,6 +6,7 @@ type ConfirmDialogProps = {
   open: boolean;
   title: string;
   description: string;
+  variant?: "together";
   confirmLabel: string;
   cancelLabel: string;
   onConfirm: () => void;
@@ -15,6 +16,7 @@ export default function ConfirmDialog({
   open,
   title,
   description,
+  variant,
   confirmLabel,
   cancelLabel,
   onConfirm,
@@ -44,6 +46,7 @@ export default function ConfirmDialog({
       ref={dialog}
       role="alertdialog"
       className={styles.dialog}
+      data-variant={variant}
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-description`}
       onKeyDown={(event) => {
@@ -64,10 +67,10 @@ export default function ConfirmDialog({
         onCancel();
       }}
     >
-      <span className={styles.mark} aria-hidden="true">
-        ↶
-      </span>
-      <p className={styles.eyebrow}>YOUR SPACE · YOUR CHOICE</p>
+      {variant !== "together" ? <>
+        <span className={styles.mark} aria-hidden="true">↶</span>
+        <p className={styles.eyebrow}>YOUR SPACE · YOUR CHOICE</p>
+      </> : null}
       <h2 id={`${id}-title`}>{title}</h2>
       <p id={`${id}-description`} className={styles.description}>
         {description}

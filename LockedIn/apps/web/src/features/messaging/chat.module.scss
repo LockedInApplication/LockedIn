@@ -3,6 +3,16 @@
 .main {max-width:820px;margin:auto;padding:20px 24px 64px;}
 .main a {color:var(--action);min-height:44px;display:inline-flex;align-items:center;}
 .main summary {cursor:pointer;min-height:44px;display:flex;align-items:center;}
+.chatSafety {
+  margin-block: .75rem;
+  padding: .25rem .85rem .7rem;
+  border: 1px solid var(--love-rule);
+  border-radius: .75rem;
+  background: var(--love-letter);
+  scroll-margin-block-start: 84px;
+  summary { scroll-margin-block-start: 84px; color: var(--love-wine); font-weight: 650; }
+  > p { margin-block-end: .65rem; color: var(--love-muted); font-size: .875rem; }
+}
 .viewport {
   height: clamp(14rem, 50dvh, 34rem);
   overflow-y: auto;

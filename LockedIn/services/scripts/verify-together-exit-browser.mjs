@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 
 const button = (scope, name) => scope.getByRole("button", { name, exact: true });
 const link = (scope, name) => scope.getByRole("link", { name, exact: true });
@@ -35,7 +36,7 @@ export async function verifyPhotoCleanupReceipt({ prisma, base, alex, alexPage: 
   console.log("PASS confirmed photo deletion shows a private receipt after sign-out and finishes after fake storage confirms erasure");
 }
 
-export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, alexPage: a, sampleArea, sampleVenue }) {
+export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, alexPage: a, sampleArea, sampleVenue, artifacts }) {
   const email = "sam-together-exit@example.test", password = "disposable-two-account-password";
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: "reduce" });
   const b = await context.newPage();
@@ -176,12 +177,46 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
     console.log("PASS Not now, mutual Lock In, Discovery pause, both maps and the private check-in");
 
     await a.goto(base + "/journey");
-    await link(a,"Together options").click();
+    await link(a,"Manage Together").click();
+    const manage = a.getByRole("heading", { name: "Manage Together", exact: true });
+    await manage.waitFor();
+    const shortcuts = a.getByRole("navigation", { name: "Where other things live", exact: true });
+    assert.equal(await button(a,"Need a hand?").count(), 0);
+    for (const width of [320, 390, 1280]) {
+      await a.setViewportSize({ width, height: 844 });
+      assert(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      assert((await link(shortcuts,"Chat safety").boundingBox()).height >= 44);
+      assert((await link(shortcuts,"Discovery visibility").boundingBox()).height >= 44);
+      if (width === 390 && artifacts) await a.screenshot({ path: path.join(artifacts, "manage-together-390.png") });
+    }
+    await a.setViewportSize({ width: 390, height: 844 });
+    await link(shortcuts,"Chat safety").click();
+    await a.waitForURL(base + `/messages/${conversationId}?from=manage-together#chat-safety`);
+    const safety = a.locator("#chat-safety[open]");
+    await button(safety,"Block contact").waitFor();
+    await safety.getByText(/choose Report message/).waitFor();
+    await a.waitForFunction(() => document.activeElement?.closest("details")?.id === "chat-safety");
+    assert.equal(await a.getByRole("alertdialog").count(),0,"The shortcut does not open a destructive action");
+    await link(a,"Back to Manage Together").click();
+    await manage.waitFor();
+    await link(shortcuts,"Discovery visibility").click();
+    await a.waitForURL(base + "/discover/profile#discovery-visibility");
+    const visibility = a.getByRole("group", { name: "Discovery visibility", exact: true });
+    await button(visibility,"Resume visibility").waitFor();
+    assert(await button(visibility,"Resume visibility").isDisabled(), "The shortcut cannot bypass Lock In");
+    await a.waitForFunction(() => document.activeElement?.id === "discovery-visibility");
+    await a.goBack();
+    await manage.waitFor();
+
     await button(a,"Leave Together").filter({ visible: true }).click();
     const exit = a.getByRole("alertdialog", { name: "Leave Together?", exact: true });
-    await exit.getByText(/closes any chat linked to this space/).waitFor();
-    await exit.getByText(/Neither Discovery profile is made visible again automatically/).waitFor();
+    await exit.getByText(/lose access to this space, its plans and memories, and any chat linked to it/).waitFor();
+    await exit.getByText(/Neither profile becomes visible in Discovery automatically/).waitFor();
+    assert(await button(exit,"Stay in Together").evaluate(el => el === document.activeElement));
+    assert(await exit.evaluate(el => innerHeight - el.getBoundingClientRect().bottom <= 24), "Leave confirmation is a bottom sheet on phones");
+    if (artifacts) await a.screenshot({ path: path.join(artifacts, "leave-together-390.png") });
     await button(exit,"Stay in Together").click();
+    assert(await button(a,"Leave Together").filter({ visible: true }).evaluate(el => el === document.activeElement));
     assert.equal((await prisma.relationship.findUniqueOrThrow({ where: { id: space.relationshipId } })).status,"ACTIVE");
     await button(a,"Leave Together").filter({ visible: true }).click();
     await button(exit,"Leave Together").click();
@@ -190,7 +225,7 @@ export async function verifyTogetherExit({ browser, prisma, base, outbox, alex, 
     await b.goto(chatUrl);
     assert.equal((await b.request.get(base + `/api/messaging/conversations/${conversationId}/messages`)).status(),404);
     for (const id of [alex.id,sam.id]) assert((await prisma.discoveryProfile.findUniqueOrThrow({ where: { ownerId:id } })).pausedAt);
-    console.log("PASS cancel and confirm exit, linked chat closure, and no automatic republication");
+    console.log("PASS Manage Together shortcuts, cancel and confirm exit, linked chat closure, and no automatic republication");
 
     await b.setViewportSize({ width:390, height:844 });
     await b.goto(base + "/profile");

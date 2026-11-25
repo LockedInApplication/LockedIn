@@ -8,9 +8,12 @@ import DiscoveryPhotoEditor from './photos/DiscoveryPhotoEditor';
 it('keeps published-profile preview and editing available while lock-in prevents resuming Discovery',()=>{
   const html=renderToStaticMarkup(<DiscoveryProfilePage/>);
   expect(html).toContain('aria-label="Published Discovery profile"');
+  expect(html).toContain('id="discovery-visibility"');
+  expect(html).toContain('role="group" aria-label="Discovery visibility"');
   expect(html).toContain('Edit profile');expect(html).toContain('Published introduction');
   expect(html).toContain('Existing connections can still see your published profile');
   expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Resume visibility/);
+  expect(html).toContain('You can’t resume visibility while you’re locked in.');
   expect(html).not.toContain('Your saved data stays private');
 });
 it('does not disable owner photo management merely because Discovery is locked in',()=>{

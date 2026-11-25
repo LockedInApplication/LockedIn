@@ -18,6 +18,15 @@ describe("neutral Messages page", () => {
     const html = renderToStaticMarkup(<ConversationContent userId="a" metadata={{...base,profileConnectionId:"discovery-source"}} onAccessEnded={() => {}}/>);
     expect(html).toContain('aria-label="View Sam’s profile"');
   });
+  it("expands chat safety on a direct shortcut without opening a block or report form", () => {
+    const standard = renderToStaticMarkup(<ConversationContent userId="a" metadata={base} onAccessEnded={() => {}}/>);
+    expect(standard).toMatch(/<details id="chat-safety"[^>]*><summary/);
+    expect(standard).not.toMatch(/<details id="chat-safety"[^>]*\bopen=/);
+    const direct = renderToStaticMarkup(<ConversationContent userId="a" metadata={base} onAccessEnded={() => {}} openSafety/>);
+    expect(direct).toMatch(/<details id="chat-safety"[^>]*\bopen=""/);
+    expect(direct).toContain("To report a message, open its message actions and choose Report message.");
+    expect(direct).not.toContain("Report selected message");
+  });
   it("explains own verification, otherwise uses generic unavailability with no opener or composer", () => {
     const unverified = renderToStaticMarkup(<ConversationContent userId="a" metadata={{ ...base,canChat:false,unavailableReason:"VERIFY_EMAIL" }} onAccessEnded={() => {}}/>);
     expect(unverified).toContain("Verify your email"); expect(unverified).not.toContain("Scrollable conversation");

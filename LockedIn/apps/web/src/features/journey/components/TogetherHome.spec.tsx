@@ -130,7 +130,7 @@ it("shows the note, Message, and one timely item in order, with neither progress
   expect(html.indexOf("Message Maya")).toBeLessThan(html.indexOf("Answer your private check-in"));
   expect(html.indexOf("Answer your private check-in")).toBeLessThan(html.indexOf("Your space"));
   expect(html).toContain('href="/journey?view=check-ins#current-action"');
-  expect(html).toContain('aria-label="Together options"');
+  expect(html).toContain('aria-label="Manage Together"');
   expect(html).not.toMatch(/Try a prompt|Shared progress|Try the café|Past check-ins/);
 });
 

@@ -29,11 +29,11 @@ import guidanceStyles from "./next-action.module.scss";
 import ConversationSuggestionView from "../conversations/ConversationSuggestionView";
 import conversationStyles from "../conversations/conversation-library.module.scss";
 import {useJourneyHistoryGuard} from './use-journey-history-guard';
-import { QuietTogetherHome, TogetherOptionsLink, TogetherWelcome } from "./components/TogetherHome";
+import { ManageTogetherLink, QuietTogetherHome, TogetherWelcome } from "./components/TogetherHome";
+import ManageTogether, { leaveTogetherDescription } from "./components/ManageTogether";
 import togetherStyles from "./components/together-home.module.scss";
 import DirectLockIn from "@/features/messaging/DirectLockIn";
-import { conversationTopicAnchor, conversationTopicHref, currentCheckInHref, workspaceBack, workspaceHref } from "./journey.navigation";
-import TinyLantern from "./components/TinyLantern";
+import { conversationTopicAnchor, conversationTopicHref, currentCheckInHref, discoveryVisibilityHref, workspaceBack, workspaceHref } from "./journey.navigation";
 import BehindThePhoto from "@/features/memories/BehindThePhoto";
 import { memoryNoteTarget } from "@/features/memories/memory-note-preview";
 import { useTogetherMemories } from "@/features/memories/use-together-memories";
@@ -306,13 +306,13 @@ export default function JourneyWorkspace() {
             onNavigate={event => { event.preventDefault(); openWorkspaceDestination(workspaceHref(back.view)); }}>
             <span aria-hidden="true">←</span>{back.label}
           </Link>
-          {activeView !== "options" ? <TogetherOptionsLink onNavigate={openWorkspaceDestination} /> : null}
+          {activeView !== "options" ? <ManageTogetherLink onNavigate={openWorkspaceDestination} /> : null}
         </div> : null}
         {savedRefreshFailed ? <p className={styles.notice} role="status">Your change was saved, but this view could not update. <button type="button" onClick={requestQuietRefresh}>Try updating the view</button></p> : null}
         {notice ? (
           <div className={`${styles.notice} ${notice.tone === "error" ? styles.noticeError : ""}`} role={notice.tone === "error" ? "alert" : "status"}>
             <p>{notice.message}</p>
-            {notice.reviewDiscovery ? <Link href="/discover/profile">Review Discovery visibility</Link> : null}
+            {notice.reviewDiscovery ? <Link href={discoveryVisibilityHref}>Review Discovery visibility</Link> : null}
           </div>
         ) : null}
 
@@ -410,24 +410,15 @@ export default function JourneyWorkspace() {
             <EmptyWorkspace title="No check-ins to revisit yet." detail="Choose a topic to start answering privately." onAction={() => openWorkspaceDestination(workspaceHref("conversations"))} />
           )}
         </>) : activeView === "options" ? (
-          <>
-            <SectionHeading title="Together options" />
-            <TinyLantern key={`${overview.user.id}:${overview.relationship.id}`} userId={overview.user.id}
-              relationshipId={overview.relationship.id} isMutuallyLockedIn={lockedTogether} view="home" />
-            <section className={styles.safetyBar} aria-label="Relationship settings">
-              <div>
-                <strong>Your participation is always voluntary.</strong>
-                <span>Leave Together at any time. Block and report controls are in your chat.</span>
-              </div>
-              <button type="button" disabled={busy} onClick={() => setLeaveSpaceId(overview.relationship?.id ?? null)}>Leave Together</button>
-            </section>
-          </>
+          <ManageTogether conversationId={chatId} busy={busy} onNavigate={chrome.onNavigate}
+            onLeave={() => setLeaveSpaceId(overview.relationship?.id ?? null)} />
         ) : null}
       </main>
       <ConfirmDialog
         open={!!leaveSpaceId && leaveSpaceId === overview.relationship?.id}
         title="Leave Together?"
-        description={"This ends Together for both of you and closes any chat linked to this space. Your other chats stay open. Neither Discovery profile is made visible again automatically." + (dirty.current ? " Any unsaved changes here will be lost." : "")}
+        description={leaveTogetherDescription + (dirty.current ? " Any unsaved changes here will be lost." : "")}
+        variant="together"
         cancelLabel="Stay in Together"
         confirmLabel="Leave Together"
         onCancel={() => setLeaveSpaceId(null)}

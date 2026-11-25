@@ -5,6 +5,8 @@
 .main h2 {font-size:1.45rem;line-height:1.2;margin:0 0 12px;}
 .main p {line-height:1.6;}
 .nav,.actions {display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.visibilityActions {display:flex;flex-wrap:wrap;gap:10px;align-items:center;scroll-margin-block-start:84px;}
+.visibilityHint {margin-block-start:.5rem;color:var(--member-muted, var(--brand-muted));font-size:.875rem;}
 .actions > button {flex:0 0 auto;}
 .actions > [role="alert"] {flex:0 0 100%;}
 .browseActions {align-items:flex-end;}

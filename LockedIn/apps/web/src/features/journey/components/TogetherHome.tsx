@@ -9,7 +9,7 @@ import type { TogetherMemories } from "@/features/memories/use-together-memories
 import ProfileAvatar from "@/features/profile/ProfileAvatar";
 import type { SimplePlan } from "@/features/roadmap/roadmap.types";
 import { daysTogether, getTogetherNextUp, noteAge, shouldCelebrateLockIn, togetherPlanHref } from "../together-home";
-import { workspaceHref } from "../journey.navigation";
+import { manageTogetherHref, workspaceHref } from "../journey.navigation";
 import type { JourneyOverview } from "../journey.types";
 import TogetherChatActions from "./TogetherChatActions";
 import WorkspaceNav from "./WorkspaceNav";
@@ -143,10 +143,9 @@ export function TogetherHomeHeading({ user, userId, partner, locked, lockedAt, n
   </section>;
 }
 
-export function TogetherOptionsLink({ onNavigate }: { onNavigate: (href: string) => void }) {
-  const href = workspaceHref("options");
-  return <Link href={href} className={styles.optionsLink} aria-label="Together options"
-    onNavigate={event => { event.preventDefault(); onNavigate(href); }}>
+export function ManageTogetherLink({ onNavigate }: { onNavigate: (href: string) => void }) {
+  return <Link href={manageTogetherHref} className={styles.optionsLink} aria-label="Manage Together"
+    onNavigate={event => { event.preventDefault(); onNavigate(manageTogetherHref); }}>
     <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
       <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
     </svg>
@@ -196,7 +195,7 @@ export function QuietTogetherHome({ overview, memories, onNavigate, confirmLeave
     <header className={styles.quietHeader}>
       <TogetherHomeHeading user={{ ...overview.user, name: overview.user.name || overview.user.email }} userId={overview.user.id}
         partner={relationship.partner} locked={lockedTogether} lockedAt={relationship.mutuallyLockedInAt} now={now} />
-      <TogetherOptionsLink onNavigate={onNavigate} />
+      <ManageTogetherLink onNavigate={onNavigate} />
     </header>
     {lockedTogether ? <TogetherLetter partnerName={relationship.partner.name} memories={memories} now={now} onNavigate={onNavigate} /> : null}
     {chatId ? <TogetherChatActions conversationId={chatId} partnerName={relationship.partner.name} confirmLeave={confirmLeave} /> : null}

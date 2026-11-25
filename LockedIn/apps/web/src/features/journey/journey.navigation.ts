@@ -1,5 +1,12 @@
 export type WorkspaceView = "home" | "talk" | "check-ins" | "conversations" | "atlas" | "roadmap" | "chapters" | "memories" | "room-to-talk" | "options";
 export const workspaceHref = (view: WorkspaceView) => view === "home" ? "/journey" : `/journey?view=${view}`;
+export const manageTogetherHref = workspaceHref("options");
+export const manageTogetherSource = "manage-together";
+export const chatSafetyAnchor = "chat-safety";
+export const discoveryVisibilityAnchor = "discovery-visibility";
+export const discoveryVisibilityHref = `/discover/profile#${discoveryVisibilityAnchor}`;
+export const togetherChatSafetyHref = (conversationId: string) =>
+  `/messages/${encodeURIComponent(conversationId)}?from=${manageTogetherSource}#${chatSafetyAnchor}`;
 export const checkInsHref = workspaceHref("check-ins");
 export const currentCheckInHref = `${checkInsHref}#current-action`;
 export const conversationTopicAnchor = "your-topic";

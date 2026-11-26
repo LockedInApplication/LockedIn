@@ -6,6 +6,7 @@ type ResendEmailParams = {
   subject: string;
   text: string;
   html: string;
+  idempotencyKey?: string;
 };
 
 export default async function resendEmail({
@@ -13,6 +14,7 @@ export default async function resendEmail({
   subject,
   text,
   html,
+  idempotencyKey,
 }: ResendEmailParams): Promise<void> {
   const resend = new Resend(requireEnv("RESEND_API_KEY"));
   const from = requireEnv("RESEND_FROM_EMAIL");
@@ -23,7 +25,7 @@ export default async function resendEmail({
     subject,
     text,
     html,
-  });
+  }, idempotencyKey ? { idempotencyKey } : undefined);
 
   if (result.error) {
     throw new Error(
@@ -31,9 +33,5 @@ export default async function resendEmail({
     );
   }
 
-  console.log("Verification email queued", {
-    to,
-    from,
-    messageId: result.data?.id ?? null,
-  });
+  console.log("Email queued", { messageId: result.data?.id ?? null });
 }

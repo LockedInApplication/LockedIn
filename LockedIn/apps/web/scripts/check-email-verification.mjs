@@ -30,12 +30,18 @@ try {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 }, reducedMotion: "reduce" });
   const page = await context.newPage(), errors = [];
   page.on("pageerror", error => errors.push(error.message));
-  let account = null, verified = false, sends = 0, mode = "success", release = null, freshChecks = 0;
+  let account = null, verified = false, sends = 0, signups = 0, mode = "success", release = null, freshChecks = 0;
   let useCurrentSessionFlag = false;
   const user = () => account ? { id: account, name: "Test Person", email: `${account}@example.test`, emailVerified: false, image: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : null;
   await context.route("**/api/**", async route => {
     const request = route.request(), url = new URL(request.url()), endpoint = url.pathname;
     const json = (data, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(data) });
+    if (endpoint.endsWith("/sign-up/email")) {
+      signups++;
+      assert.equal(request.method(), "POST");
+      assert.equal(request.postDataJSON().email, "signup@example.test");
+      return json({ token: null });
+    }
     if (endpoint.endsWith("/get-session")) {
       const person = user(), fresh = url.searchParams.get("disableCookieCache") === "true";
       if (fresh) freshChecks++;
@@ -63,6 +69,24 @@ try {
   const resend = () => page.getByRole("button", { name: "Resend verification email", exact: true });
   const checkAgain = () => page.getByRole("button", { name: "I've verified my email — check again", exact: true });
   const waitRelease = async () => { for (let tries = 0; !release; tries++) { assert(tries < 100, "Pending email request never arrived"); await new Promise(resolve => setTimeout(resolve, 20)); } };
+
+  const invite = "/connections?compose=invite";
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await page.goto(`${base}/signup?returnTo=${encodeURIComponent(invite)}`);
+    await page.getByLabel("First name", { exact: true }).fill("Ava");
+    await page.getByLabel("Last name", { exact: true }).fill("Sample");
+    await page.getByLabel("Email", { exact: true }).fill("signup@example.test");
+    await page.getByLabel("Password", { exact: true }).fill("Signup fixture password");
+    await page.getByLabel("Confirm password", { exact: true }).fill("Signup fixture password");
+    await page.getByRole("button", { name: "Sign Up", exact: true }).click();
+    await page.getByRole("heading", { name: "Check your inbox.", exact: true }).waitFor();
+    assert.equal(signups, attempt);
+    assert(!page.url().includes("signup%40example.test") && !page.url().includes("signup@example.test"));
+    assert.equal(await page.getByRole("link", { name: "Log in", exact: true }).getAttribute("href"), `/login?returnTo=${encodeURIComponent(invite)}`);
+    assert.equal(await page.getByRole("link", { name: "Reset your password", exact: true }).getAttribute("href"), "/forgot-password");
+    await resend().waitFor();
+  }
+  await page.screenshot({ path: path.join(artifacts, "signup-receipt-393.png"), fullPage: true });
 
   await page.goto(`${base}/verify-email?pending=1`);
   await resend().waitFor();
@@ -147,7 +171,7 @@ try {
     await page.screenshot({ path: path.join(artifacts, `verify-${width}.png`), fullPage: true });
   }
   assert.deepEqual(errors, [], "No browser runtime errors");
-  console.log("PASS verification resend, no false success, failures, duplicate submission, stale status, account switch and layouts" + (process.env.EMAIL_VERIFY_STAGE === "shared" ? "" : ", mandatory member gate and return path"));
+  console.log("PASS neutral signup receipt, verification resend, no false success, failures, duplicate submission, stale status, account switch and layouts" + (process.env.EMAIL_VERIFY_STAGE === "shared" ? "" : ", mandatory member gate and return path"));
 } finally {
   if (browser) await browser.close();
   if (preview) { preview.kill("SIGTERM"); await new Promise(resolve => preview.exitCode !== null ? resolve() : preview.once("exit", resolve)); }

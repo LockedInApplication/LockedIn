@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { env } from "../config/env.js";
+import { buildExistingAccountEmailTemplate } from "./email/templates/existingAccountEmail.js";
 import { buildVerificationEmailTemplate } from "./email/templates/verificationEmail.js";
 import { buildPasswordResetEmailTemplate } from "./email/templates/passwordResetEmail.js";
 import resendEmail from "./email/providers/Resend.js";
@@ -43,6 +46,16 @@ export async function sendPasswordResetEmail({ user, url }: SendEmailParams): Pr
     subject,
     text,
     html,
+  });
+}
+
+export async function sendExistingAccountEmail({ id, email }: { id: string; email: string }): Promise<void> {
+  // A stable key lets Resend suppress repeat notices within its deduplication window.
+  const recipientKey = createHash("sha256").update(id).update("\0").update(email).digest("hex");
+  await resendEmail({
+    to: email,
+    ...buildExistingAccountEmailTemplate(env.APP_URL),
+    idempotencyKey: `existing-account/${recipientKey}`,
   });
 }
 

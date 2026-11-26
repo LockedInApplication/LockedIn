@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/utils/authCLient";
 import { checkEmailVerification, requestEmailVerification } from "./email-verification";
-import { safeMemberReturnTo } from "./member-entry";
+import { authEntryLink, safeMemberReturnTo } from "./member-entry";
 import styles from "./email-verification.module.scss";
 
 export default function EmailVerificationPage() {
@@ -12,10 +12,11 @@ export default function EmailVerificationPage() {
   const errorCode = query.get("error");
   if (session.isPending) return <main className={styles.page}><p role="status">Loading your account…</p></main>;
   const user = session.data?.user;
-  return <VerificationForm key={user ? `${user.id}:${user.email}` : "signed-out"} ownerId={user?.id ?? null} accountEmail={user?.email ?? ""} returnTo={safeMemberReturnTo(query.get("returnTo"))} linkError={errorCode ? "This verification link is invalid or expired. Request a new link below." : ""} />;
+  const signupReceipt = !user && !errorCode && query.get("from") === "signup" && query.get("pending") === "1";
+  return <VerificationForm key={user ? `${user.id}:${user.email}` : "signed-out"} ownerId={user?.id ?? null} accountEmail={user?.email ?? ""} returnTo={safeMemberReturnTo(query.get("returnTo"))} signupReceipt={signupReceipt} linkError={errorCode ? "This verification link is invalid or expired. Request a new link below." : ""} />;
 }
 
-function VerificationForm({ ownerId, accountEmail, linkError, returnTo }: { ownerId: string | null; accountEmail: string; linkError: string; returnTo: string }) {
+function VerificationForm({ ownerId, accountEmail, linkError, returnTo, signupReceipt }: { ownerId: string | null; accountEmail: string; linkError: string; returnTo: string; signupReceipt: boolean }) {
   const [email, setEmail] = useState(accountEmail), [verified, setVerified] = useState(false);
   const [operation, setOperation] = useState<"send" | "check" | null>(null);
   const [message, setMessage] = useState(""), [error, setError] = useState("");
@@ -60,11 +61,17 @@ function VerificationForm({ ownerId, accountEmail, linkError, returnTo }: { owne
   return <main className={styles.page}><section className={styles.card} aria-labelledby="verify-heading">
     <header className={styles.intro}>
       <p className={styles.brand}>LockedIn · Account security</p>
-      <h1 id="verify-heading">{verified ? "Your email is verified." : "Verify your email"}</h1>
-      {!verified ? <p>Follow the link in your email before using LockedIn.</p> : null}
+      <h1 id="verify-heading">{verified ? "Your email is verified." : signupReceipt ? "Check your inbox." : "Verify your email"}</h1>
+      {!verified ? <p>{signupReceipt
+        ? "New to LockedIn? Look for a link to verify your email. If you’ve signed up before, look for a note on how to get back in."
+        : "Follow the link in your email before using LockedIn."}</p> : null}
     </header>
     {verified ? <a className={styles.primary} href={returnTo}>Continue to LockedIn</a> : <>
       {linkError ? <p role="alert" className={styles.error}>{linkError}</p> : null}
+      {signupReceipt ? <div className={styles.returningActions}>
+        <a href={authEntryLink("/login", returnTo)}>Log in</a>
+        <a href="/forgot-password">Reset your password</a>
+      </div> : null}
       <form className={styles.resend} onSubmit={event => { event.preventDefault(); void run("send"); }}>
         <div className={styles.field}>
           <label htmlFor="verification-email">Email address</label>
@@ -72,17 +79,19 @@ function VerificationForm({ ownerId, accountEmail, linkError, returnTo }: { owne
         </div>
         <button className={styles.primary} type="submit" disabled={operation !== null}>{operation === "send" ? "Sending…" : "Resend verification email"}</button>
       </form>
-      <p className={styles.hint}>The link expires after one hour. You can open it in another tab, then return here to check again.</p>
-      <div className={styles.checkAgain}>
+      <p className={styles.hint}>{signupReceipt
+        ? "No email yet? Check your spam folder. Verification links expire after one hour."
+        : "The link expires after one hour. You can open it in another tab, then return here to check again."}</p>
+      {!signupReceipt ? <div className={styles.checkAgain}>
         {ownerId
           ? <button type="button" disabled={operation !== null} onClick={() => void run("check")}>{operation === "check" ? "Checking…" : "I've verified my email — check again"}</button>
           : <><p>Already followed the link?</p><a href={`/login?returnTo=${encodeURIComponent(returnTo)}`}>Sign in to check verification</a></>}
-      </div>
+      </div> : null}
     </>}
     {error ? <p role="alert" className={styles.error}>{error}</p> : null}
     {message ? <p role="status">{message}</p> : null}
-    <footer className={styles.accountActions}>
+    {!signupReceipt ? <footer className={styles.accountActions}>
       {ownerId ? <button type="button" onClick={async () => { const result = await authClient.signOut(); if (!result.error) window.location.assign("/login"); else setError("Could not sign out. Please try again."); }}>Sign out</button> : <a href="/login">Back to login</a>}
-    </footer>
+    </footer> : null}
   </section></main>;
 }

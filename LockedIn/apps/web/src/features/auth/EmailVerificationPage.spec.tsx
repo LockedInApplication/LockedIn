@@ -17,6 +17,17 @@ it("offers resend on the pending page rather than stranding users with instructi
   expect(html).toContain('type="email"');
   expect(html).not.toContain("You will be able to log in after");
 });
+
+it("offers log in, password reset and resend without confirming any account on the signup receipt", () => {
+  state.query = "pending=1&from=signup&returnTo=%2Fconnections%3Fcompose%3Dinvite";
+  const html = renderToStaticMarkup(<VerifyEmailPage />);
+  expect(html).toContain("Check your inbox.");
+  expect(html).toContain("If you’ve signed up before");
+  expect(html).toContain('href="/login?returnTo=%2Fconnections%3Fcompose%3Dinvite">Log in</a>');
+  expect(html).toContain('href="/forgot-password">Reset your password</a>');
+  expect(html).toContain("Resend verification email");
+  expect(html).not.toContain("You already have a LockedIn account");
+});
 it("does not claim verification on a bare URL or query-supplied success", () => {
   for (const query of ["", "verified=1", "pending=1&verified=1"]) {
     state.query = query;

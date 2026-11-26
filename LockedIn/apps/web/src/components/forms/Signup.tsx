@@ -7,7 +7,7 @@ import styles from "../styles/authForms.module.scss";
 import { authClient } from "@/utils/authCLient";
 import { ERROR_MESSAGES } from "./errorCode";
 import { SIGNUP_PASSWORD_HINT, validateSignupFields } from "./signup-fields";
-import { authEntryLink, safeMemberReturnTo, verificationPath } from "@/features/auth/member-entry";
+import { authEntryLink, safeMemberReturnTo, signupReceiptPath, verificationPath } from "@/features/auth/member-entry";
 import { takeSignupEmail } from "@/features/auth/signup-email";
 
 type SignupProps = {
@@ -75,7 +75,7 @@ export default function Signup({ onError, returnTo = "/journey" }: SignupProps) 
         return;
       }
 
-      router.push(destination === "/journey" ? "/verify-email?pending=1" : verification);
+      router.push(signupReceiptPath(destination));
     } catch (error) {
       console.error("Error during sign up:", error);
       onError("An error occurred during sign up. Please try again.");

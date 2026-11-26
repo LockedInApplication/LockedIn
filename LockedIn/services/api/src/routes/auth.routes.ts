@@ -55,6 +55,13 @@ export async function authRoutes(server: FastifyInstance) {
 
         const authResponse = await auth.handler(fetchRequest);
 
+        // With verification required, neither a new nor a repeat signup has a
+        // session yet. Do not return real or synthetic user records to distinguish.
+        if (request.method === "POST" && path === "/api/auth/sign-up/email" &&
+            authResponse.status === 200 && emailVerificationRequired({ emailVerified: false })) {
+          return reply.header("Cache-Control", "no-store").send({ token: null });
+        }
+
         reply.status(authResponse.status);
 
         authResponse.headers.forEach((value, key) => {

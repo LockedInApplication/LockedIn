@@ -19,6 +19,12 @@ export function verificationPath(returnTo: string | null) {
   return `/verify-email?pending=1&returnTo=${encodeURIComponent(safeMemberReturnTo(returnTo))}`;
 }
 
+export function signupReceiptPath(returnTo: string | null) {
+  const destination = safeMemberReturnTo(returnTo);
+  const pending = destination === "/journey" ? "/verify-email?pending=1" : verificationPath(destination);
+  return `${pending}&from=signup`;
+}
+
 export function authEntryLink(path: "/login" | "/signup", returnTo: string | null) {
   const destination = safeMemberReturnTo(returnTo);
   return destination === "/journey" ? path : `${path}?returnTo=${encodeURIComponent(destination)}`;

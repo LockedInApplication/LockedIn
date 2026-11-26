@@ -2,10 +2,12 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const mailbox = vi.hoisted(() => new Map<string, string[]>());
+const existingNotices = vi.hoisted(() => new Set<string>());
 vi.mock("../../lib/email.js", () => ({
   sendEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
     mailbox.set(user.email, [...(mailbox.get(user.email) ?? []), url]);
   },
+  sendExistingAccountEmail: async ({ email }: { email: string }) => { existingNotices.add(email); },
   sendPasswordResetEmail: async () => {},
 }));
 
@@ -28,7 +30,13 @@ describe.skipIf(process.env.DISCOVERY_INTEGRATION !== "true")("required email ve
     const post = (url: string, payload: object) => app.inject({ method: "POST", url, headers: { origin }, payload });
     const signup = await post("/api/auth/sign-up/email", { name: "Local verification fixture", email, password, callbackURL });
     expect(signup.statusCode).toBe(200);
-    expect(signup.json().token).toBeNull();
+    expect(signup.json()).toEqual({ token: null });
+    expect(mailbox.get(email)).toHaveLength(1);
+    const repeat = await post("/api/auth/sign-up/email", { name: "Repeat signup", email: email.toUpperCase(), password: randomUUID(), callbackURL });
+    expect(repeat.statusCode).toBe(200);
+    expect(repeat.body).toBe(signup.body);
+    expect(repeat.headers["set-cookie"]).toBeUndefined();
+    await vi.waitFor(() => expect(existingNotices.has(email)).toBe(true));
     expect(mailbox.get(email)).toHaveLength(1);
     const blocked = await post("/api/auth/sign-in/email", { email, password });
     expect(blocked.statusCode).toBe(403);

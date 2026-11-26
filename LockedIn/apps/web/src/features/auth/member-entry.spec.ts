@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { authEntryLink, isMemberPath, safeMemberReturnTo, verificationPath } from "./member-entry";
+import { authEntryLink, isMemberPath, safeMemberReturnTo, signupReceiptPath, verificationPath } from "./member-entry";
 
 it("requires verification for member pages only", () => {
   for (const path of ["/journey", "/messages/chat", "/connections", "/discover/matching", "/discovery/moderation", "/profile", "/your-space"]) expect(isMemberPath(path)).toBe(true);
@@ -21,4 +21,11 @@ it("keeps the invitation composer through login, signup and verification", () =>
     expect(authEntryLink(path, "/journey")).toBe(path);
   }
   expect(new URL(verificationPath(invite), origin).searchParams.get("returnTo")).toBe(invite);
+});
+
+it("sends every successful signup to the same neutral receipt with a safe return path", () => {
+  expect(signupReceiptPath("/journey")).toBe("/verify-email?pending=1&from=signup");
+  expect(signupReceiptPath("//elsewhere.test")).toBe(signupReceiptPath("/journey"));
+  const invite = "/connections?compose=invite";
+  expect(new URL(signupReceiptPath(invite), "https://example.test").searchParams.get("returnTo")).toBe(invite);
 });
